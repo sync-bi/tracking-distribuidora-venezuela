@@ -1,7 +1,7 @@
 // src/components/Mapa/TabMapa.js
 import React, { useState, useEffect } from 'react';
 import { MapPin, Truck, Package, Route, Eye, RotateCcw, Filter, Navigation, BarChart3 } from 'lucide-react';
-//import { MapPin, Truck, Package, Route, Eye, Refresh, Filter, Navigation, BarChart3 } from 'lucide-react';
+import MapaReal from './MapaReal';
 
 const TabMapa = ({
   camiones,
@@ -119,60 +119,50 @@ const TabMapa = ({
             <option value="todos">Mostrar Todo</option>
             <option value="camiones">Solo Camiones</option>
             <option value="pedidos">Solo Pedidos</option>
-            <option value="rutas">Solo Rutas</option>
+            <option value="enRuta">Solo En Ruta</option>
+            <option value="disponibles">Solo Disponibles</option>
           </select>
 
-          <button className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+          <button 
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            onClick={() => {
+              // Centrar vista en elementos filtrados
+              setUltimaActualizacion(new Date());
+            }}
+          >
             <Eye size={16} />
             Centrar Vista
           </button>
 
-          <button className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+          <button 
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+            onClick={() => setUltimaActualizacion(new Date())}
+          >
             <RotateCcw size={16} />
             Actualizar
           </button>
 
-          <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600">
+          <button 
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+            onClick={() => {
+              // Resetear filtros
+              setFiltroMapa('todos');
+            }}
+          >
             <Filter size={16} />
-            Filtros
+            Limpiar Filtros
           </button>
         </div>
       </div>
 
-      {/* Vista del mapa */}
+      {/* Mapa Real */}
       <div className="bg-white border rounded-lg shadow">
-        <div className="bg-gray-100 h-96 rounded-lg flex items-center justify-center mb-4 relative">
-          <div className="text-center text-gray-500">
-            <MapPin size={48} className="mx-auto mb-2" />
-            <p className="text-lg font-medium">Mapa Interactivo de Venezuela</p>
-            <p className="text-sm">Integración con Google Maps/MapBox en desarrollo</p>
-            <div className="mt-4 text-xs">
-              <p>📍 {camiones.length} camiones • 📦 {pedidos.length} pedidos • 🛣️ {Object.keys(rutas).length} rutas</p>
-            </div>
-          </div>
-          
-          {/* Simulación de elementos en el mapa */}
-          <div className="absolute top-4 left-4 bg-white p-2 rounded shadow text-xs">
-            <div className="font-bold mb-1">Leyenda</div>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span>Camiones en Ruta</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                <span>Camiones Disponibles</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <span>Pedidos Pendientes</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                <span>Rutas Optimizadas</span>
-              </div>
-            </div>
-          </div>
+        <div className="h-96 rounded-lg overflow-hidden">
+          <MapaReal 
+            camiones={camiones}
+            pedidos={pedidos}
+            rutas={rutas}
+          />
         </div>
         
         {/* Panel lateral con información detallada */}
