@@ -1,0 +1,50 @@
+import React from 'react';
+
+const Header = ({ estadisticasPedidos = {}, estadisticasCamiones = {} }) => {
+  return (
+    <header className="bg-white shadow-sm border-b">
+      <div className="px-6 py-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Sistema de Tracking - Distribuidora de Llantas y Baterías
+            </h1>
+            <p className="text-gray-600 mt-1">Venezuela - Seguimiento en Tiempo Real</p>
+          </div>
+          
+          <div className="flex gap-6 text-sm">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {estadisticasPedidos?.total || 0}
+              </div>
+              <div className="text-gray-500">Pedidos Total</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">
+                {estadisticasPedidos?.enRuta || 0}
+              </div>
+              <div className="text-gray-500">En Ruta</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">
+                {estadisticasPedidos?.pendientes || 0}
+              </div>
+              <div className="text-gray-500">Pendientes</div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-600">
+                {estadisticasCamiones?.disponibles || 0}
+              </div>
+              <div className="text-gray-500">Camiones Disponibles</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+
+export default Header;
