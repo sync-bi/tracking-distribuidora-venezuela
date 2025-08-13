@@ -1,6 +1,11 @@
+// src/components/Layout/Header.js
 import React from 'react';
 
-const Header = ({ estadisticasPedidos = {}, estadisticasCamiones = {} }) => {
+const Header = ({ 
+  estadisticasPedidos = {}, 
+  estadisticasCamiones = {},
+  estadisticasDespachos = {}
+}) => {
   return (
     <header className="bg-white shadow-sm border-b">
       <div className="px-6 py-4">
@@ -39,6 +44,20 @@ const Header = ({ estadisticasPedidos = {}, estadisticasCamiones = {} }) => {
                 {estadisticasCamiones?.disponibles || 0}
               </div>
               <div className="text-gray-500">Camiones Disponibles</div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-2xl font-bold text-indigo-600">
+                {(estadisticasDespachos?.enRuta || 0) + (estadisticasDespachos?.enPreparacion || 0)}
+              </div>
+              <div className="text-gray-500">Despachos Activos</div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-2xl font-bold text-cyan-600">
+                {estadisticasDespachos?.conductoresLibres || 0}
+              </div>
+              <div className="text-gray-500">Conductores Libres</div>
             </div>
           </div>
         </div>

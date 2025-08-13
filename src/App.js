@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { usePedidos } from './hooks/usePedidos';
 import { useCamiones } from './hooks/useCamiones';
 import { useRutas } from './hooks/useRutas';
+import { useDespachos } from './hooks/useDespachos';
 
 // Componentes de Layout
 import Header from './components/Layout/Header';
@@ -15,6 +16,9 @@ import TabPedidos from './components/Pedidos/TabPedidos';
 
 // Componentes de Camiones
 import TabCamiones from './components/Camiones/TabCamiones';
+
+// Componentes de Despachos
+import TabDespachos from './components/Despachos/TabDespachos';
 
 // Componentes de Mapa
 import TabMapa from './components/Mapa/TabMapa';
@@ -61,6 +65,18 @@ const App = () => {
     estadisticasRutas
   } = useRutas();
 
+  // Hook de Despachos
+  const {
+    conductores,
+    despachos,
+    asignarConductor,
+    crearDespacho,
+    actualizarDespacho,
+    modificarRuta,
+    obtenerConductoresDisponibles,
+    estadisticas: estadisticasDespachos
+  } = useDespachos();
+
   // Función combinada para asignar camión a pedido
   const handleAsignarCamion = (pedidoId, camionId) => {
     asignarCamionAPedido(pedidoId, camionId);
@@ -73,6 +89,37 @@ const App = () => {
     if (camion) {
       optimizarRutaCamion(camion, pedidos);
     }
+  };
+
+  // Función para crear despacho completo
+  const handleCrearDespacho = (datosDespacho) => {
+    const nuevoDespacho = crearDespacho(datosDespacho);
+    
+    // Asignar pedidos al camión si se seleccionaron
+    if (datosDespacho.pedidosSeleccionados) {
+      datosDespacho.pedidosSeleccionados.forEach(pedidoId => {
+        asignarCamionAPedido(pedidoId, datosDespacho.camionId);
+        asignarPedidoACamion(datosDespacho.camionId, pedidoId);
+      });
+    }
+
+    // Actualizar estado del camión
+    actualizarEstadoCamion(datosDespacho.camionId, 'Asignado');
+
+    return nuevoDespacho;
+  };
+
+  // Función para modificar orden de ruta
+  const handleModificarRuta = (camionId, nuevaRuta) => {
+    const rutaModificada = modificarRuta(camionId, nuevaRuta);
+    
+    // Buscar despacho correspondiente y actualizarlo
+    const despachoActual = despachos.find(d => d.camionId === camionId);
+    if (despachoActual) {
+      actualizarDespacho(despachoActual.id, { ruta: rutaModificada });
+    }
+
+    return rutaModificada;
   };
 
   // Props para cada componente de tab
@@ -98,13 +145,29 @@ const App = () => {
     estadisticas: estadisticasCamiones
   };
 
+  // Props para despachos
+  const despachosProps = {
+    camiones,
+    pedidos,
+    conductores,
+    rutas,
+    despachos,
+    onAsignarConductor: asignarConductor,
+    onCrearDespacho: handleCrearDespacho,
+    onModificarRuta: handleModificarRuta,
+    onActualizarDespacho: actualizarDespacho,
+    estadisticas: estadisticasDespachos
+  };
+
   const mapaProps = {
     camiones,
     pedidos,
     rutas,
+    despachos,
     estadisticasPedidos,
     estadisticasCamiones,
-    estadisticasRutas
+    estadisticasRutas,
+    estadisticasDespachos
   };
 
   // Renderizar contenido de tab activo
@@ -114,6 +177,8 @@ const App = () => {
         return <TabPedidos {...pedidosProps} />;
       case 'camiones':
         return <TabCamiones {...camionesProps} />;
+      case 'despachos':
+        return <TabDespachos {...despachosProps} />;
       case 'mapa':
         return <TabMapa {...mapaProps} />;
       default:
@@ -127,6 +192,7 @@ const App = () => {
       <Header 
         estadisticasPedidos={estadisticasPedidos}
         estadisticasCamiones={estadisticasCamiones}
+        estadisticasDespachos={estadisticasDespachos}
       />
 
       {/* Navigation */}

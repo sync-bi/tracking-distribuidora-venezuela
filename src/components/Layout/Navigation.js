@@ -1,6 +1,6 @@
 // src/components/Layout/Navigation.js
 import React from 'react';
-import { Package, Truck, MapPin } from 'lucide-react';
+import { Package, Truck, MapPin, Clipboard } from 'lucide-react';
 
 const Navigation = ({ activeTab, setActiveTab }) => {
   const tabs = [
@@ -15,6 +15,12 @@ const Navigation = ({ activeTab, setActiveTab }) => {
       label: 'Camiones',
       icon: Truck,
       description: 'Seguimiento de vehículos'
+    },
+    {
+      id: 'despachos',
+      label: 'Despachos',
+      icon: Clipboard,
+      description: 'Centro de operaciones y rutas'
     },
     {
       id: 'mapa',
