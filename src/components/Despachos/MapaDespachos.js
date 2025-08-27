@@ -1,9 +1,9 @@
-// src/components/Despachos/MapaDespachos.js - Versión con líneas corregidas
+// src/components/Despachos/MapaDespachos.js - Con rutas reales
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Map, { Marker, Popup, Source, Layer } from 'react-map-gl';
 import { 
   MapPin, Truck, Navigation, Route, Eye, EyeOff, 
-  ZoomIn, ZoomOut, RotateCcw, Settings
+  ZoomIn, ZoomOut, RotateCcw, Settings, AlertTriangle
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
@@ -16,7 +16,7 @@ const MapaDespachos = ({
 }) => {
   const mapRef = useRef();
   const [viewState, setViewState] = useState({
-    longitude: -66.9036, // Caracas, Venezuela
+    longitude: -66.9036,
     latitude: 10.4806,
     zoom: 6,
     bearing: 0,
@@ -27,11 +27,12 @@ const MapaDespachos = ({
   const [mostrarEtiquetas, setMostrarEtiquetas] = useState(true);
   const [mostrarLineasRuta, setMostrarLineasRuta] = useState(true);
   const [estiloMapa, setEstiloMapa] = useState('mapbox://styles/mapbox/streets-v12');
+  const [rutasReales, setRutasReales] = useState({}); // Almacenar rutas calculadas
+  const [calculandoRutas, setCalculandoRutas] = useState(false);
+  const [perfilRuta, setPerfilRuta] = useState('driving-traffic'); // driving-traffic, driving, cycling, walking
 
-  // Obtener la ruta actual (editada o normal)
   const rutaActual = editandoRuta ? rutaEditada : ruta;
 
-  // Coordenadas por defecto para ciudades venezolanas
   const coordenadasCiudades = [
     { lat: 10.4806, lng: -66.9036, nombre: 'Caracas' },
     { lat: 10.1621, lng: -68.0075, nombre: 'Valencia' },
@@ -41,7 +42,6 @@ const MapaDespachos = ({
     { lat: 10.2133, lng: -64.6333, nombre: 'Puerto La Cruz' }
   ];
 
-  // Obtener coordenadas para una parada
   const obtenerCoordenadasParada = (parada, index) => {
     if (parada.coordenadas) {
       return { lng: parada.coordenadas.lng, lat: parada.coordenadas.lat };
@@ -50,101 +50,171 @@ const MapaDespachos = ({
     return { lng: ciudad.lng, lat: ciudad.lat };
   };
 
-  // Generar datos de línea de ruta para Mapbox - VERSIÓN CORREGIDA
-  const generarDatosRuta = () => {
-    if (rutaActual.length === 0) return null;
-
-    const coordinates = [];
-    
-    // Agregar punto de inicio (depósito/camión)
-    if (camion?.ubicacionActual) {
-      coordinates.push([camion.ubicacionActual.lng, camion.ubicacionActual.lat]);
-    } else {
-      coordinates.push([-66.9036, 10.4806]); // Caracas por defecto
+  // Función para calcular ruta real usando Mapbox Directions API
+  const calcularRutaReal = async (origen, destino, perfil = 'driving-traffic') => {
+    try {
+      const url = `https://api.mapbox.com/directions/v5/mapbox/${perfil}/${origen.lng},${origen.lat};${destino.lng},${destino.lat}?geometries=geojson&overview=full&steps=true&access_token=${process.env.REACT_APP_MAPBOX_TOKEN}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.routes && data.routes[0]) {
+        const route = data.routes[0];
+        return {
+          geometry: route.geometry,
+          distance: route.distance / 1000, // convertir a km
+          duration: route.duration / 60,   // convertir a minutos
+          steps: route.legs[0]?.steps || []
+        };
+      }
+    } catch (error) {
+      console.error('Error calculando ruta real:', error);
     }
+    return null;
+  };
 
-    // Agregar todas las paradas en orden
-    rutaActual.forEach((parada, index) => {
-      const coords = obtenerCoordenadasParada(parada, index);
-      coordinates.push([coords.lng, coords.lat]);
+  // Calcular todas las rutas reales
+  const calcularTodasLasRutasReales = useCallback(async () => {
+    if (rutaActual.length === 0) return;
+
+    setCalculandoRutas(true);
+    const nuevasRutas = {};
+
+    try {
+      // Punto de inicio
+      const puntoInicio = camion?.ubicacionActual || { lng: -66.9036, lat: 10.4806 };
+      let puntoAnterior = puntoInicio;
+
+      // Calcular ruta desde depósito hasta primera parada y entre paradas
+      for (let i = 0; i < rutaActual.length; i++) {
+        const parada = rutaActual[i];
+        const coordsParada = obtenerCoordenadasParada(parada, i);
+        
+        const rutaReal = await calcularRutaReal(puntoAnterior, coordsParada, perfilRuta);
+        
+        if (rutaReal) {
+          nuevasRutas[`segmento-${i}`] = {
+            ...rutaReal,
+            origen: puntoAnterior,
+            destino: coordsParada,
+            paradaIndex: i
+          };
+        }
+        
+        puntoAnterior = coordsParada;
+      }
+
+      setRutasReales(nuevasRutas);
+    } catch (error) {
+      console.error('Error calculando rutas reales:', error);
+    } finally {
+      setCalculandoRutas(false);
+    }
+  }, [rutaActual, camion, perfilRuta]);
+
+  // Generar datos GeoJSON para todas las rutas reales
+  const generarDatosRutasReales = () => {
+    const features = [];
+    
+    Object.entries(rutasReales).forEach(([segmentoId, rutaData]) => {
+      if (rutaData.geometry) {
+        features.push({
+          type: 'Feature',
+          properties: {
+            'route-type': editandoRuta ? 'editing' : 'normal',
+            'segmento-id': segmentoId,
+            'distancia': rutaData.distance,
+            'duracion': rutaData.duration
+          },
+          geometry: rutaData.geometry
+        });
+      }
     });
 
-    // Solo crear la línea si tenemos al menos 2 puntos
-    if (coordinates.length < 2) return null;
-
-    return {
-      type: 'Feature',
-      properties: {
-        'route-type': editandoRuta ? 'editing' : 'normal'
-      },
-      geometry: {
-        type: 'LineString',
-        coordinates
-      }
-    };
+    return features.length > 0 ? {
+      type: 'FeatureCollection',
+      features
+    } : null;
   };
 
-  // Configuración de la línea de ruta normal
-  const lineLayerNormal = {
-    id: 'route-normal',
+  // Configuraciones de línea para rutas reales
+  const lineLayerRutaReal = {
+    id: 'route-real',
     type: 'line',
-    source: 'route',
+    source: 'route-real',
     layout: {
       'line-join': 'round',
       'line-cap': 'round'
     },
     paint: {
-      'line-color': '#3b82f6',
-      'line-width': 5,
-      'line-opacity': 0.8
-    },
-    filter: ['==', ['get', 'route-type'], 'normal']
+      'line-color': [
+        'case',
+        ['==', ['get', 'route-type'], 'editing'],
+        '#f59e0b', // naranja para edición
+        '#3b82f6'  // azul para normal
+      ],
+      'line-width': [
+        'case',
+        ['==', ['get', 'route-type'], 'editing'],
+        6,  // más gruesa en edición
+        4
+      ],
+      'line-opacity': 0.8,
+      'line-dasharray': [
+        'case',
+        ['==', ['get', 'route-type'], 'editing'],
+        ['literal', [3, 3]], // punteada en edición
+        ['literal', [1, 0]]   // sólida normal
+      ]
+    }
   };
 
-  // Configuración de la línea de ruta en edición
-  const lineLayerEditing = {
-    id: 'route-editing',
+  // Capa para resaltar rutas con tráfico pesado
+  const lineLayerTrafico = {
+    id: 'route-traffic',
     type: 'line',
-    source: 'route',
+    source: 'route-real',
     layout: {
       'line-join': 'round',
       'line-cap': 'round'
     },
     paint: {
-      'line-color': '#f59e0b',
-      'line-width': 6,
-      'line-opacity': 0.7,
-      'line-dasharray': [3, 3]
+      'line-color': '#ef4444', // rojo para indicar tráfico
+      'line-width': 2,
+      'line-opacity': 0.6
     },
-    filter: ['==', ['get', 'route-type'], 'editing']
+    filter: ['>', ['get', 'duracion'], 60] // Solo rutas que toman más de 60 min
   };
 
-  // Obtener colores para los marcadores
   const obtenerColorMarcador = (index) => {
     const colores = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4'];
     return colores[index % colores.length];
   };
 
-  // Centrar mapa en la ruta - VERSIÓN SIMPLIFICADA
+  // Calcular rutas cuando cambie la ruta actual
+  useEffect(() => {
+    if (rutaActual.length > 0) {
+      calcularTodasLasRutasReales();
+    }
+  }, [calcularTodasLasRutasReales]);
+
+  // Centrar mapa
   const centrarEnRuta = useCallback(() => {
     if (rutaActual.length === 0 || !mapRef.current) return;
 
     try {
       const coordinates = [];
       
-      // Agregar coordenadas del camión
       if (camion?.ubicacionActual) {
         coordinates.push([camion.ubicacionActual.lng, camion.ubicacionActual.lat]);
       }
       
-      // Agregar coordenadas de las paradas
       rutaActual.forEach((parada, index) => {
         const coords = obtenerCoordenadasParada(parada, index);
         coordinates.push([coords.lng, coords.lat]);
       });
 
       if (coordinates.length > 0) {
-        // Calcular bounds manualmente
         const lngs = coordinates.map(coord => coord[0]);
         const lats = coordinates.map(coord => coord[1]);
         
@@ -156,7 +226,6 @@ const MapaDespachos = ({
         const centerLng = (minLng + maxLng) / 2;
         const centerLat = (minLat + maxLat) / 2;
         
-        // Calcular zoom apropiado
         const lngDiff = maxLng - minLng;
         const latDiff = maxLat - minLat;
         const maxDiff = Math.max(lngDiff, latDiff);
@@ -180,18 +249,6 @@ const MapaDespachos = ({
     }
   }, [rutaActual, camion]);
 
-  // Efectos
-  useEffect(() => {
-    if (rutaActual.length > 0) {
-      const timer = setTimeout(() => {
-        centrarEnRuta();
-      }, 300);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [rutaActual.length, centrarEnRuta]);
-
-  // Handlers de zoom
   const handleZoomIn = () => {
     setViewState(prev => ({
       ...prev,
@@ -208,7 +265,9 @@ const MapaDespachos = ({
     }));
   };
 
-  const datosRuta = generarDatosRuta();
+  const datosRutasReales = generarDatosRutasReales();
+  const distanciaTotal = Object.values(rutasReales).reduce((acc, ruta) => acc + (ruta.distance || 0), 0);
+  const tiempoTotal = Object.values(rutasReales).reduce((acc, ruta) => acc + (ruta.duration || 0), 0);
 
   return (
     <div className="bg-white rounded-lg border shadow-sm">
@@ -217,10 +276,15 @@ const MapaDespachos = ({
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center gap-2">
             <Navigation className="text-blue-600" size={20} />
-            <h4 className="font-medium">Mapa de Ruta - {camion?.id}</h4>
+            <h4 className="font-medium">Mapa de Ruta Real - {camion?.id}</h4>
             {editandoRuta && (
               <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium animate-pulse">
-                ✏️ Editando
+                Editando
+              </span>
+            )}
+            {calculandoRutas && (
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                Calculando rutas...
               </span>
             )}
           </div>
@@ -256,24 +320,36 @@ const MapaDespachos = ({
               Satélite
             </button>
             <button
-              onClick={() => setEstiloMapa('mapbox://styles/mapbox/outdoors-v12')}
+              onClick={() => setEstiloMapa('mapbox://styles/mapbox/navigation-day-v1')}
               className={`px-3 py-1 text-xs rounded transition-colors ${
-                estiloMapa.includes('outdoors') 
+                estiloMapa.includes('navigation') 
                   ? 'bg-blue-500 text-white' 
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              Híbrida
+              Navegación
             </button>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Selector de perfil de ruta */}
+            <select
+              value={perfilRuta}
+              onChange={(e) => setPerfilRuta(e.target.value)}
+              className="text-xs p-1 border rounded"
+              title="Tipo de ruta"
+            >
+              <option value="driving-traffic">Tráfico Real</option>
+              <option value="driving">Conducir</option>
+              <option value="cycling">Ciclismo</option>
+              <option value="walking">Caminar</option>
+            </select>
+
             <button
               onClick={() => setMostrarEtiquetas(!mostrarEtiquetas)}
               className={`p-1 rounded transition-colors ${
                 mostrarEtiquetas ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'
               }`}
-              title="Mostrar/ocultar etiquetas"
             >
               {mostrarEtiquetas ? <Eye size={16} /> : <EyeOff size={16} />}
             </button>
@@ -283,33 +359,20 @@ const MapaDespachos = ({
               className={`p-1 rounded transition-colors ${
                 mostrarLineasRuta ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-gray-600'
               }`}
-              title="Mostrar/ocultar líneas de ruta"
             >
               <Route size={16} />
             </button>
 
             <div className="flex border rounded bg-white">
-              <button
-                onClick={handleZoomOut}
-                className="p-1 hover:bg-gray-100 transition-colors"
-                title="Alejar"
-              >
+              <button onClick={handleZoomOut} className="p-1 hover:bg-gray-100">
                 <ZoomOut size={14} />
               </button>
-              <button
-                onClick={handleZoomIn}
-                className="p-1 hover:bg-gray-100 border-l transition-colors"
-                title="Acercar"
-              >
+              <button onClick={handleZoomIn} className="p-1 hover:bg-gray-100 border-l">
                 <ZoomIn size={14} />
               </button>
             </div>
 
-            <button
-              onClick={centrarEnRuta}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
-              title="Centrar en ruta"
-            >
+            <button onClick={centrarEnRuta} className="p-1 hover:bg-gray-100 rounded">
               <RotateCcw size={14} />
             </button>
           </div>
@@ -327,14 +390,11 @@ const MapaDespachos = ({
           mapStyle={estiloMapa}
           attributionControl={false}
         >
-          {/* Líneas de ruta - VERSIÓN CORREGIDA */}
-          {mostrarLineasRuta && datosRuta && (
-            <Source 
-              id="route" 
-              type="geojson" 
-              data={datosRuta}
-            >
-              <Layer {...(editandoRuta ? lineLayerEditing : lineLayerNormal)} />
+          {/* Rutas reales siguiendo carreteras */}
+          {mostrarLineasRuta && datosRutasReales && (
+            <Source id="route-real" type="geojson" data={datosRutasReales}>
+              <Layer {...lineLayerRutaReal} />
+              {perfilRuta === 'driving-traffic' && <Layer {...lineLayerTrafico} />}
             </Source>
           )}
 
@@ -363,6 +423,8 @@ const MapaDespachos = ({
           {rutaActual.map((parada, index) => {
             const coords = obtenerCoordenadasParada(parada, index);
             const color = obtenerColorMarcador(index);
+            const rutaSegmento = rutasReales[`segmento-${index}`];
+            const tieneRetraso = rutaSegmento && rutaSegmento.duration > 60;
             
             return (
               <Marker
@@ -379,6 +441,7 @@ const MapaDespachos = ({
                     type: 'parada', 
                     data: parada, 
                     index: index + 1,
+                    rutaInfo: rutaSegmento,
                     longitude: coords.lng,
                     latitude: coords.lat
                   })}
@@ -390,6 +453,13 @@ const MapaDespachos = ({
                   >
                     <span className="text-white font-bold text-xs">{index + 1}</span>
                   </div>
+                  
+                  {/* Indicador de tráfico pesado */}
+                  {tieneRetraso && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                      <AlertTriangle size={10} className="text-white" />
+                    </div>
+                  )}
                   
                   {/* Etiqueta flotante */}
                   {mostrarEtiquetas && (
@@ -425,9 +495,15 @@ const MapaDespachos = ({
                     <h4 className="font-bold text-blue-600">Parada #{popupInfo.index}</h4>
                     <p className="text-sm font-medium">{popupInfo.data.cliente}</p>
                     <p className="text-xs text-gray-600">{popupInfo.data.direccion}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Prioridad: {popupInfo.data.prioridad}
-                    </p>
+                    {popupInfo.rutaInfo && (
+                      <div className="mt-2 text-xs">
+                        <p>Distancia: {popupInfo.rutaInfo.distance.toFixed(1)} km</p>
+                        <p>Tiempo: {Math.round(popupInfo.rutaInfo.duration)} min</p>
+                        {popupInfo.rutaInfo.duration > 60 && (
+                          <p className="text-red-600 font-medium">⚠️ Tráfico pesado</p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -439,7 +515,7 @@ const MapaDespachos = ({
         <div className="absolute bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg border max-w-sm">
           <h5 className="font-medium text-sm mb-3 flex items-center gap-2">
             <Route size={14} className="text-blue-600" />
-            Información de Ruta
+            Ruta Real
           </h5>
           <div className="space-y-2 text-xs text-gray-600">
             <div className="flex justify-between">
@@ -447,15 +523,22 @@ const MapaDespachos = ({
               <span className="font-medium text-gray-900">{rutaActual.length}</span>
             </div>
             <div className="flex justify-between">
-              <span>Distancia total:</span>
+              <span>Distancia real:</span>
               <span className="font-medium text-gray-900">
-                {rutaActual.reduce((acc, curr) => acc + (curr.distancia || 0), 0).toFixed(1)} km
+                {distanciaTotal.toFixed(1)} km
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Tiempo estimado:</span>
+              <span>Tiempo real:</span>
               <span className="font-medium text-gray-900">
-                {Math.round(rutaActual.reduce((acc, curr) => acc + (curr.tiempoEstimado || 0), 0))} min
+                {Math.round(tiempoTotal)} min
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span>Tipo:</span>
+              <span className="font-medium text-blue-600">
+                {perfilRuta === 'driving-traffic' ? 'Con Tráfico' : 
+                 perfilRuta === 'driving' ? 'Conducir' : perfilRuta}
               </span>
             </div>
             <div className="flex justify-between">
@@ -463,27 +546,11 @@ const MapaDespachos = ({
               <span className={`font-medium ${
                 editandoRuta ? 'text-orange-600' : 'text-green-600'
               }`}>
-                {editandoRuta ? '✏️ Editando' : '✅ Optimizada'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Líneas visibles:</span>
-              <span className={`font-medium ${mostrarLineasRuta ? 'text-green-600' : 'text-red-600'}`}>
-                {mostrarLineasRuta ? '✅ SÍ' : '❌ NO'}
+                {editandoRuta ? 'Editando' : 'Optimizada'}
               </span>
             </div>
           </div>
         </div>
-
-        {/* Indicador de edición */}
-        {editandoRuta && (
-          <div className="absolute top-4 left-4 bg-orange-500 text-white px-3 py-2 rounded-lg shadow-lg text-xs font-medium animate-pulse">
-            <div className="flex items-center gap-2">
-              <Route size={12} />
-              <span>Modificando ruta en tiempo real...</span>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Leyenda */}
@@ -492,27 +559,26 @@ const MapaDespachos = ({
           <div className="flex items-center gap-6 text-xs text-gray-600">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-green-500 rounded-full shadow-sm"></div>
-              <span>Depósito/Camión</span>
+              <span>Depósito</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-blue-500 rounded-full shadow-sm"></div>
-              <span>Paradas numeradas</span>
+              <span>Paradas</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-8 h-1 bg-blue-500 rounded shadow-sm"></div>
-              <span>Ruta optimizada</span>
+              <span>Ruta real</span>
             </div>
-            {editandoRuta && (
+            {perfilRuta === 'driving-traffic' && (
               <div className="flex items-center gap-2">
-                <div className="w-8 h-1 bg-orange-500 rounded shadow-sm opacity-60"></div>
-                <span>Ruta en edición</span>
+                <div className="w-8 h-1 bg-red-500 rounded shadow-sm"></div>
+                <span>Tráfico pesado</span>
               </div>
             )}
           </div>
           
-          <div className="text-xs text-gray-500 flex items-center gap-1">
-            <MapPin size={12} />
-            <span>Haga clic en los marcadores para más información</span>
+          <div className="text-xs text-gray-500">
+            Rutas calculadas por carreteras reales
           </div>
         </div>
       </div>
