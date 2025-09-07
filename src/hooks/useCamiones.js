@@ -11,7 +11,8 @@ export const useCamiones = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setCamiones(prev => prev.map(camion => {
-        if (camion.estado === ESTADOS_CAMION.EN_RUTA) {
+        // Evitar simulación cuando hay tracking activo desde el dispositivo del conductor
+        if (camion.estado === ESTADOS_CAMION.EN_RUTA && !camion.trackingActivo) {
           return {
             ...camion,
             ubicacionActual: simularMovimientoCamion(

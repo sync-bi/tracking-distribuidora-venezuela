@@ -57,6 +57,48 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/a
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
 
+## Tracking del Conductor (Fase 1)
+
+Se añadió una pestaña "Conductor" para iniciar/detener el seguimiento desde el móvil/tablet. El mapa refleja el movimiento del camión en tiempo real.
+
+Variables de entorno (archivo `.env.local`):
+
+```
+# REST (recomendado en Fase 1)
+REACT_APP_TRACKING_MODE=rest
+REACT_APP_TRACKING_BASE_URL=https://tu-backend.example.com/api
+
+# Si tu backend requiere encabezado de autorización personalizado
+# REACT_APP_TRACKING_AUTH_HEADER=Authorization
+# REACT_APP_TRACKING_AUTH_VALUE=Bearer <tu_token>
+```
+
+Formato del endpoint esperado (REST):
+- POST {REACT_APP_TRACKING_BASE_URL}/tracking/{vehiculoId}
+- Body JSON: `{ driverId, vehiculoId, lat, lng, speedKmh?, heading?, accuracy?, ts, source }`
+- Respuesta: 200/201 (JSON opcional)
+
+Si `REACT_APP_TRACKING_BASE_URL` no está configurado, los eventos se encolan localmente y se reintentan cuando el backend esté disponible.
+
+### Backend en Vercel (sin servidor propio)
+
+Este repo incluye una Function de Vercel para recibir posiciones:
+
+- Ruta: `api/tracking/[vehiculoId].js`
+- Endpoint: `POST https://<tu-proyecto>.vercel.app/api/tracking/<vehiculoId>`
+- CORS abierto por defecto (ajústalo si lo necesitas)
+- Auth opcional con token: configura `TRACKING_API_TOKEN` en Vercel y envía `Authorization: Bearer <TOKEN>` desde el cliente.
+
+Pasos:
+- Conecta este repo a Vercel y despliega.
+- En Vercel → Project → Settings → Environment Variables, agrega (opcional) `TRACKING_API_TOKEN`.
+- En `.env.local` del frontend añade:
+  - `REACT_APP_TRACKING_MODE=rest`
+  - `REACT_APP_TRACKING_BASE_URL=https://<tu-proyecto>.vercel.app/api`
+  - Si usas token: `REACT_APP_TRACKING_AUTH_HEADER=Authorization` y `REACT_APP_TRACKING_AUTH_VALUE=Bearer <TOKEN>`
+
+Con esto, el móvil del conductor enviará los puntos a tu endpoint en Vercel sin necesidad de un servidor aparte.
+
 ### Advanced Configuration
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
