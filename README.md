@@ -99,6 +99,17 @@ Pasos:
 
 Con esto, el móvil del conductor enviará los puntos a tu endpoint en Vercel sin necesidad de un servidor aparte.
 
+## Carga Automática de Pedidos (Producción)
+
+- La app carga automáticamente pedidos desde un archivo público si existe:
+  - Busca en este orden: `/pedidos.xlsx`, `/Pedidos.xlsx`, `/pedidos.csv`, `/Pedidos.csv` (carpeta `public/`).
+  - No requiere interacción del usuario.
+- Coloca tu Excel en `public/Pedidos.xlsx` (o `public/pedidos.xlsx`) antes de desplegar.
+- Variables opcionales:
+  - `REACT_APP_AUTOLOAD_PEDIDOS=true` (default) para activar la autocarga.
+  - `REACT_APP_ALLOW_MANUAL_IMPORT=false` (default) para ocultar el botón de importación manual.
+
+
 ### Advanced Configuration
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)

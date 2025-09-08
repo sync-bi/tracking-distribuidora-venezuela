@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Plus, Search, Package } from 'lucide-react';
 import FormularioNuevoPedido from './FormularioNuevoPedido';
 import TarjetaPedido from './TarjetaPedido';
+import ImportPedidos from './ImportPedidos';
 
 const TabPedidos = ({
   pedidos,
@@ -12,7 +13,8 @@ const TabPedidos = ({
   onActualizarEstado,
   onEliminarPedido,
   onBuscarPedidos,
-  estadisticas
+  estadisticas,
+  onImportarPedidos
 }) => {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
@@ -30,6 +32,11 @@ const TabPedidos = ({
       pedido.direccion.toLowerCase().includes(terminoBusqueda.toLowerCase());
 
     return cumpleFiltroEstado && cumpleFiltroPrioridad && cumpleBusqueda;
+  }).sort((a, b) => {
+    const na = (a.id || '').toString().match(/\d+/)?.[0];
+    const nb = (b.id || '').toString().match(/\d+/)?.[0];
+    if (na && nb) return Number(na) - Number(nb);
+    return (a.id || '').localeCompare(b.id || '');
   });
 
   const handleCrearPedido = (nuevoPedido) => {
@@ -51,6 +58,13 @@ const TabPedidos = ({
             Nuevo Pedido
           </button>
         </div>
+
+        {/* Importar manual (oculto por defecto en producción) */}
+        {String(process.env.REACT_APP_ALLOW_MANUAL_IMPORT || 'false').toLowerCase() === 'true' && (
+          <div className="flex justify-end">
+            <ImportPedidos onImport={onImportarPedidos} />
+          </div>
+        )}
 
         {/* Estadísticas rápidas */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">

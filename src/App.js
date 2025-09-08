@@ -56,6 +56,7 @@ const App = () => {
     asignarCamionAPedido,
     eliminarPedido,
     actualizarPedido,
+    reemplazarPedidos,
     obtenerPedidosPorEstado,
     obtenerPedidosPorCamion,
     obtenerPedidosPorPrioridad,
@@ -153,7 +154,17 @@ const App = () => {
     onActualizarEstado: actualizarEstadoPedido,
     onEliminarPedido: eliminarPedido,
     onBuscarPedidos: buscarPedidos,
-    estadisticas: estadisticasPedidos
+    estadisticas: estadisticasPedidos,
+    onImportarPedidos: (nuevos) => {
+      const normalizados = (nuevos || []).map((p, idx) => ({
+        ...p,
+        id: p.id || `PED${String(idx + 1).padStart(3, '0')}`,
+        coordenadas: p.coordenadas && typeof p.coordenadas.lat === 'number' && typeof p.coordenadas.lng === 'number'
+          ? p.coordenadas
+          : { lat: 10.4806, lng: -66.9036 }
+      }));
+      reemplazarPedidos(normalizados);
+    }
   };
 
   const camionesProps = {

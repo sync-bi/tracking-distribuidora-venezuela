@@ -1,11 +1,27 @@
 // src/hooks/usePedidos.js
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { pedidosIniciales } from '../data/mockData';
+import { loadPedidosFromPublic } from '../utils/importers';
 import { generarCoordenadasVenezuela } from '../utils/calculos';
 import { ESTADOS_PEDIDO } from '../utils/constants';
 
 export const usePedidos = () => {
   const [pedidos, setPedidos] = useState(pedidosIniciales);
+
+  // Autocarga de pedidos desde /public/pedidos.xlsx|csv si existe
+  useEffect(() => {
+    let mounted = true;
+    const shouldAuto = String(process.env.REACT_APP_AUTOLOAD_PEDIDOS || 'true').toLowerCase() === 'true';
+    if (shouldAuto && (!pedidos || pedidos.length === 0)) {
+      (async () => {
+        try {
+          const imported = await loadPedidosFromPublic();
+          if (mounted && imported.length) setPedidos(imported);
+        } catch (_) { /* ignore */ }
+      })();
+    }
+    return () => { mounted = false; };
+  }, []);
 
   // Crear nuevo pedido
   const crearPedido = useCallback((datosPedido) => {
@@ -62,6 +78,12 @@ export const usePedidos = () => {
     ));
   }, []);
 
+  // Reemplazar todos los pedidos (importación masiva)
+  const reemplazarPedidos = useCallback((nuevosPedidos) => {
+    if (!Array.isArray(nuevosPedidos)) return;
+    setPedidos(nuevosPedidos);
+  }, []);
+
   // Obtener pedidos por estado
   const obtenerPedidosPorEstado = useCallback((estado) => {
     return pedidos.filter(pedido => pedido.estado === estado);
@@ -113,6 +135,7 @@ export const usePedidos = () => {
     asignarCamionAPedido,
     eliminarPedido,
     actualizarPedido,
+    reemplazarPedidos,
     obtenerPedidosPorEstado,
     obtenerPedidosPorCamion,
     obtenerPedidosPorPrioridad,

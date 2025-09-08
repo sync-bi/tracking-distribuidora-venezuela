@@ -64,7 +64,7 @@ const TarjetaPedido = ({
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-bold text-lg text-gray-900">{pedido.id}</h3>
+            <h3 className="font-bold text-lg text-gray-900">N° Pedido: {pedido.id}</h3>
             {esUrgente() && <AlertCircle size={18} className="text-red-500" />}
           </div>
           <h4 className="font-medium text-gray-700 mb-1">{pedido.cliente}</h4>
@@ -94,11 +94,17 @@ const TarjetaPedido = ({
         </h5>
         <div className="space-y-1">
           {pedido.productos.map((producto, index) => (
-            <div key={index} className="text-sm bg-gray-50 p-2 rounded flex justify-between">
-              <span>
-                <span className="font-medium">{producto.tipo}</span> - {producto.marca} {producto.modelo}
-              </span>
-              <span className="text-gray-600">x{producto.cantidad}</span>
+            <div key={index} className="text-sm bg-gray-50 p-2 rounded flex justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium truncate">{producto.descripcion || producto.modelo || producto.tipo || 'Producto'}</div>
+                <div className="text-xs text-gray-600 truncate">{producto.modelo ? `Código: ${producto.modelo}` : ''}</div>
+              </div>
+              <div className="text-right whitespace-nowrap">
+                <div className="text-gray-600">x{producto.cantidad}</div>
+                {typeof producto.precioUnitario === 'number' && (
+                  <div className="text-gray-700">{Math.trunc(producto.subtotal ?? (producto.precioUnitario * producto.cantidad))}</div>
+                )}
+              </div>
             </div>
           ))}
         </div>
