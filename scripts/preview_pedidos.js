@@ -1,7 +1,11 @@
-import { CIUDADES_VENEZUELA } from './constants';
-// src/utils/importers.js
+// scripts/preview_pedidos.js
+// Preview de mapeo de public/Pedidos.xlsx hacia el modelo de pedidos
+// Ejecuta: node scripts/preview_pedidos.js
 
-// Normaliza cabeceras: sin tildes, minúsculas, solo alfanumérico
+const path = require('path');
+const fs = require('fs');
+const XLSX = require('xlsx');
+
 const normalize = (s = '') => s
   .toString()
   .normalize('NFD').replace(/\p{Diacritic}/gu, '')
@@ -9,11 +13,10 @@ const normalize = (s = '') => s
   .replace(/[^a-z0-9]/g, '')
   .trim();
 
-// Convierte serial de Excel (días desde 1899-12-30) a YYYY-MM-DD
 const excelSerialToISO = (val) => {
   if (val == null) return '';
   const s = String(val).trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // ya es ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   const n = Number(s);
   if (!Number.isFinite(n)) return s;
   const ms = Math.round((n - 25569) * 86400 * 1000);
@@ -22,46 +25,12 @@ const excelSerialToISO = (val) => {
   return d.toISOString().split('T')[0];
 };
 
-export const parseCSV = (text) => {
-  const rows = [];
-  let i = 0, field = '', row = [], inQuotes = false;
-  while (i < text.length) {
-    const c = text[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (text[i + 1] === '"') { field += '"'; i++; }
-        else { inQuotes = false; }
-      } else { field += c; }
-    } else {
-      if (c === '"') inQuotes = true;
-      else if (c === ',') { row.push(field); field = ''; }
-      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
-      else if (c === '\r') { /* ignore */ }
-      else { field += c; }
-    }
-    i++;
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row); }
-  return rows;
-};
-
-
-const cityToCoord = (cityRaw) => {
-  if (!cityRaw) return null;
-  const city = normalize(cityRaw);
-  const found = CIUDADES_VENEZUELA.find(c => normalize(c.nombre) === city);
-  if (found) return found.coordenadas;
-  // intento por contiene
-  const partial = CIUDADES_VENEZUELA.find(c => city.includes(normalize(c.nombre)));
-  return partial ? partial.coordenadas : null;
-};
-
-export const mapRowsToPedidos = (rows) => {
+function mapRowsToPedidos(rows) {
   if (!rows.length) return [];
-  // Detectar fila de cabeceras (busca la que más coincide con tokens esperados)
   const expected = [
     'numero_pedido','fecha_pedido','nombre_cliente','direccion_cliente','ciudad_cliente',
-    'codigo_articulo','descripcion_articulo','cantidad_pedida','prioridad','estado','lat','lng','fecha','hora','productos','cliente','direccion'
+    'codigo_articulo','descripcion_articulo','cantidad_pedida','prioridad','estado','lat','lng','fecha','hora','productos','cliente','direccion',
+    'precio_unitario','monto_neto','codigo_cliente','fecha_vencimiento','almacen','ruta','cuadrante','zona'
   ].map(normalize);
 
   const scores = rows.slice(0, 10).map((r, i) => ({
@@ -76,20 +45,17 @@ export const mapRowsToPedidos = (rows) => {
     const n = normalize(name);
     let pos = headers.indexOf(n);
     if (pos >= 0) return pos;
-    // Fallback: contiene
     pos = headers.findIndex(h => h.includes(n) || n.includes(h));
     return pos;
   };
   const idxExact = (name) => headers.indexOf(normalize(name));
 
-  // Priorizar nombre_cliente sobre codigo_cliente
   let iNombreCliente = idxExact('nombre_cliente');
   if (iNombreCliente < 0) {
     const iClienteExact = idxExact('cliente');
     if (iClienteExact >= 0) iNombreCliente = iClienteExact;
   }
   if (iNombreCliente < 0) {
-    // Fallback por contiene pero evitando capturar codigo_cliente
     const iClienteLoose = headers.findIndex(h => (h.includes('cliente') || 'cliente'.includes(h)) && !h.includes('codigo_cliente'));
     iNombreCliente = iClienteLoose;
   }
@@ -112,29 +78,33 @@ export const mapRowsToPedidos = (rows) => {
   const iMontoNeto = idx('monto_neto');
   const iCodigoCliente = idx('codigo_cliente');
   const iFechaVencimiento = idx('fecha_vencimiento');
-  // Nuevos: almacen y zona/ruta/cuadrante
-  const iAlmacen = (() => {
-    const cands = ['almacen', 'almacen_origen', 'almacenorigen', 'deposito', 'bodega'];
-    for (const c of cands) { const p = idx(c); if (p >= 0) return p; }
-    return -1;
-  })();
-  const iZona = (() => {
-    const cands = ['zona', 'ruta', 'cuadrante', 'sector'];
-    for (const c of cands) { const p = idx(c); if (p >= 0) return p; }
-    return -1;
-  })();
+  const iAlmacen = (() => { for (const c of ['almacen','almacen_origen','almacenorigen','deposito','bodega']) { const p = idx(c); if (p>=0) return p; } return -1; })();
+  const iZona = (() => { for (const c of ['zona','ruta','cuadrante','sector']) { const p = idx(c); if (p>=0) return p; } return -1; })();
 
   const body = rows.slice(headerRowIdx + 1).filter(r => r && r.some(v => (v||'').toString().trim() !== ''));
 
-  // Si hay numero_pedido, agrupar renglones por pedido
-  if (iNumeroPedido >= 0) {
-    const toIntQty = (v) => {
-      if (v == null) return 1;
-      const s = String(v).replace(',', '.');
-      const head = s.split('.')[0];
-      const n = parseInt(head.replace(/[^0-9-]/g, ''), 10);
-      return Number.isNaN(n) ? 1 : n;
+  const toIntQty = (v) => {
+    if (v == null) return 1;
+    const s = String(v).replace(',', '.');
+    const head = s.split('.')[0];
+    const n = parseInt(head.replace(/[^0-9-]/g, ''), 10);
+    return Number.isNaN(n) ? 1 : n;
+  };
+
+  const buildProducto = (row) => {
+    const cantidad = iCantidadPedida >= 0 ? toIntQty(row[iCantidadPedida]) : 1;
+    const precioUnitario = iPrecioUnitario >= 0 ? Number(row[iPrecioUnitario] || 0) : undefined;
+    return {
+      tipo: 'Repuesto',
+      marca: '',
+      cantidad,
+      modelo: iCodigoArticulo >= 0 ? String(row[iCodigoArticulo] || '') : '',
+      descripcion: iDescripcionArticulo >= 0 ? String(row[iDescripcionArticulo] || '') : '',
+      ...(precioUnitario !== undefined ? { precioUnitario, subtotal: Math.round(cantidad * precioUnitario * 100) / 100 } : {})
     };
+  };
+
+  if (iNumeroPedido >= 0) {
     const byNum = new Map();
     body.forEach(r => {
       const num = String(r[iNumeroPedido] ?? '').trim();
@@ -142,71 +112,42 @@ export const mapRowsToPedidos = (rows) => {
       if (!byNum.has(num)) byNum.set(num, []);
       byNum.get(num).push(r);
     });
+
     const pedidos = [];
     let idxPedido = 1;
     for (const [num, rowsPedido] of byNum.entries()) {
       const head = rowsPedido[0];
       const to = (row, i) => (i >= 0 ? row[i] : undefined);
-      // Coordenadas: lat/lng si existen; si no, intentar por ciudad
-      let coord = null;
       const lat = iLat >= 0 ? parseFloat(to(head, iLat)) : null;
       const lng = iLng >= 0 ? parseFloat(to(head, iLng)) : null;
-      if (lat != null && !Number.isNaN(lat) && lng != null && !Number.isNaN(lng)) {
-        coord = { lat, lng };
-      } else if (iCiudad >= 0) {
-        coord = cityToCoord(to(head, iCiudad));
-      }
-      if (!coord) coord = { lat: 10.4806, lng: -66.9036 };
-
-      const productos = rowsPedido.map(row => {
-        const cantidad = iCantidadPedida >= 0 ? toIntQty(to(row, iCantidadPedida)) : 1;
-        const precioUnitario = iPrecioUnitario >= 0 ? Number(to(row, iPrecioUnitario) || 0) : undefined;
-        return {
-          tipo: 'Repuesto',
-          marca: '',
-          cantidad,
-          modelo: iCodigoArticulo >= 0 ? String(to(row, iCodigoArticulo) || '') : '',
-          descripcion: iDescripcionArticulo >= 0 ? String(to(row, iDescripcionArticulo) || '') : '',
-          ...(precioUnitario !== undefined ? { precioUnitario, subtotal: Math.round(cantidad * precioUnitario * 100) / 100 } : {})
-        };
-      });
-
+      const productos = rowsPedido.map(buildProducto);
       pedidos.push({
         id: String(num),
         cliente: iNombreCliente >= 0 ? String(to(head, iNombreCliente) || '') : `Cliente PED${String(idxPedido).padStart(3,'0')}`,
         direccion: (iDireccionCliente >= 0 ? String(to(head, iDireccionCliente) || '') : (iDireccion >= 0 ? String(to(head, iDireccion) || '') : '')) + (iCiudad >= 0 ? `, ${String(to(head, iCiudad) || '')}` : ''),
-        coordenadas: coord,
-        productos: productos,
+        coordenadas: (lat != null && !Number.isNaN(lat) && lng != null && !Number.isNaN(lng)) ? { lat, lng } : undefined,
+        productos,
         prioridad: iPrioridad >= 0 ? (String(to(head, iPrioridad) || 'Media')) : 'Media',
         estado: iEstado >= 0 ? (String(to(head, iEstado) || 'Pendiente')) : 'Pendiente',
         fechaCreacion: excelSerialToISO(iFechaPedido >= 0 ? to(head, iFechaPedido) : (iFecha >= 0 ? to(head, iFecha) : '')),
         horaEstimada: iHora >= 0 ? String(to(head, iHora) || '') : '',
-        camionAsignado: null,
-        ...(iCiudad >= 0 ? { ciudad: String(to(head, iCiudad) || '') } : {}),
+        ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(head, iFechaVencimiento)) } : {}),
         ...(iAlmacen >= 0 ? { almacen: String(to(head, iAlmacen) || '') } : {}),
         ...(iZona >= 0 ? { zona: String(to(head, iZona) || '') } : {}),
         ...(iCodigoCliente >= 0 ? { codigoCliente: String(to(head, iCodigoCliente) || '') } : {}),
         ...(iMontoNeto >= 0 ? { montoNeto: Number(to(head, iMontoNeto) || 0) } : {}),
-        ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(head, iFechaVencimiento)) } : {})
+        ...(iFechaVencimiento >= 0 ? { fechaVencimiento: String(to(head, iFechaVencimiento) || '') } : {}),
       });
       idxPedido++;
     }
     return pedidos;
   }
 
-  // Caso simple: una fila por pedido
+  // Sin numero_pedido: 1 fila por pedido
   return body.map((r, k) => {
-    const toIntQty = (v) => {
-      if (v == null) return 1;
-      const s = String(v).replace(',', '.');
-      const head = s.split('.')[0];
-      const n = parseInt(head.replace(/[^0-9-]/g, ''), 10);
-      return Number.isNaN(n) ? 1 : n;
-    };
     const to = (i) => (i >= 0 ? r[i] : undefined);
     const lat = iLat >= 0 ? parseFloat(to(iLat)) : null;
     const lng = iLng >= 0 ? parseFloat(to(iLng)) : null;
-
     const productos = [];
     if (iProductos >= 0 && to(iProductos)) {
       const items = String(to(iProductos)).split(/;|\n/).map(s => s.trim()).filter(Boolean);
@@ -220,58 +161,62 @@ export const mapRowsToPedidos = (rows) => {
         });
       });
     } else if (iCodigoArticulo >= 0 || iDescripcionArticulo >= 0 || iCantidadPedida >= 0) {
-      productos.push({
-        tipo: 'Repuesto',
-        marca: '',
-        cantidad: iCantidadPedida >= 0 ? toIntQty(to(iCantidadPedida)) : 1,
-        modelo: iCodigoArticulo >= 0 ? String(to(iCodigoArticulo) || '') : '',
-        descripcion: iDescripcionArticulo >= 0 ? String(to(iDescripcionArticulo) || '') : ''
-      });
+      productos.push(buildProducto(r));
     }
 
     const id = `PED${String(k + 1).padStart(3, '0')}`;
     return {
       id,
-      cliente: iNombreCliente >= 0 ? to(iNombreCliente) : `Cliente ${id}`,
+      cliente: iNombreCliente >= 0 ? to(iNombreCliente) : (iCliente >= 0 ? to(iCliente) : `Cliente ${id}`),
       direccion: (iDireccionCliente >= 0 ? to(iDireccionCliente) : (iDireccion >= 0 ? to(iDireccion) : '')) + (iCiudad >= 0 ? `, ${to(iCiudad)}` : ''),
-      coordenadas: (lat != null && !Number.isNaN(lat) && lng != null && !Number.isNaN(lng)) ? { lat, lng } : (iCiudad >= 0 ? (cityToCoord(to(iCiudad)) || { lat: 10.4806, lng: -66.9036 }) : { lat: 10.4806, lng: -66.9036 }),
+      coordenadas: (lat != null && !Number.isNaN(lat) && lng != null && !Number.isNaN(lng)) ? { lat, lng } : undefined,
       productos: productos.length ? productos : [{ tipo: 'Producto', marca: '', cantidad: 1, modelo: '' }],
       prioridad: iPrioridad >= 0 ? (to(iPrioridad) || 'Media') : 'Media',
       estado: iEstado >= 0 ? (to(iEstado) || 'Pendiente') : 'Pendiente',
       fechaCreacion: iFecha >= 0 ? excelSerialToISO(to(iFecha) || '') : '',
       horaEstimada: iHora >= 0 ? (to(iHora) || '') : '',
-      camionAsignado: null,
-      ...(iCiudad >= 0 ? { ciudad: String(to(iCiudad) || '') } : {}),
+      ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(iFechaVencimiento)) } : {}),
       ...(iAlmacen >= 0 ? { almacen: String(to(iAlmacen) || '') } : {}),
       ...(iZona >= 0 ? { zona: String(to(iZona) || '') } : {}),
-      ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(iFechaVencimiento)) } : {})
+      ...(iCodigoCliente >= 0 ? { codigoCliente: String(to(iCodigoCliente) || '') } : {}),
+      ...(iMontoNeto >= 0 ? { montoNeto: Number(to(iMontoNeto) || 0) } : {}),
+      ...(iFechaVencimiento >= 0 ? { fechaVencimiento: String(to(iFechaVencimiento) || '') } : {}),
     };
   });
-};
+}
 
-export const loadPedidosFromPublic = async () => {
-  // Intentos en orden
-  const candidates = ['/pedidos.xlsx', '/Pedidos.xlsx', '/pedidos.csv', '/Pedidos.csv'];
-  for (const path of candidates) {
-    try {
-      const res = await fetch(path, { cache: 'no-store' });
-      if (!res.ok) continue;
-      const lower = path.toLowerCase();
-      if (lower.endsWith('.csv')) {
-        const text = await res.text();
-        const rows = parseCSV(text);
-        return mapRowsToPedidos(rows);
-      } else {
-        const buf = await res.arrayBuffer();
-        const XLSX = await import('xlsx');
-        const wb = XLSX.read(buf, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
-        return mapRowsToPedidos(rows);
-      }
-    } catch (_) {
-      // probar siguiente
-    }
+function main() {
+  const file = path.join(process.cwd(), 'public', 'Pedidos.xlsx');
+  if (!fs.existsSync(file)) {
+    console.error('No se encontró public/Pedidos.xlsx');
+    process.exit(1);
   }
-  return [];
-};
+  const wb = XLSX.read(fs.readFileSync(file), { type: 'buffer' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+
+  const headers = rows[0] || [];
+  console.log('Cabeceras detectadas:', headers);
+
+  const pedidos = mapRowsToPedidos(rows);
+  console.log(`Total pedidos mapeados: ${pedidos.length}`);
+  console.log('Preview (primeros 5):');
+  pedidos.slice(0, 5).forEach((p, i) => {
+    console.log(`\n#${i+1}:`, {
+      id: p.id,
+      cliente: p.cliente,
+      fechaCreacion: p.fechaCreacion,
+      fechaVencimiento: p.fechaVencimiento,
+      montoNeto: p.montoNeto,
+      codigoCliente: p.codigoCliente,
+      direccion: p.direccion,
+      zona: p.zona,
+      almacen: p.almacen,
+      estado: p.estado,
+      prioridad: p.prioridad,
+      productos: p.productos ? `${p.productos.length} items (ej: ${p.productos[0] ? (p.productos[0].descripcion || p.productos[0].modelo || p.productos[0].tipo) : 'n/a'})` : 'n/a'
+    });
+  });
+}
+
+main();

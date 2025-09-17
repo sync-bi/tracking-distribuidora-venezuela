@@ -16,6 +16,7 @@ const TabDespachos = ({
   pedidos = [],
   conductores = [],
   rutas = {},
+  despachos = [],
   onAsignarConductor,
   onCrearDespacho,
   onModificarRuta,
@@ -148,15 +149,21 @@ const TabDespachos = ({
             <p className="text-gray-500">No se encontraron camiones con los filtros aplicados</p>
           </div>
         ) : (
-          camionesFiltrados.map(camion => (
-            <TarjetaDespacho
-              key={camion.id}
-              camion={camion}
-              pedidos={obtenerPedidosPorCamion(camion.id)}
-              ruta={rutas[camion.id] || []}
-              onModificarRuta={onModificarRuta}
-            />
-          ))
+          camionesFiltrados.map(camion => {
+            const pedidosDelCamion = obtenerPedidosPorCamion(camion.id);
+            const despachoActual = (despachos || []).find(d => d.camionId === camion.id);
+            const rutaPreferida = despachoActual?.ruta || rutas[camion.id] || pedidosDelCamion;
+            return (
+              <TarjetaDespacho
+                key={camion.id}
+                camion={camion}
+                pedidos={pedidosDelCamion}
+                ruta={rutaPreferida}
+                depositoPreferido={despachoActual?.depositoOrigen || ''}
+                onModificarRuta={onModificarRuta}
+              />
+            );
+          })
         )}
       </div>
 
@@ -175,8 +182,14 @@ const TabDespachos = ({
 };
 
 // COMPONENTE TarjetaDespacho - ESTÁ DENTRO DEL MISMO ARCHIVO
-const TarjetaDespacho = ({ camion, pedidos, ruta, onModificarRuta }) => {
+const TarjetaDespacho = ({ camion, pedidos, ruta, depositoPreferido, onModificarRuta }) => {
   const [editandoRuta, setEditandoRuta] = useState(false);
+  const labelDeposito = () => {
+    if (!depositoPreferido) return 'Automático';
+    if (depositoPreferido === 'LOS_CORTIJOS') return 'Los Cortijos';
+    if (depositoPreferido === 'LOS_RUICES') return 'Los Ruices';
+    return depositoPreferido;
+  };
   const [rutaEditada, setRutaEditada] = useState(ruta);
   const [mostrarMapa, setMostrarMapa] = useState(true);
 
@@ -238,7 +251,8 @@ const TarjetaDespacho = ({ camion, pedidos, ruta, onModificarRuta }) => {
                 <Users size={14} />
                 <span>Conductor: {camion.conductor}</span>
               </div>
-              <div className="text-sm text-gray-500">Placa: {camion.placa}</div>
+            <div className="text-sm text-gray-500">Placa: {camion.placa}</div>
+            <div className="text-xs text-gray-500">Depósito: {labelDeposito()}</div>
             </div>
           </div>
           
@@ -311,7 +325,8 @@ const TarjetaDespacho = ({ camion, pedidos, ruta, onModificarRuta }) => {
         <div className="px-6 pb-4">
           <MapaDespachos
             camion={camion}
-            ruta={ruta}
+            ruta={ruta && ruta.length > 0 ? ruta : pedidos}
+            depositoPreferido={depositoPreferido}
             editandoRuta={editandoRuta}
             rutaEditada={rutaEditada}
             onCentrarMapa={() => {

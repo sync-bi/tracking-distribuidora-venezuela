@@ -56,6 +56,26 @@ const TarjetaPedido = ({
     return pedido.prioridad === 'Alta' || pedido.prioridad === 'Urgente';
   };
 
+  const obtenerEstadoVencimiento = () => {
+    if (!pedido.fechaVencimiento) return null;
+    try {
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      const fv = new Date(`${pedido.fechaVencimiento}T00:00:00`);
+      if (isNaN(fv.getTime())) return null;
+      const diffDays = Math.floor((fv - hoy) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) {
+        return { color: 'bg-red-100 text-red-800', label: 'Vencido' };
+      }
+      if (diffDays <= 2) {
+        return { color: 'bg-yellow-100 text-yellow-800', label: 'Prox. venc.' };
+      }
+      return { color: 'bg-green-100 text-green-800', label: 'Vigente' };
+    } catch (_) {
+      return null;
+    }
+  };
+
   return (
     <div className={`border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow ${
       esUrgente() ? 'border-l-4 border-l-red-500' : ''
@@ -64,10 +84,19 @@ const TarjetaPedido = ({
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-bold text-lg text-gray-900">N° Pedido: {pedido.id}</h3>
+            <h3 className="font-bold text-lg text-gray-900">{pedido.cliente || '(Sin nombre)'}</h3>
             {esUrgente() && <AlertCircle size={18} className="text-red-500" />}
           </div>
-          <h4 className="font-medium text-gray-700 mb-1">{pedido.cliente}</h4>
+          <div className="text-sm text-gray-600 mb-1">N° Pedido: {pedido.id}</div>
+          {(() => { const v = obtenerEstadoVencimiento(); return v ? (
+            <div className="text-xs flex items-center gap-2 mb-1">
+              <span className={`px-2 py-0.5 rounded-full ${v.color}`}>{v.label}</span>
+              <span className="text-gray-600">Venc: {pedido.fechaVencimiento}</span>
+            </div>
+          ) : null; })()}
+          {pedido.almacen && (
+            <div className="text-xs text-gray-600 mb-1">Desde almacen: {pedido.almacen}</div>
+          )}
           <div className="flex items-center gap-2 text-gray-600">
             <MapPin size={14} />
             <span className="text-sm">{pedido.direccion}</span>
@@ -115,9 +144,24 @@ const TarjetaPedido = ({
         <div>
           <span className="font-medium">Fecha:</span> {pedido.fechaCreacion}
         </div>
+        {pedido.fechaVencimiento && (
+          <div>
+            <span className="font-medium">Fecha vencimiento:</span> {pedido.fechaVencimiento}
+          </div>
+        )}
         <div>
           <span className="font-medium">Hora estimada:</span> {pedido.horaEstimada}
         </div>
+        {pedido.almacen && (
+          <div className="col-span-2">
+            <span className="font-medium">Desde almacen:</span> {pedido.almacen}
+          </div>
+        )}
+        {pedido.zona && (
+          <div className="col-span-2">
+            <span className="font-medium">RUTA (Cuadrante/Zona):</span> {pedido.zona}
+          </div>
+        )}
         {pedido.coordenadas && (
           <div className="col-span-2">
             <span className="font-medium">Coordenadas:</span> {pedido.coordenadas.lat.toFixed(4)}, {pedido.coordenadas.lng.toFixed(4)}

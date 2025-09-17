@@ -6,10 +6,12 @@ import {
   ZoomIn, ZoomOut, RotateCcw, Settings, AlertTriangle
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { DEPOSITOS, CIUDADES_VENEZUELA } from '../../utils/constants';
 
 const MapaDespachos = ({ 
   camion, 
   ruta = [], 
+  depositoPreferido = '',
   editandoRuta = false,
   rutaEditada = [],
   onCentrarMapa 
@@ -30,6 +32,9 @@ const MapaDespachos = ({
   const [rutasReales, setRutasReales] = useState({}); // Almacenar rutas calculadas
   const [calculandoRutas, setCalculandoRutas] = useState(false);
   const [perfilRuta, setPerfilRuta] = useState('driving-traffic'); // driving-traffic, driving, cycling, walking
+  const [posCamion, setPosCamion] = useState(null); // posición animada del camión
+  const [trayectoCoords, setTrayectoCoords] = useState([]);
+  const [animando, setAnimando] = useState(true);
 
   const rutaActual = editandoRuta ? rutaEditada : ruta;
 
@@ -43,11 +48,38 @@ const MapaDespachos = ({
   ];
 
   const obtenerCoordenadasParada = (parada, index) => {
-    if (parada.coordenadas) {
-      return { lng: parada.coordenadas.lng, lat: parada.coordenadas.lat };
-    }
-    const ciudad = coordenadasCiudades[index % coordenadasCiudades.length];
-    return { lng: ciudad.lng, lat: ciudad.lat };
+    const base = (() => {
+      if (parada.coordenadas && typeof parada.coordenadas.lat === 'number' && typeof parada.coordenadas.lng === 'number') {
+        return { lng: parada.coordenadas.lng, lat: parada.coordenadas.lat };
+      }
+      const ciudad = coordenadasCiudades[index % coordenadasCiudades.length];
+      return { lng: ciudad.lng, lat: ciudad.lat };
+    })();
+
+    // Si la coordenada coincide con un centro de ciudad conocido (ej. Caracas)
+    // aplicamos un pequeño "jitter" basado en el índice para dispersar paradas
+    const isCityCenter = (() => {
+      const tol = 1e-5;
+      return CIUDADES_VENEZUELA.some(c => Math.abs(c.coordenadas.lat - base.lat) < tol && Math.abs(c.coordenadas.lng - base.lng) < tol);
+    })();
+
+    if (!isCityCenter) return base;
+
+    const degToRad = (d) => (d * Math.PI) / 180;
+    const radToDeg = (r) => (r * 180) / Math.PI;
+    const Rm = 111000; // metros por grado aprox. en latitud
+    const angle = (index * 137.508) % 360; // distribuir en espiral de oro
+    const radiusM = 300 + (index % 6) * 120; // 300m .. ~900m
+    const latRad = degToRad(base.lat);
+    const dLat = (radiusM * Math.cos(degToRad(angle))) / Rm;
+    const dLng = (radiusM * Math.sin(degToRad(angle))) / (Rm * Math.cos(latRad));
+    return { lng: base.lng + dLng, lat: base.lat + dLat };
+  };
+
+  const distancia2 = (a, b) => {
+    const dx = (a.lng - b.lng);
+    const dy = (a.lat - b.lat);
+    return dx*dx + dy*dy;
   };
 
   // Función para calcular ruta real usando Mapbox Directions API
@@ -81,8 +113,21 @@ const MapaDespachos = ({
     const nuevasRutas = {};
 
     try {
-      // Punto de inicio
-      const puntoInicio = camion?.ubicacionActual || { lng: -66.9036, lat: 10.4806 };
+      // Punto de inicio: ubicación del camión o depósito más cercano a la primera parada
+      let puntoInicio;
+      if (camion?.ubicacionActual && camion.ubicacionActual.lng != null && camion.ubicacionActual.lat != null) {
+        puntoInicio = { ...camion.ubicacionActual };
+      } else {
+        const primera = rutaActual[0] ? obtenerCoordenadasParada(rutaActual[0], 0) : { lng: -66.9036, lat: 10.4806 };
+        if (depositoPreferido && DEPOSITOS[depositoPreferido]) {
+          puntoInicio = DEPOSITOS[depositoPreferido].coordenadas;
+        } else {
+          const dep1 = DEPOSITOS.LOS_CORTIJOS.coordenadas;
+          const dep2 = DEPOSITOS.LOS_RUICES.coordenadas;
+          puntoInicio = distancia2(dep1, primera) <= distancia2(dep2, primera) ? dep1 : dep2;
+        }
+      }
+      setPosCamion(puntoInicio);
       let puntoAnterior = puntoInicio;
 
       // Calcular ruta desde depósito hasta primera parada y entre paradas
@@ -105,6 +150,15 @@ const MapaDespachos = ({
       }
 
       setRutasReales(nuevasRutas);
+      // Preparar trayecto continuo para animación
+      const coordsContinuas = [];
+      for (let i = 0; i < rutaActual.length; i++) {
+        const seg = nuevasRutas[`segmento-${i}`];
+        if (seg?.geometry?.coordinates?.length) {
+          coordsContinuas.push(...seg.geometry.coordinates.map(([lng, lat]) => ({ lng, lat })));
+        }
+      }
+      if (coordsContinuas.length) setTrayectoCoords(coordsContinuas);
     } catch (error) {
       console.error('Error calculando rutas reales:', error);
     } finally {
@@ -198,6 +252,19 @@ const MapaDespachos = ({
     }
   }, [calcularTodasLasRutasReales]);
 
+  // Animar movimiento del camión a lo largo del trayecto calculado
+  useEffect(() => {
+    if (!trayectoCoords.length) return;
+    setAnimando(true);
+    let idx = 0;
+    setPosCamion(trayectoCoords[0]);
+    const id = setInterval(() => {
+      idx = (idx + 1) % trayectoCoords.length;
+      setPosCamion(trayectoCoords[idx]);
+    }, 800);
+    return () => clearInterval(id);
+  }, [trayectoCoords]);
+
   // Centrar mapa
   const centrarEnRuta = useCallback(() => {
     if (rutaActual.length === 0 || !mapRef.current) return;
@@ -207,6 +274,8 @@ const MapaDespachos = ({
       
       if (camion?.ubicacionActual) {
         coordinates.push([camion.ubicacionActual.lng, camion.ubicacionActual.lat]);
+      } else if (posCamion) {
+        coordinates.push([posCamion.lng, posCamion.lat]);
       }
       
       rutaActual.forEach((parada, index) => {
@@ -399,10 +468,10 @@ const MapaDespachos = ({
           )}
 
           {/* Marcador del camión/depósito */}
-          {camion && (
+          {(camion || posCamion) && (
             <Marker
-              longitude={camion.ubicacionActual?.lng || -66.9036}
-              latitude={camion.ubicacionActual?.lat || 10.4806}
+              longitude={(posCamion?.lng) ?? (camion?.ubicacionActual?.lng ?? -66.9036)}
+              latitude={(posCamion?.lat) ?? (camion?.ubicacionActual?.lat ?? 10.4806)}
               anchor="center"
             >
               <div
@@ -410,14 +479,28 @@ const MapaDespachos = ({
                 onClick={() => setPopupInfo({ 
                   type: 'camion', 
                   data: camion,
-                  longitude: camion.ubicacionActual?.lng || -66.9036,
-                  latitude: camion.ubicacionActual?.lat || 10.4806
+                  longitude: (posCamion?.lng) ?? (camion?.ubicacionActual?.lng ?? -66.9036),
+                  latitude: (posCamion?.lat) ?? (camion?.ubicacionActual?.lat ?? 10.4806)
                 })}
               >
                 <Truck size={20} className="text-green-600" />
               </div>
             </Marker>
           )}
+
+          {/* Depósitos fijos: Los Cortijos y Los Ruices */}
+          {[DEPOSITOS.LOS_CORTIJOS, DEPOSITOS.LOS_RUICES].map((dep, i) => (
+            <Marker key={`deposito-${i}`} longitude={dep.coordenadas.lng} latitude={dep.coordenadas.lat} anchor="bottom">
+              <div className="flex flex-col items-center">
+                <div className="w-3 h-3 bg-green-600 rounded-full border-2 border-white shadow" />
+                {mostrarEtiquetas && (
+                  <span className="mt-1 text-[10px] bg-white border rounded px-1 py-0.5 shadow">
+                    Depósito {i === 0 ? 'Los Cortijos' : 'Los Ruices'}
+                  </span>
+                )}
+              </div>
+            </Marker>
+          ))}
 
           {/* Marcadores de paradas */}
           {rutaActual.map((parada, index) => {

@@ -64,6 +64,18 @@ export const CIUDADES_VENEZUELA = [
   { nombre: 'Maturín', estado: 'Monagas', coordenadas: { lat: 9.7469, lng: -63.1833 } }
 ];
 
+// Puntos de partida (depósitos) fijos
+export const DEPOSITOS = {
+  LOS_CORTIJOS: {
+    nombre: 'Zona industrial Los Cortijos, Caracas 1060, Venezuela',
+    coordenadas: { lat: 10.4918, lng: -66.8289 }
+  },
+  LOS_RUICES: {
+    nombre: 'Av. Milán de Los Ruices, Caracas, Venezuela',
+    coordenadas: { lat: 10.4895, lng: -66.8269 }
+  }
+};
+
 export const COLORES_ESTADO = {
   [ESTADOS_PEDIDO.PENDIENTE]: 'bg-yellow-100 text-yellow-800',
   [ESTADOS_PEDIDO.ASIGNADO]: 'bg-blue-100 text-blue-800',

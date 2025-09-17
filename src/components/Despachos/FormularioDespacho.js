@@ -24,14 +24,28 @@ const FormularioDespacho = ({
   const [errors, setErrors] = useState({});
   const [paso, setPaso] = useState(1); // 1: Camión/Conductor, 2: Pedidos, 3: Detalles
 
-  // Camiones disponibles
-  const camionesDisponibles = camiones.filter(c => c.estado === 'Disponible');
+  // Camiones disponibles para crear despacho (permitir 'Disponible' y 'Asignado')
+  const camionesDisponibles = camiones.filter(c => c.estado === 'Disponible' || c.estado === 'Asignado');
   
   // Conductores disponibles
   const conductoresDisponibles = conductores.filter(c => c.estado === 'Disponible');
   
-  // Pedidos disponibles (sin asignar)
-  const pedidosDisponibles = pedidos.filter(p => !p.camionAsignado);
+  // Pedidos disponibles: sin asignar o ya asignados al camión seleccionado
+  const pedidosDisponibles = formData.camionId
+    ? pedidos.filter(p => !p.camionAsignado || p.camionAsignado === formData.camionId)
+    : pedidos.filter(p => !p.camionAsignado);
+
+  // Si el usuario selecciona un camión, preseleccionar sus pedidos asignados
+  const handleSelectCamion = (camionId) => {
+    const preseleccionados = pedidos
+      .filter(p => p.camionAsignado === camionId)
+      .map(p => p.id);
+    setFormData(prev => ({
+      ...prev,
+      camionId,
+      pedidosSeleccionados: preseleccionados
+    }));
+  };
 
   // Validar paso actual
   const validarPaso = (numeroPaso) => {
@@ -146,7 +160,7 @@ const FormularioDespacho = ({
                   {camionesDisponibles.map(camion => (
                     <div
                       key={camion.id}
-                      onClick={() => setFormData(prev => ({ ...prev, camionId: camion.id }))}
+                      onClick={() => handleSelectCamion(camion.id)}
                       className={`border rounded-lg p-4 cursor-pointer transition-all ${
                         formData.camionId === camion.id 
                           ? 'border-blue-500 bg-blue-50' 
@@ -350,6 +364,23 @@ const FormularioDespacho = ({
                     )}
                   </div>
                 </div>
+              </div>
+
+              {/* Deposito de Origen */}
+              <div>
+                <h4 className="text-lg font-medium mb-4 flex items-center gap-2">
+                  <MapPin className="text-red-600" size={20} />
+                  Deposito de Origen
+                </h4>
+                <select
+                  value={formData.depositoOrigen || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, depositoOrigen: e.target.value }))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Automatico (mas cercano)</option>
+                  <option value="LOS_CORTIJOS">Los Cortijos (Caracas)</option>
+                  <option value="LOS_RUICES">Los Ruices (Caracas)</option>
+                </select>
               </div>
 
               {/* Observaciones */}

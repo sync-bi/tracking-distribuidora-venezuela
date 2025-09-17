@@ -7,6 +7,8 @@ const FormularioNuevoPedido = ({ onCrear, onCerrar }) => {
   const [nuevoPedido, setNuevoPedido] = useState({
     cliente: '',
     direccion: '',
+    almacen: '',
+    zona: '',
     productos: [{ tipo: 'Llanta', marca: '', cantidad: 1, modelo: '' }],
     prioridad: 'Media'
   });
@@ -124,6 +126,34 @@ const FormularioNuevoPedido = ({ onCrear, onCerrar }) => {
                   <option key={prioridad} value={prioridad}>{prioridad}</option>
                 ))}
               </select>
+            </div>
+          </div>
+
+          {/* Almacen y Zona/Ruta */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Almacen de origen
+              </label>
+              <input
+                type="text"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                value={nuevoPedido.almacen}
+                onChange={(e) => setNuevoPedido(prev => ({ ...prev, almacen: e.target.value }))}
+                placeholder="Deposito, bodega o almacen"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                RUTA (Cuadrante/Zona)
+              </label>
+              <input
+                type="text"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                value={nuevoPedido.zona}
+                onChange={(e) => setNuevoPedido(prev => ({ ...prev, zona: e.target.value }))}
+                placeholder="Ej: Zona Norte, Cuadrante B2"
+              />
             </div>
           </div>
 
