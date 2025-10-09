@@ -1,12 +1,13 @@
 // src/components/Layout/Navigation.js
 import React from 'react';
-import { Package, Truck, MapPin, Clipboard, Navigation as NavIcon } from 'lucide-react';
+import { Package, Truck, MapPin, Clipboard, Navigation as NavIcon, Radio } from 'lucide-react';
 
 const Navigation = ({ activeTab, setActiveTab, allowedTabs = [], user, onLogout }) => {
   const tabs = [
     { id: 'pedidos', label: 'Pedidos', icon: Package, description: 'Gestion de pedidos y asignaciones' },
     { id: 'camiones', label: 'Camiones', icon: Truck, description: 'Seguimiento de vehiculos' },
-    { id: 'despachos', label: 'Despachos', icon: Clipboard, description: 'Centro de operaciones y rutas' },
+    { id: 'despachos', label: 'Despachos', icon: Clipboard, description: 'Crear nuevos despachos' },
+    { id: 'seguimiento', label: 'Seguimiento', icon: Radio, description: 'Seguimiento en tiempo real y optimización de rutas' },
     { id: 'conductor', label: 'Conductor', icon: NavIcon, description: 'Modo rastreador del conductor' },
     { id: 'mapa', label: 'Mapa', icon: MapPin, description: 'Vista geografica en tiempo real' }
   ];

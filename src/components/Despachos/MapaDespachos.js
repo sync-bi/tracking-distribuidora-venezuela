@@ -8,13 +8,14 @@ import {
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { DEPOSITOS, CIUDADES_VENEZUELA } from '../../utils/constants';
 
-const MapaDespachos = ({ 
-  camion, 
-  ruta = [], 
+const MapaDespachos = ({
+  camion,
+  ruta = [],
   depositoPreferido = '',
   editandoRuta = false,
   rutaEditada = [],
-  onCentrarMapa 
+  onCentrarMapa,
+  triggerCentrar = 0
 }) => {
   const mapRef = useRef();
   const [viewState, setViewState] = useState({
@@ -271,13 +272,12 @@ const MapaDespachos = ({
 
     try {
       const coordinates = [];
-      
+
+      // Solo usar la ubicación del camión, no posCamion que cambia constantemente
       if (camion?.ubicacionActual) {
         coordinates.push([camion.ubicacionActual.lng, camion.ubicacionActual.lat]);
-      } else if (posCamion) {
-        coordinates.push([posCamion.lng, posCamion.lat]);
       }
-      
+
       rutaActual.forEach((parada, index) => {
         const coords = obtenerCoordenadasParada(parada, index);
         coordinates.push([coords.lng, coords.lat]);
@@ -286,19 +286,19 @@ const MapaDespachos = ({
       if (coordinates.length > 0) {
         const lngs = coordinates.map(coord => coord[0]);
         const lats = coordinates.map(coord => coord[1]);
-        
+
         const minLng = Math.min(...lngs);
         const maxLng = Math.max(...lngs);
         const minLat = Math.min(...lats);
         const maxLat = Math.max(...lats);
-        
+
         const centerLng = (minLng + maxLng) / 2;
         const centerLat = (minLat + maxLat) / 2;
-        
+
         const lngDiff = maxLng - minLng;
         const latDiff = maxLat - minLat;
         const maxDiff = Math.max(lngDiff, latDiff);
-        
+
         let zoom = 8;
         if (maxDiff < 0.5) zoom = 10;
         else if (maxDiff < 1) zoom = 9;
@@ -316,7 +316,59 @@ const MapaDespachos = ({
     } catch (error) {
       console.error('Error al centrar el mapa:', error);
     }
-  }, [rutaActual, camion]);
+  }, [rutaActual]);
+
+  // Auto-center when triggerCentrar changes (not when centrarEnRuta changes)
+  useEffect(() => {
+    if (triggerCentrar > 0 && rutaActual.length > 0 && mapRef.current) {
+      // Inline centering logic to avoid dependency on centrarEnRuta
+      try {
+        const coordinates = [];
+
+        if (camion?.ubicacionActual) {
+          coordinates.push([camion.ubicacionActual.lng, camion.ubicacionActual.lat]);
+        }
+
+        rutaActual.forEach((parada, index) => {
+          const coords = obtenerCoordenadasParada(parada, index);
+          coordinates.push([coords.lng, coords.lat]);
+        });
+
+        if (coordinates.length > 0) {
+          const lngs = coordinates.map(coord => coord[0]);
+          const lats = coordinates.map(coord => coord[1]);
+
+          const minLng = Math.min(...lngs);
+          const maxLng = Math.max(...lngs);
+          const minLat = Math.min(...lats);
+          const maxLat = Math.max(...lats);
+
+          const centerLng = (minLng + maxLng) / 2;
+          const centerLat = (minLat + maxLat) / 2;
+
+          const lngDiff = maxLng - minLng;
+          const latDiff = maxLat - minLat;
+          const maxDiff = Math.max(lngDiff, latDiff);
+
+          let zoom = 8;
+          if (maxDiff < 0.5) zoom = 10;
+          else if (maxDiff < 1) zoom = 9;
+          else if (maxDiff < 2) zoom = 8;
+          else zoom = 7;
+
+          setViewState(prev => ({
+            ...prev,
+            longitude: centerLng,
+            latitude: centerLat,
+            zoom: zoom,
+            transitionDuration: 1000
+          }));
+        }
+      } catch (error) {
+        console.error('Error al centrar el mapa:', error);
+      }
+    }
+  }, [triggerCentrar]);
 
   const handleZoomIn = () => {
     setViewState(prev => ({

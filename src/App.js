@@ -20,22 +20,24 @@ import TabPedidos from './components/Pedidos/TabPedidos';
 import TabCamiones from './components/Camiones/TabCamiones';
 
 // Componentes de Despachos
-import TabDespachos from './components/Despachos/TabDespachos';
+import TabDespachoSimplificado from './components/Despachos/TabDespachoSimplificado';
+import TabSeguimientoDespachos from './components/Despachos/TabSeguimientoDespachos';
 
 // Componentes de Mapa
 import TabMapa from './components/Mapa/TabMapa';
 import Tracker from './components/Conductor/Tracker';
 import { trackingClient } from './services/trackingClient';
+import { actualizarPosicionVehiculo } from './services/firebase';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('pedidos');
   const { user, loading, logout } = useAuth();
 
   const PERMISSIONS = useMemo(() => ({
-    admin: ['pedidos', 'camiones', 'despachos', 'conductor', 'mapa'],
-    operador: ['pedidos', 'camiones', 'despachos', 'conductor', 'mapa'],
-    despachador: ['despachos', 'camiones', 'mapa'],
-    visor: ['mapa', 'pedidos'],
+    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa'],
+    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa'],
+    despachador: ['despachos', 'seguimiento', 'camiones', 'mapa'],
+    visor: ['mapa', 'pedidos', 'seguimiento'],
     conductor: ['conductor', 'mapa']
   }), []);
 
@@ -116,8 +118,17 @@ const App = () => {
 
   // Función para crear despacho completo
   const handleCrearDespacho = (datosDespacho) => {
-    const nuevoDespacho = crearDespacho(datosDespacho);
-    
+    // Convertir IDs de pedidos a objetos completos de pedidos para la ruta
+    const rutaPedidos = datosDespacho.pedidosSeleccionados
+      .map(pedidoId => pedidos.find(p => p.id === pedidoId))
+      .filter(p => p); // Filtrar pedidos que existen
+
+    // Crear despacho con la ruta de pedidos
+    const nuevoDespacho = crearDespacho({
+      ...datosDespacho,
+      ruta: rutaPedidos
+    });
+
     // Asignar pedidos al camión si se seleccionaron
     if (datosDespacho.pedidosSeleccionados) {
       datosDespacho.pedidosSeleccionados.forEach(pedidoId => {
@@ -215,12 +226,23 @@ const App = () => {
       actualizarInfoVehiculo(camionId, { trackingActivo: false });
     },
     onSendPosition: async (evt) => {
-      const { vehiculoId, coord, speedKmh } = evt;
+      const { vehiculoId, coord, speedKmh, heading } = evt;
+
+      // Actualizar estado local
       actualizarUbicacionCamion(vehiculoId, { lat: coord.lat, lng: coord.lng });
       if (speedKmh != null) {
         actualizarInfoVehiculo(vehiculoId, { velocidad: `${speedKmh} km/h` });
       }
-      // Enviar al backend si está configurado (REST/Firebase)
+
+      // Enviar a Firebase para sincronización en tiempo real
+      await actualizarPosicionVehiculo(vehiculoId, {
+        lat: coord.lat,
+        lng: coord.lng,
+        velocidad: speedKmh || 0,
+        heading: heading || 0
+      });
+
+      // También enviar al backend REST si está configurado
       return trackingClient.sendPosition(evt);
     }
   };
@@ -233,7 +255,9 @@ const App = () => {
       case 'camiones':
         return <TabCamiones {...camionesProps} />;
       case 'despachos':
-        return <TabDespachos {...despachosProps} />;
+        return <TabDespachoSimplificado {...despachosProps} />;
+      case 'seguimiento':
+        return <TabSeguimientoDespachos {...despachosProps} />;
       case 'conductor':
         return <Tracker {...conductorProps} />;
       case 'mapa':
