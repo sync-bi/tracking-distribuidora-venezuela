@@ -1,6 +1,6 @@
 // src/components/Mapa/TabMapa.js
 import React, { useState, useEffect } from 'react';
-import { MapPin, Truck, Package, Route, Eye, RotateCcw, Filter, Navigation, BarChart3 } from 'lucide-react';
+import { Truck, Package, Route, Eye, RotateCcw, Filter, Navigation, BarChart3 } from 'lucide-react';
 import MapaReal from './MapaReal';
 
 const TabMapa = ({
@@ -39,6 +39,64 @@ const TabMapa = ({
     const totalDistancia = rutasConDistancia.reduce((sum, parada) => sum + (parada.distancia || 0), 0);
     return (totalDistancia / rutasConDistancia.length).toFixed(1);
   };
+
+  // Filtrar datos según el filtro seleccionado
+  // CAMBIADO: Por defecto mostrar TODOS los pedidos en seguimiento (no entregados)
+  const datosFiltrados = () => {
+    let camionesFiltrados = camiones;
+    let pedidosFiltrados = pedidos;
+
+    switch (filtroMapa) {
+      case 'todos':
+        // Mostrar todos los camiones activos y TODOS los pedidos en seguimiento
+        camionesFiltrados = camiones.filter(c =>
+          c.estado === 'Asignado' || c.estado === 'En Ruta' || c.estado === 'Disponible'
+        );
+        pedidosFiltrados = pedidos.filter(p =>
+          p.estado !== 'Entregado' && p.estado !== 'Cancelado'
+        );
+        break;
+      case 'camiones':
+        camionesFiltrados = camiones.filter(c =>
+          c.estado === 'Asignado' || c.estado === 'En Ruta' || c.estado === 'Disponible'
+        );
+        pedidosFiltrados = [];
+        break;
+      case 'pedidos':
+        camionesFiltrados = [];
+        pedidosFiltrados = pedidos.filter(p =>
+          p.estado !== 'Entregado' && p.estado !== 'Cancelado'
+        );
+        break;
+      case 'enRuta':
+        camionesFiltrados = camiones.filter(c => c.estado === 'En Ruta');
+        pedidosFiltrados = pedidos.filter(p => p.estado === 'En Ruta');
+        break;
+      case 'pendientes':
+        // Mostrar solo lo que falta por asignar
+        camionesFiltrados = camiones.filter(c => c.estado === 'Disponible');
+        pedidosFiltrados = pedidos.filter(p => p.estado === 'Pendiente');
+        break;
+      case 'asignados':
+        // Mostrar solo lo asignado pero no en ruta aún
+        camionesFiltrados = camiones.filter(c => c.estado === 'Asignado');
+        pedidosFiltrados = pedidos.filter(p => p.estado === 'Asignado');
+        break;
+      default:
+        // Por defecto, mostrar todo en seguimiento
+        camionesFiltrados = camiones.filter(c =>
+          c.estado === 'Asignado' || c.estado === 'En Ruta' || c.estado === 'Disponible'
+        );
+        pedidosFiltrados = pedidos.filter(p =>
+          p.estado !== 'Entregado' && p.estado !== 'Cancelado'
+        );
+        break;
+    }
+
+    return { camionesFiltrados, pedidosFiltrados };
+  };
+
+  const { camionesFiltrados, pedidosFiltrados } = datosFiltrados();
 
   return (
     <div className="p-6">
@@ -116,11 +174,12 @@ const TabMapa = ({
             value={filtroMapa}
             onChange={(e) => setFiltroMapa(e.target.value)}
           >
-            <option value="todos">Mostrar Todo</option>
+            <option value="todos">Todos en Seguimiento</option>
             <option value="camiones">Solo Camiones</option>
             <option value="pedidos">Solo Pedidos</option>
             <option value="enRuta">Solo En Ruta</option>
-            <option value="disponibles">Solo Disponibles</option>
+            <option value="pendientes">Solo Pendientes</option>
+            <option value="asignados">Solo Asignados</option>
           </select>
 
           <button 
@@ -158,9 +217,9 @@ const TabMapa = ({
       {/* Mapa Real */}
       <div className="bg-white border rounded-lg shadow">
         <div className="h-96 rounded-lg overflow-hidden">
-          <MapaReal 
-            camiones={camiones}
-            pedidos={pedidos}
+          <MapaReal
+            camiones={camionesFiltrados}
+            pedidos={pedidosFiltrados}
             rutas={rutas}
           />
         </div>

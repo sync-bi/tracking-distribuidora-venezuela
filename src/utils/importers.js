@@ -46,14 +46,58 @@ export const parseCSV = (text) => {
 };
 
 
+// Función para calcular distancia entre dos coordenadas (fórmula de Haversine)
+const calcularDistancia = (lat1, lng1, lat2, lng2) => {
+  const R = 6371; // Radio de la Tierra en km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; // Distancia en km
+};
+
+// Validar que las coordenadas estén cerca de la ciudad especificada
+const validarCoordenadasCiudad = (lat, lng, ciudadNombre) => {
+  if (!ciudadNombre || lat == null || lng == null) return { valido: false, razon: 'datos_incompletos' };
+
+  const city = normalize(ciudadNombre);
+  const ciudadInfo = CIUDADES_VENEZUELA.find(c =>
+    normalize(c.nombre) === city || city.includes(normalize(c.nombre))
+  );
+
+  if (!ciudadInfo) return { valido: false, razon: 'ciudad_no_encontrada' };
+
+  const distancia = calcularDistancia(
+    lat, lng,
+    ciudadInfo.coordenadas.lat,
+    ciudadInfo.coordenadas.lng
+  );
+
+  // Si la distancia es mayor a 50km, probablemente hay un error
+  const DISTANCIA_MAX_KM = 50;
+  if (distancia > DISTANCIA_MAX_KM) {
+    return {
+      valido: false,
+      razon: 'coordenadas_muy_lejos',
+      distancia: Math.round(distancia),
+      ciudadEsperada: ciudadInfo.nombre,
+      coordenadasEsperadas: ciudadInfo.coordenadas
+    };
+  }
+
+  return { valido: true };
+};
+
 const cityToCoord = (cityRaw) => {
   if (!cityRaw) return null;
   const city = normalize(cityRaw);
   const found = CIUDADES_VENEZUELA.find(c => normalize(c.nombre) === city);
-  if (found) return found.coordenadas;
+  if (found) return { ...found.coordenadas, ciudadEncontrada: found.nombre };
   // intento por contiene
   const partial = CIUDADES_VENEZUELA.find(c => city.includes(normalize(c.nombre)));
-  return partial ? partial.coordenadas : null;
+  return partial ? { ...partial.coordenadas, ciudadEncontrada: partial.nombre } : null;
 };
 
 export const mapRowsToPedidos = (rows) => {
@@ -149,12 +193,33 @@ export const mapRowsToPedidos = (rows) => {
       const to = (row, i) => (i >= 0 ? row[i] : undefined);
       // Coordenadas: lat/lng si existen; si no, intentar por ciudad
       let coord = null;
+      let coordenadasAdvertencia = null;
       const lat = iLat >= 0 ? parseFloat(to(head, iLat)) : null;
       const lng = iLng >= 0 ? parseFloat(to(head, iLng)) : null;
+      const ciudadNombre = iCiudad >= 0 ? String(to(head, iCiudad) || '') : '';
+
       if (lat != null && !Number.isNaN(lat) && lng != null && !Number.isNaN(lng)) {
-        coord = { lat, lng };
-      } else if (iCiudad >= 0) {
-        coord = cityToCoord(to(head, iCiudad));
+        // Validar si las coordenadas coinciden con la ciudad
+        if (ciudadNombre) {
+          const validacion = validarCoordenadasCiudad(lat, lng, ciudadNombre);
+          if (!validacion.valido) {
+            coordenadasAdvertencia = validacion;
+            // Usar las coordenadas esperadas de la ciudad si están muy lejos
+            if (validacion.coordenadasEsperadas) {
+              coord = validacion.coordenadasEsperadas;
+              console.warn(`⚠️ Pedido ${num}: Coordenadas (${lat}, ${lng}) muy lejos de ${ciudadNombre} (${validacion.distancia}km). Usando coordenadas de la ciudad.`);
+            } else {
+              coord = { lat, lng };
+            }
+          } else {
+            coord = { lat, lng };
+          }
+        } else {
+          coord = { lat, lng };
+        }
+      } else if (ciudadNombre) {
+        const coordCiudad = cityToCoord(ciudadNombre);
+        coord = coordCiudad || { lat: 10.4806, lng: -66.9036 };
       }
       if (!coord) coord = { lat: 10.4806, lng: -66.9036 };
 
@@ -187,7 +252,8 @@ export const mapRowsToPedidos = (rows) => {
         ...(iZona >= 0 ? { zona: String(to(head, iZona) || '') } : {}),
         ...(iCodigoCliente >= 0 ? { codigoCliente: String(to(head, iCodigoCliente) || '') } : {}),
         ...(iMontoNeto >= 0 ? { montoNeto: Number(to(head, iMontoNeto) || 0) } : {}),
-        ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(head, iFechaVencimiento)) } : {})
+        ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(head, iFechaVencimiento)) } : {}),
+        ...(coordenadasAdvertencia ? { coordenadasAdvertencia } : {})
       });
       idxPedido++;
     }

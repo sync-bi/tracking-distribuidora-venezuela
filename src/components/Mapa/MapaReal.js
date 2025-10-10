@@ -1,18 +1,29 @@
 // src/components/Mapa/MapaReal.js
 import React, { useState, useRef, useCallback } from 'react';
 import Map, { Marker, Popup } from 'react-map-gl';
-import { MapPin, Truck, Navigation, Package } from 'lucide-react';
+import { Truck, Navigation, Package, AlertTriangle } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const MapaReal = ({ camiones, pedidos, rutas }) => {
+const MapaReal = ({ camiones = [], pedidos = [], rutas = [] }) => {
   const [viewState, setViewState] = useState({
     longitude: -66.9036, // Caracas, Venezuela
     latitude: 10.4806,
     zoom: 6
   });
-  
+
   const [popupInfo, setPopupInfo] = useState(null);
   const mapRef = useRef();
+
+  // Validar que camiones y pedidos tengan coordenadas válidas
+  const camionesValidos = camiones.filter(camion =>
+    camion?.ubicacionActual?.lng != null &&
+    camion?.ubicacionActual?.lat != null
+  );
+
+  const pedidosValidos = pedidos.filter(pedido =>
+    pedido?.coordenadas?.lng != null &&
+    pedido?.coordenadas?.lat != null
+  );
 
   const onSelectCamion = useCallback((camion) => {
     setPopupInfo({ type: 'camion', data: camion });
@@ -44,6 +55,17 @@ const MapaReal = ({ camiones, pedidos, rutas }) => {
 
   return (
     <div className="w-full h-full relative">
+      {/* Mensaje cuando no hay datos */}
+      {camionesValidos.length === 0 && pedidosValidos.length === 0 && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 bg-white p-6 rounded-lg shadow-lg text-center">
+          <Package size={48} className="mx-auto mb-3 text-gray-400" />
+          <h3 className="font-bold text-gray-700 mb-2">No hay datos para mostrar</h3>
+          <p className="text-sm text-gray-500">
+            Agrega pedidos o verifica que los camiones tengan coordenadas válidas
+          </p>
+        </div>
+      )}
+
       <Map
         ref={mapRef}
         {...viewState}
@@ -54,7 +76,7 @@ const MapaReal = ({ camiones, pedidos, rutas }) => {
         attributionControl={false}
       >
         {/* Marcadores de Camiones */}
-        {camiones.map((camion) => (
+        {camionesValidos.map((camion) => (
           <Marker
             key={camion.id}
             longitude={camion.ubicacionActual.lng}
@@ -66,8 +88,8 @@ const MapaReal = ({ camiones, pedidos, rutas }) => {
               style={{ borderColor: obtenerColorEstadoCamion(camion.estado) }}
               onClick={() => onSelectCamion(camion)}
             >
-              <Truck 
-                size={20} 
+              <Truck
+                size={20}
                 style={{ color: obtenerColorEstadoCamion(camion.estado) }}
               />
             </button>
@@ -75,25 +97,35 @@ const MapaReal = ({ camiones, pedidos, rutas }) => {
         ))}
 
         {/* Marcadores de Pedidos */}
-        {pedidos.map((pedido) => (
-          <Marker
-            key={pedido.id}
-            longitude={pedido.coordenadas.lng}
-            latitude={pedido.coordenadas.lat}
-            anchor="center"
-          >
-            <button
-              className="bg-white rounded-full p-2 shadow-lg border-2 hover:scale-110 transition-transform"
-              style={{ borderColor: obtenerColorEstadoPedido(pedido.estado) }}
-              onClick={() => onSelectPedido(pedido)}
+        {pedidosValidos.map((pedido) => {
+          const tieneAdvertencia = pedido.coordenadasAdvertencia && !pedido.coordenadasAdvertencia.valido;
+          return (
+            <Marker
+              key={pedido.id}
+              longitude={pedido.coordenadas.lng}
+              latitude={pedido.coordenadas.lat}
+              anchor="center"
             >
-              <Package 
-                size={18} 
-                style={{ color: obtenerColorEstadoPedido(pedido.estado) }}
-              />
-            </button>
-          </Marker>
-        ))}
+              <div className="relative">
+                <button
+                  className="bg-white rounded-full p-2 shadow-lg border-2 hover:scale-110 transition-transform"
+                  style={{ borderColor: obtenerColorEstadoPedido(pedido.estado) }}
+                  onClick={() => onSelectPedido(pedido)}
+                >
+                  <Package
+                    size={18}
+                    style={{ color: obtenerColorEstadoPedido(pedido.estado) }}
+                  />
+                </button>
+                {tieneAdvertencia && (
+                  <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5" title="Coordenadas verificadas automáticamente">
+                    <AlertTriangle size={12} className="text-white" />
+                  </div>
+                )}
+              </div>
+            </Marker>
+          );
+        })}
 
         {/* Popup de información */}
         {popupInfo && (
@@ -136,6 +168,26 @@ const MapaReal = ({ camiones, pedidos, rutas }) => {
                     {popupInfo.data.camionAsignado && (
                       <div><strong>Camión:</strong> {popupInfo.data.camionAsignado}</div>
                     )}
+                    {popupInfo.data.ciudad && (
+                      <div><strong>Ciudad:</strong> {popupInfo.data.ciudad}</div>
+                    )}
+                    {popupInfo.data.coordenadasAdvertencia && !popupInfo.data.coordenadasAdvertencia.valido && (
+                      <div className="mt-2 p-2 bg-yellow-50 border border-yellow-300 rounded">
+                        <div className="flex items-center gap-1 text-yellow-800 font-semibold mb-1">
+                          <AlertTriangle size={14} />
+                          <span className="text-xs">Coordenadas corregidas</span>
+                        </div>
+                        <div className="text-xs text-yellow-700">
+                          {popupInfo.data.coordenadasAdvertencia.razon === 'coordenadas_muy_lejos' ? (
+                            <>Las coordenadas originales estaban a {popupInfo.data.coordenadasAdvertencia.distancia}km de {popupInfo.data.coordenadasAdvertencia.ciudadEsperada}. Se usaron las coordenadas de la ciudad.</>
+                          ) : popupInfo.data.coordenadasAdvertencia.razon === 'ciudad_no_encontrada' ? (
+                            <>La ciudad especificada no se encontró en el sistema. Se usó ubicación por defecto.</>
+                          ) : (
+                            <>Coordenadas verificadas automáticamente.</>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -164,9 +216,9 @@ const MapaReal = ({ camiones, pedidos, rutas }) => {
           <button
             className="flex items-center gap-2 px-3 py-1 text-sm bg-green-500 text-white rounded hover:bg-green-600"
             onClick={() => {
-              if (camiones.length > 0) {
+              if (camionesValidos.length > 0) {
                 // Centrar en el primer camión activo
-                const camionActivo = camiones.find(c => c.estado === 'En Ruta') || camiones[0];
+                const camionActivo = camionesValidos.find(c => c.estado === 'En Ruta') || camionesValidos[0];
                 setViewState({
                   longitude: camionActivo.ubicacionActual.lng,
                   latitude: camionActivo.ubicacionActual.lat,

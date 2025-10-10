@@ -172,9 +172,9 @@ const TabDespachoSimplificado = ({
   const conductoresDisponibles = conductores.filter(c => c.estado === 'Disponible');
 
   return (
-    <div className="h-full flex gap-4 p-6">
+    <div className="fixed inset-0 top-[168px] flex gap-4 p-6">
       {/* Panel izquierdo - Lista de pedidos */}
-      <div className="flex-1 flex flex-col bg-white rounded-lg shadow-lg">
+      <div id="despachos-pedidos-list" className="flex-1 flex flex-col bg-white rounded-lg shadow-lg min-w-0">
         {/* Header */}
         <div className="p-4 border-b">
           <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
@@ -183,7 +183,7 @@ const TabDespachoSimplificado = ({
           </h2>
 
           {/* Búsqueda */}
-          <div className="relative">
+          <div id="despachos-search" className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
@@ -311,7 +311,7 @@ const TabDespachoSimplificado = ({
       </div>
 
       {/* Panel derecho fijo - Resumen y acciones */}
-      <div className="w-96 flex flex-col gap-4">
+      <div id="despachos-resumen" className="w-96 flex flex-col gap-4 flex-shrink-0 overflow-y-auto">
         {/* Card de resumen */}
         <div className="bg-white rounded-lg shadow-lg p-6">
           <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
@@ -349,7 +349,7 @@ const TabDespachoSimplificado = ({
           </div>
 
           {/* Selector de camión */}
-          <div className="mb-4">
+          <div id="despachos-camion-select" className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
               <Truck size={16} />
               Seleccionar Camión *
@@ -369,7 +369,7 @@ const TabDespachoSimplificado = ({
           </div>
 
           {/* Selector de conductor */}
-          <div className="mb-6">
+          <div id="despachos-conductor-select" className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
               <User size={16} />
               Seleccionar Conductor *
@@ -391,6 +391,7 @@ const TabDespachoSimplificado = ({
           {/* Botones de acción */}
           <div className="space-y-2">
             <button
+              id="despachos-crear-btn"
               onClick={handleCrearDespacho}
               disabled={!camionSeleccionado || !conductorSeleccionado || pedidosSeleccionados.length === 0}
               className={`w-full py-3 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 transition-colors ${

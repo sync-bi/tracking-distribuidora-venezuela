@@ -29,6 +29,10 @@ import Tracker from './components/Conductor/Tracker';
 import { trackingClient } from './services/trackingClient';
 import { actualizarPosicionVehiculo } from './services/firebase';
 
+// Tour Guide
+import TourGuide from './components/UI/TourGuide';
+import { getTourSteps } from './data/tourSteps';
+
 const App = () => {
   const [activeTab, setActiveTab] = useState('pedidos');
   const { user, loading, logout } = useAuth();
@@ -277,16 +281,22 @@ const App = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Tour Guide */}
+      <TourGuide
+        steps={getTourSteps(user?.role, activeTab)}
+        autoStart={true}
+      />
+
       {/* Header con estadísticas */}
-      <Header 
+      <Header
         estadisticasPedidos={estadisticasPedidos}
         estadisticasCamiones={estadisticasCamiones}
         estadisticasDespachos={estadisticasDespachos}
       />
 
       {/* Navigation */}
-      <Navigation 
-        activeTab={activeTab} 
+      <Navigation
+        activeTab={activeTab}
         setActiveTab={setActiveTab}
         allowedTabs={allowedTabs}
         user={user}

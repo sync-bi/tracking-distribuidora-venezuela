@@ -7,7 +7,7 @@ const Header = ({
   estadisticasDespachos = {}
 }) => {
   return (
-    <header className="bg-white shadow-sm border-b">
+    <header id="app-header" className="bg-white shadow-sm border-b sticky top-0 z-50">
       <div className="px-6 py-4">
         <div className="flex justify-between items-center">
           <div>

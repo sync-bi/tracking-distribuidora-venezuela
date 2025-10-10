@@ -13,7 +13,7 @@ const Navigation = ({ activeTab, setActiveTab, allowedTabs = [], user, onLogout 
   ];
 
   return (
-    <nav className="bg-white border-b">
+    <nav id="app-navigation" className="bg-white border-b sticky top-[104px] z-40 shadow-sm">
       <div className="px-6">
         <div className="flex items-center justify-between">
           <div className="flex space-x-8">
