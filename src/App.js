@@ -29,6 +29,9 @@ import Tracker from './components/Conductor/Tracker';
 import { trackingClient } from './services/trackingClient';
 import { actualizarPosicionVehiculo } from './services/firebase';
 
+// Componentes de Ubicaciones
+import TabGestionUbicaciones from './components/Ubicaciones/TabGestionUbicaciones';
+
 // Tour Guide
 import TourGuide from './components/UI/TourGuide';
 import { getTourSteps } from './data/tourSteps';
@@ -38,9 +41,9 @@ const App = () => {
   const { user, loading, logout } = useAuth();
 
   const PERMISSIONS = useMemo(() => ({
-    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa'],
-    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa'],
-    despachador: ['despachos', 'seguimiento', 'camiones', 'mapa'],
+    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'ubicaciones'],
+    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'ubicaciones'],
+    despachador: ['despachos', 'seguimiento', 'camiones', 'mapa', 'ubicaciones'],
     visor: ['mapa', 'pedidos', 'seguimiento'],
     conductor: ['conductor', 'mapa']
   }), []);
@@ -251,6 +254,12 @@ const App = () => {
     }
   };
 
+  // Props para Ubicaciones
+  const ubicacionesProps = {
+    pedidos,
+    onActualizarPedido: actualizarPedido
+  };
+
   // Renderizar contenido de tab activo
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -266,6 +275,8 @@ const App = () => {
         return <Tracker {...conductorProps} />;
       case 'mapa':
         return <TabMapa {...mapaProps} />;
+      case 'ubicaciones':
+        return <TabGestionUbicaciones {...ubicacionesProps} />;
       default:
         return <TabPedidos {...pedidosProps} />;
     }

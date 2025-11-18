@@ -30,12 +30,13 @@ export const useCamiones = () => {
 
   // Asignar pedido a camión
   const asignarPedidoACamion = useCallback((camionId, pedidoId) => {
-    setCamiones(prev => prev.map(camion => 
+    setCamiones(prev => prev.map(camion =>
       camion.id === camionId
-        ? { 
-            ...camion, 
-            pedidosAsignados: [...camion.pedidosAsignados, pedidoId],
-            estado: ESTADOS_CAMION.ASIGNADO
+        ? {
+            ...camion,
+            pedidosAsignados: [...camion.pedidosAsignados, pedidoId]
+            // No cambiar el estado aquí - el camión sigue disponible para más asignaciones
+            // El estado solo cambiará cuando se cree el despacho final
           }
         : camion
     ));
@@ -85,9 +86,12 @@ export const useCamiones = () => {
     ));
   }, []);
 
-  // Obtener camiones disponibles
+  // Obtener camiones disponibles (incluye DISPONIBLE y ASIGNADO)
   const obtenerCamionesDisponibles = useCallback(() => {
-    return camiones.filter(camion => camion.estado === ESTADOS_CAMION.DISPONIBLE);
+    return camiones.filter(camion =>
+      camion.estado === ESTADOS_CAMION.DISPONIBLE ||
+      camion.estado === ESTADOS_CAMION.ASIGNADO
+    );
   }, [camiones]);
 
   // Obtener camiones por estado
