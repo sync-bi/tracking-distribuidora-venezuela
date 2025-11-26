@@ -50,7 +50,8 @@ const MOCK_USERS = [
   { id: 2, name: 'Operador', email: 'op@example.com', password: 'op123', role: 'operador', uid: 'mock-operador' },
   { id: 3, name: 'Despachador', email: 'disp@example.com', password: 'disp123', role: 'despachador', uid: 'mock-despachador' },
   { id: 4, name: 'Visor', email: 'visor@example.com', password: 'visor123', role: 'visor', uid: 'mock-visor' },
-  { id: 5, name: 'Conductor Demo', email: 'driver@example.com', password: 'driver123', role: 'conductor', uid: 'mock-conductor' }
+  { id: 5, name: 'Conductor Demo', email: 'driver@example.com', password: 'driver123', role: 'conductor', uid: 'mock-conductor' },
+  { id: 6, name: 'Juan Pérez', email: 'vendedor@example.com', password: 'vendedor123', role: 'vendedor', uid: 'mock-vendedor' }
 ];
 
 const STORAGE_KEY = 'auth:user';

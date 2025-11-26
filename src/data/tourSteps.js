@@ -170,6 +170,78 @@ export const getTourSteps = (role, activeTab) => {
     }
   ];
 
+  const clientesSteps = [
+    {
+      target: 'clientes-stats',
+      title: '📊 Paso 1: Estadísticas de Clientes',
+      content: 'Visualiza el total de clientes y el porcentaje de ubicaciones corregidas. Estos números se actualizan en tiempo real.',
+      tip: '💡 Tu objetivo es llegar al 100% de clientes con ubicaciones corregidas.'
+    },
+    {
+      target: 'clientes-filtros',
+      title: '🔍 Paso 2: Filtrar Tu Cartera',
+      content: 'Usa el filtro de vendedor para ver SOLO tus clientes asignados. También puedes buscar por nombre, código, dirección o ciudad.',
+      tip: '💡 Si eres vendedor, solo verás tu propia cartera. Los admin/operadores pueden ver "Todos los vendedores".'
+    },
+    {
+      target: 'clientes-lista',
+      title: '📋 Paso 3: Lista de Clientes',
+      content: 'Cada cliente muestra: nombre, dirección, vendedor asignado y total de pedidos. Los iconos indican: ✅ Verde = ubicación corregida, 🔴 Rojo = sin corregir.',
+      tip: '💡 Haz clic en un cliente para verlo en el mapa. Los clientes sin corregir deben ser tu prioridad.'
+    },
+    {
+      target: 'clientes-mapa',
+      title: '🗺️ Paso 4: Mapa Interactivo',
+      content: 'El mapa muestra todos tus clientes filtrados. Colores: 🟢 Verde = corregido, 🔴 Rojo = sin corregir, 🟡 Amarillo = editando (arrastrable).',
+      tip: '💡 Haz clic en un cliente de la lista para que el mapa haga zoom automáticamente a su ubicación.'
+    },
+    {
+      target: null,
+      title: '✏️ Paso 5: Corregir Ubicación',
+      content: 'Haz clic en "Corregir Ubicación" de cualquier cliente. Se abrirá un panel lateral con el formulario de edición.',
+      tip: '💡 Verás cuántos pedidos serán afectados por el cambio - TODOS los pedidos del cliente se actualizarán.'
+    },
+    {
+      target: null,
+      title: '🎯 Paso 6: Ajustar Coordenadas',
+      content: 'OPCIÓN A (Recomendada): Arrastra el marcador AMARILLO en el mapa a la ubicación correcta.\n\nOPCIÓN B: Edita manualmente la dirección, ciudad y coordenadas en el formulario.',
+      tip: '💡 Arrastar el marcador es más rápido y visual. Las coordenadas se actualizan automáticamente mientras arrastras.'
+    },
+    {
+      target: null,
+      title: '💾 Paso 7: Guardar Cambios',
+      content: 'Revisa que la ubicación sea correcta y haz clic en "Guardar Cambios". Los cambios se aplicarán a TODOS los pedidos del cliente y se registrarán en el historial.',
+      tip: '💡 El marcador cambiará de 🟡 amarillo a 🟢 verde automáticamente. Puedes ver el historial de cambios haciendo clic en el botón "Historial".'
+    },
+    {
+      target: null,
+      title: '🎉 ¡Listo! Continúa con el Siguiente',
+      content: 'Has corregido exitosamente la ubicación de un cliente. Ahora continúa con los demás clientes de tu cartera hasta completar el 100%.',
+      tip: '💡 Tip de eficiencia: Puedes corregir 15-20 clientes por hora una vez que te familiarices con el proceso.'
+    }
+  ];
+
+  const ubicacionesSteps = [
+    {
+      target: 'ubicaciones-lista',
+      title: '📋 Gestión de Ubicaciones de Pedidos',
+      content: 'Este módulo permite corregir ubicaciones a nivel de PEDIDOS individuales. Para corregir a nivel de CLIENTES (recomendado), usa la pestaña "Clientes".',
+      tip: '💡 Usar el módulo de Clientes es más eficiente porque un cambio afecta todos los pedidos del cliente.'
+    },
+    {
+      target: 'ubicaciones-filtros',
+      title: '🔍 Búsqueda de Pedidos',
+      content: 'Busca pedidos específicos por cliente, ID, dirección o ciudad. Solo se mostrarán pedidos con ubicaciones pendientes de validar.',
+      tip: '💡 Los pedidos con advertencias de coordenadas tienen prioridad (marcados con triángulo amarillo).'
+    },
+    {
+      target: 'ubicaciones-mapa',
+      title: '🗺️ Mapa de Corrección',
+      content: 'Similar al módulo de Clientes, puedes arrastrar marcadores para ajustar ubicaciones. La diferencia es que aquí corriges pedido por pedido.',
+      tip: '💡 Si varios pedidos son del mismo cliente, es mejor ir a "Clientes" y corregirlos todos de una vez.'
+    }
+  ];
+
   // Construir pasos según el tab activo
   let steps = [...commonSteps];
 
@@ -188,6 +260,12 @@ export const getTourSteps = (role, activeTab) => {
       break;
     case 'conductor':
       steps = [...steps, ...conductorSteps];
+      break;
+    case 'clientes':
+      steps = [...steps, ...clientesSteps];
+      break;
+    case 'ubicaciones':
+      steps = [...steps, ...ubicacionesSteps];
       break;
     default:
       break;
