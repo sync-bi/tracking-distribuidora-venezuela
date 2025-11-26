@@ -32,6 +32,9 @@ import { actualizarPosicionVehiculo } from './services/firebase';
 // Componentes de Ubicaciones
 import TabGestionUbicaciones from './components/Ubicaciones/TabGestionUbicaciones';
 
+// Componentes de Clientes
+import TabGestionClientes from './components/Clientes/TabGestionClientes';
+
 // Tour Guide
 import TourGuide from './components/UI/TourGuide';
 import { getTourSteps } from './data/tourSteps';
@@ -41,14 +44,24 @@ const App = () => {
   const { user, loading, logout } = useAuth();
 
   const PERMISSIONS = useMemo(() => ({
-    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'ubicaciones'],
-    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'ubicaciones'],
-    despachador: ['despachos', 'seguimiento', 'camiones', 'mapa', 'ubicaciones'],
+    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'ubicaciones', 'clientes'],
+    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'ubicaciones', 'clientes'],
+    despachador: ['despachos', 'seguimiento', 'camiones', 'mapa', 'ubicaciones', 'clientes'],
     visor: ['mapa', 'pedidos', 'seguimiento'],
-    conductor: ['conductor', 'mapa']
+    conductor: ['conductor', 'mapa'],
+    vendedor: ['clientes', 'pedidos', 'mapa']
   }), []);
 
-  const allowedTabs = useMemo(() => (user ? (PERMISSIONS[user.role] || []) : []), [user, PERMISSIONS]);
+  const allowedTabs = useMemo(() => {
+    if (!user) return [];
+
+    // Debug: mostrar rol del usuario
+    console.log('👤 Usuario:', user);
+    console.log('🎭 Rol detectado:', user.role);
+    console.log('📋 Pestañas permitidas:', PERMISSIONS[user.role] || []);
+
+    return PERMISSIONS[user.role] || [];
+  }, [user, PERMISSIONS]);
 
   useEffect(() => {
     if (!user) return;
@@ -260,6 +273,12 @@ const App = () => {
     onActualizarPedido: actualizarPedido
   };
 
+  // Props para Clientes
+  const clientesProps = {
+    pedidos,
+    onActualizarPedido: actualizarPedido
+  };
+
   // Renderizar contenido de tab activo
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -277,6 +296,8 @@ const App = () => {
         return <TabMapa {...mapaProps} />;
       case 'ubicaciones':
         return <TabGestionUbicaciones {...ubicacionesProps} />;
+      case 'clientes':
+        return <TabGestionClientes {...clientesProps} />;
       default:
         return <TabPedidos {...pedidosProps} />;
     }

@@ -1,6 +1,6 @@
 // src/components/Layout/Navigation.js
 import React from 'react';
-import { Package, Truck, MapPin, Clipboard, Navigation as NavIcon, Radio, MapPinned } from 'lucide-react';
+import { Package, Truck, MapPin, Clipboard, Navigation as NavIcon, Radio, MapPinned, Building2 } from 'lucide-react';
 
 const Navigation = ({ activeTab, setActiveTab, allowedTabs = [], user, onLogout }) => {
   const tabs = [
@@ -10,7 +10,8 @@ const Navigation = ({ activeTab, setActiveTab, allowedTabs = [], user, onLogout 
     { id: 'seguimiento', label: 'Seguimiento', icon: Radio, description: 'Seguimiento en tiempo real y optimización de rutas' },
     { id: 'conductor', label: 'Conductor', icon: NavIcon, description: 'Modo rastreador del conductor' },
     { id: 'mapa', label: 'Mapa', icon: MapPin, description: 'Vista geografica en tiempo real' },
-    { id: 'ubicaciones', label: 'Ubicaciones', icon: MapPinned, description: 'Gestión de ubicaciones de clientes' }
+    { id: 'ubicaciones', label: 'Ubicaciones', icon: MapPinned, description: 'Gestión de ubicaciones de clientes' },
+    { id: 'clientes', label: 'Clientes', icon: Building2, description: 'Gestión de clientes y corrección de ubicaciones' }
   ];
 
   return (

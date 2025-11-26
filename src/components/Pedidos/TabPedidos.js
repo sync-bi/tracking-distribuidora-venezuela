@@ -41,7 +41,15 @@ const TabPedidos = ({
   const opcionesZona = useMemo(() => {
     const mapa = new Map(); // canon -> label
     (pedidos || []).forEach(p => {
-      const ciudad = (p.ciudad && String(p.ciudad).trim()) || (p.direccion && String(p.direccion).split(',').slice(-1)[0].trim()) || '';
+      let ciudad = '';
+      if (p.ciudad && String(p.ciudad).trim()) {
+        ciudad = String(p.ciudad).trim();
+      } else if (p.direccion && typeof p.direccion === 'string') {
+        const partes = p.direccion.split(',');
+        if (partes.length > 0) {
+          ciudad = partes[partes.length - 1].trim();
+        }
+      }
       const canon = canonCiudad(ciudad);
       if (canon && !mapa.has(canon)) mapa.set(canon, ciudad || canon);
     });

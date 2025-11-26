@@ -4,6 +4,9 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 import { AuthProvider } from './context/AuthContext';
+import './utils/inicializarFirebase'; // Importar para que window.inicializarFirebase esté disponible
+import './utils/testFirestorePermisos'; // Herramienta de diagnóstico de permisos
+import './utils/verificarAuth'; // Verificar estado de autenticación
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

@@ -156,7 +156,7 @@ export const mapRowsToPedidos = (rows) => {
   const iMontoNeto = idx('monto_neto');
   const iCodigoCliente = idx('codigo_cliente');
   const iFechaVencimiento = idx('fecha_vencimiento');
-  // Nuevos: almacen y zona/ruta/cuadrante
+  // Nuevos: almacen, zona/ruta/cuadrante y vendedor
   const iAlmacen = (() => {
     const cands = ['almacen', 'almacen_origen', 'almacenorigen', 'deposito', 'bodega'];
     for (const c of cands) { const p = idx(c); if (p >= 0) return p; }
@@ -167,8 +167,17 @@ export const mapRowsToPedidos = (rows) => {
     for (const c of cands) { const p = idx(c); if (p >= 0) return p; }
     return -1;
   })();
+  const iVendedor = (() => {
+    const cands = ['vendedor', 'vendedor_asignado', 'vendedorasignado', 'asesor', 'asesor_comercial'];
+    for (const c of cands) { const p = idx(c); if (p >= 0) return p; }
+    return -1;
+  })();
 
-  const body = rows.slice(headerRowIdx + 1).filter(r => r && r.some(v => (v||'').toString().trim() !== ''));
+  const body = rows.slice(headerRowIdx + 1).filter(r => r && r.some(v => {
+    if (v == null) return false;
+    const str = String(v).trim();
+    return str !== '';
+  }));
 
   // Si hay numero_pedido, agrupar renglones por pedido
   if (iNumeroPedido >= 0) {
@@ -253,6 +262,7 @@ export const mapRowsToPedidos = (rows) => {
         ...(iCodigoCliente >= 0 ? { codigoCliente: String(to(head, iCodigoCliente) || '') } : {}),
         ...(iMontoNeto >= 0 ? { montoNeto: Number(to(head, iMontoNeto) || 0) } : {}),
         ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(head, iFechaVencimiento)) } : {}),
+        ...(iVendedor >= 0 ? { vendedorAsignado: String(to(head, iVendedor) || 'Sin asignar') } : { vendedorAsignado: 'Sin asignar' }),
         ...(coordenadasAdvertencia ? { coordenadasAdvertencia } : {})
       });
       idxPedido++;
@@ -310,7 +320,8 @@ export const mapRowsToPedidos = (rows) => {
       ...(iCiudad >= 0 ? { ciudad: String(to(iCiudad) || '') } : {}),
       ...(iAlmacen >= 0 ? { almacen: String(to(iAlmacen) || '') } : {}),
       ...(iZona >= 0 ? { zona: String(to(iZona) || '') } : {}),
-      ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(iFechaVencimiento)) } : {})
+      ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(iFechaVencimiento)) } : {}),
+      ...(iVendedor >= 0 ? { vendedorAsignado: String(to(iVendedor) || 'Sin asignar') } : { vendedorAsignado: 'Sin asignar' })
     };
   });
 };

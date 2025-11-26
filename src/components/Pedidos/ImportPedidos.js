@@ -42,7 +42,11 @@ const mapRowsToPedidos = (rows) => {
   const iHora = idx('hora');
   const iProductos = idx('productos'); // ej: "Llanta|Bridgestone|4|225/60R16; Bateria|Duncan|1|12V 75Ah"
 
-  const body = rows.slice(1).filter(r => r.some(v => (v||'').trim() !== ''));
+  const body = rows.slice(1).filter(r => r.some(v => {
+    if (v == null) return false;
+    const str = String(v).trim();
+    return str !== '';
+  }));
 
   return body.map((r, k) => {
     const lat = iLat >= 0 ? parseFloat(r[iLat]) : null;

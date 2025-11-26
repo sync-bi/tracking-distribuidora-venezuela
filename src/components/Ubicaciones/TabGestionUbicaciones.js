@@ -21,6 +21,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
   const [busqueda, setBusqueda] = useState('');
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [marcadorTemporal, setMarcadorTemporal] = useState(null);
+  const [arrastrando, setArrastrando] = useState(false);
 
   // Filtrar pedidos por búsqueda
   const pedidosFiltrados = useMemo(() => {
@@ -114,6 +115,53 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
     });
 
     handleCancelarEdicion();
+  };
+
+  // Manejar arrastre de marcador
+  const handleMarkerDragStart = (pedidoId) => {
+    setArrastrando(true);
+    setPedidoEditando(pedidoId);
+    const pedido = pedidosFiltrados.find(p => p.id === pedidoId);
+    if (pedido) {
+      setPedidoSeleccionado(pedido);
+      setFormulario({
+        direccion: pedido.direccion || '',
+        ciudad: pedido.ciudad || '',
+        lat: pedido.coordenadas?.lat || 10.4806,
+        lng: pedido.coordenadas?.lng || -66.9036
+      });
+    }
+  };
+
+  const handleMarkerDrag = (event) => {
+    const { lng, lat } = event.lngLat;
+    setMarcadorTemporal({ lat, lng });
+    setFormulario(prev => ({
+      ...prev,
+      lat: parseFloat(lat.toFixed(6)),
+      lng: parseFloat(lng.toFixed(6))
+    }));
+  };
+
+  const handleMarkerDragEnd = () => {
+    setArrastrando(false);
+    // Auto-guardar al soltar el marcador
+    if (pedidoEditando && marcadorTemporal) {
+      const pedido = pedidosFiltrados.find(p => p.id === pedidoEditando);
+      if (pedido) {
+        onActualizarPedido(pedidoEditando, {
+          direccion: formulario.direccion,
+          ciudad: formulario.ciudad,
+          coordenadas: {
+            lat: marcadorTemporal.lat,
+            lng: marcadorTemporal.lng,
+            corregida: false
+          }
+        });
+      }
+    }
+    // Mantener el modo de edición activo
+    setMarcadorTemporal(null);
   };
 
   // Click en el mapa para establecer nueva ubicación
@@ -279,57 +327,72 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
               const esSeleccionado = pedidoSeleccionado?.id === pedido.id;
               const esEditando = pedidoEditando === pedido.id;
 
+              // Usar coordenadas temporales si está arrastrando este marcador
+              const coords = (esEditando && marcadorTemporal)
+                ? marcadorTemporal
+                : pedido.coordenadas;
+
               return (
                 <Marker
                   key={pedido.id}
-                  latitude={pedido.coordenadas.lat}
-                  longitude={pedido.coordenadas.lng}
+                  latitude={coords.lat}
+                  longitude={coords.lng}
                   anchor="bottom"
+                  draggable={true}
+                  onDragStart={() => handleMarkerDragStart(pedido.id)}
+                  onDrag={handleMarkerDrag}
+                  onDragEnd={handleMarkerDragEnd}
                 >
                   <div className="relative group">
                     <MapPin
-                      className={`w-8 h-8 cursor-pointer transition-all ${
-                        esEditando
-                          ? 'text-yellow-500 scale-125'
-                          : esSeleccionado
-                            ? 'text-blue-500 scale-110'
-                            : pedido.coordenadas.corregida
-                              ? 'text-orange-500'
-                              : 'text-red-500'
+                      className={`w-8 h-8 transition-all ${
+                        arrastrando && esEditando
+                          ? 'text-green-500 scale-150 cursor-move'
+                          : esEditando
+                            ? 'text-yellow-500 scale-125 cursor-move'
+                            : esSeleccionado
+                              ? 'text-blue-500 scale-110 cursor-pointer'
+                              : pedido.coordenadas.corregida
+                                ? 'text-orange-500 cursor-move'
+                                : 'text-red-500 cursor-move'
                       }`}
                       fill="currentColor"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleCentrarEnPedido(pedido);
+                        if (!arrastrando) {
+                          handleCentrarEnPedido(pedido);
+                        }
                       }}
                     />
                     {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
-                      <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
-                        {pedido.cliente}
+                    {!arrastrando && (
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                        <div className="bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
+                          {pedido.cliente}
+                          <div className="text-[10px] text-gray-400 mt-0.5">
+                            Arrastra para mover
+                          </div>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </Marker>
               );
             })}
 
-            {/* Marcador temporal durante edición */}
-            {marcadorTemporal && pedidoEditando && (
-              <Marker
-                latitude={marcadorTemporal.lat}
-                longitude={marcadorTemporal.lng}
-                anchor="bottom"
-              >
-                <MapPin className="w-10 h-10 text-green-500 animate-bounce" fill="currentColor" />
-              </Marker>
-            )}
           </Map>
 
           {/* Instrucciones cuando está editando */}
-          {pedidoEditando && (
+          {pedidoEditando && !arrastrando && (
             <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow-lg z-10">
-              <p className="text-sm font-medium">Haz clic en el mapa para establecer la nueva ubicación</p>
+              <p className="text-sm font-medium">Arrastra el marcador para mover la ubicación o haz clic en el mapa</p>
+            </div>
+          )}
+
+          {/* Mensaje durante arrastre */}
+          {arrastrando && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-10 animate-pulse">
+              <p className="text-sm font-medium">Arrastrando... Suelta para guardar la nueva ubicación</p>
             </div>
           )}
         </div>
@@ -450,9 +513,12 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
 
               {/* Ayuda */}
               <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-xs text-blue-800">
-                  <strong>Tip:</strong> Haz clic en el mapa para establecer la ubicación exacta del cliente.
-                  Puedes ajustar manualmente las coordenadas o simplemente hacer clic en el punto correcto.
+                <p className="text-xs text-blue-800 space-y-1">
+                  <strong className="block">Cómo ajustar la ubicación:</strong>
+                  <span className="block">• <strong>Arrastra</strong> el marcador directamente en el mapa</span>
+                  <span className="block">• <strong>Haz clic</strong> en el mapa para establecer nueva ubicación</span>
+                  <span className="block">• <strong>Edita</strong> manualmente las coordenadas en los campos</span>
+                  <span className="block mt-2 text-green-700">✓ Los cambios se guardan automáticamente al arrastrar</span>
                 </p>
               </div>
             </div>
