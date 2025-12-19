@@ -144,7 +144,6 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
   };
 
   const handleMarkerDragEnd = () => {
-    setArrastrando(false);
     // Auto-guardar al soltar el marcador
     if (pedidoEditando && marcadorTemporal) {
       const pedido = pedidosFiltrados.find(p => p.id === pedidoEditando);
@@ -162,6 +161,11 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
     }
     // Mantener el modo de edición activo
     setMarcadorTemporal(null);
+
+    // Delay para evitar que el onClick se dispare inmediatamente después del drag
+    setTimeout(() => {
+      setArrastrando(false);
+    }, 100);
   };
 
   // Click en el mapa para establecer nueva ubicación
