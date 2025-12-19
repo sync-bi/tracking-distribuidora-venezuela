@@ -371,22 +371,31 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                   onClick={() => handleZoomCliente(cliente)}
                 >
                   <div className="relative">
-                    <MapPin
-                      size={esEditando ? 36 : esSeleccionado ? 32 : 28}
-                      className={`cursor-pointer transition-all ${
-                        esEditando
-                          ? 'text-yellow-500 animate-pulse'
-                          : esSeleccionado
-                          ? 'text-blue-600'
-                          : cliente.coordenadas.corregida
-                          ? 'text-green-600'
-                          : 'text-red-500'
-                      }`}
-                      fill="currentColor"
-                    />
+                    {/* Marcador preciso con punta - Solo azul o amarillo */}
+                    <div className={`cursor-pointer transition-all ${
+                      esEditando ? 'animate-pulse' : ''
+                    }`}>
+                      <svg
+                        width={esEditando ? 40 : esSeleccionado ? 36 : 32}
+                        height={esEditando ? 40 : esSeleccionado ? 36 : 32}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        {/* Punta precisa del marcador */}
+                        <path
+                          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                          fill={esEditando ? '#eab308' : '#3b82f6'}
+                          stroke="white"
+                          strokeWidth="1.5"
+                        />
+                        {/* Punto central para precisión */}
+                        <circle cx="12" cy="9" r="2.5" fill="white" />
+                      </svg>
+                    </div>
                     {esEditando && arrastrando && (
                       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                        Arrastra para corregir
+                        Arrastra la punta
                       </div>
                     )}
                   </div>
