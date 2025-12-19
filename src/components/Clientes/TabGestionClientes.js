@@ -19,7 +19,10 @@ import {
   ZoomIn,
   ZoomOut,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Map as MapIcon,
+  Globe,
+  Compass
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useClientes } from '../../hooks/useClientes';
@@ -58,6 +61,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [mostrarCapas, setMostrarCapas] = useState(true);
+  const [estiloMapa, setEstiloMapa] = useState('streets'); // streets, satellite, navigation
 
   // Filtrar clientes por vendedor, estado y búsqueda
   const clientesFiltrados = useMemo(() => {
@@ -210,6 +214,16 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
     }
   }, []);
 
+  // Obtener URL del estilo de mapa
+  const obtenerEstiloMapa = () => {
+    const estilos = {
+      streets: 'mapbox://styles/mapbox/streets-v12',
+      satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
+      navigation: 'mapbox://styles/mapbox/navigation-day-v1'
+    };
+    return estilos[estiloMapa] || estilos.streets;
+  };
+
   return (
     <div className="fixed inset-0 top-[168px] flex gap-4 p-6">
       {/* Panel izquierdo - Lista de clientes */}
@@ -328,6 +342,46 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             </button>
           </div>
 
+          {/* Estilos de Mapa */}
+          <div className="border-t pt-2">
+            <span className="text-xs text-gray-600 block mb-2 text-center">Estilo de Mapa:</span>
+            <div className="grid grid-cols-3 gap-1">
+              <button
+                className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
+                  estiloMapa === 'streets'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                onClick={() => setEstiloMapa('streets')}
+              >
+                <MapIcon size={16} />
+                <span className="mt-1">Calles</span>
+              </button>
+              <button
+                className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
+                  estiloMapa === 'satellite'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                onClick={() => setEstiloMapa('satellite')}
+              >
+                <Globe size={16} />
+                <span className="mt-1">Satélite</span>
+              </button>
+              <button
+                className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
+                  estiloMapa === 'navigation'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+                onClick={() => setEstiloMapa('navigation')}
+              >
+                <Compass size={16} />
+                <span className="mt-1">Navegación</span>
+              </button>
+            </div>
+          </div>
+
           {/* Contador */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-600">
@@ -442,7 +496,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
           <Map
             {...viewport}
             onMove={evt => setViewport(evt.viewState)}
-            mapStyle="mapbox://styles/mapbox/streets-v11"
+            mapStyle={obtenerEstiloMapa()}
             mapboxAccessToken={MAPBOX_TOKEN}
             style={{ width: '100%', height: '100%' }}
           >

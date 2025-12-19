@@ -1,7 +1,7 @@
 // src/components/Ubicaciones/TabGestionUbicaciones.js
 import React, { useState, useMemo } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl';
-import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation, Eye, RotateCcw, Filter, Layers, ZoomIn, ZoomOut } from 'lucide-react';
+import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation, Eye, RotateCcw, Filter, Layers, ZoomIn, ZoomOut, Map as MapIcon, Globe, Compass } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
@@ -24,6 +24,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
   const [arrastrando, setArrastrando] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [mostrarCapas, setMostrarCapas] = useState(true);
+  const [estiloMapa, setEstiloMapa] = useState('streets'); // streets, satellite, navigation
 
   // Filtrar pedidos por estado y búsqueda
   const pedidosFiltrados = useMemo(() => {
@@ -223,6 +224,16 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
 
   const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 
+  // Obtener URL del estilo de mapa
+  const obtenerEstiloMapa = () => {
+    const estilos = {
+      streets: 'mapbox://styles/mapbox/streets-v12',
+      satellite: 'mapbox://styles/mapbox/satellite-streets-v12',
+      navigation: 'mapbox://styles/mapbox/navigation-day-v1'
+    };
+    return estilos[estiloMapa] || estilos.streets;
+  };
+
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Header con Estadísticas */}
@@ -327,6 +338,46 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
                   <ZoomIn size={14} />
                 </button>
               </div>
+
+              {/* Estilos de Mapa */}
+              <div className="border-t pt-2">
+                <span className="text-xs text-gray-600 block mb-2 text-center">Estilo de Mapa:</span>
+                <div className="grid grid-cols-3 gap-1">
+                  <button
+                    className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
+                      estiloMapa === 'streets'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    onClick={() => setEstiloMapa('streets')}
+                  >
+                    <MapIcon size={16} />
+                    <span className="mt-1">Calles</span>
+                  </button>
+                  <button
+                    className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
+                      estiloMapa === 'satellite'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    onClick={() => setEstiloMapa('satellite')}
+                  >
+                    <Globe size={16} />
+                    <span className="mt-1">Satélite</span>
+                  </button>
+                  <button
+                    className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
+                      estiloMapa === 'navigation'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                    onClick={() => setEstiloMapa('navigation')}
+                  >
+                    <Compass size={16} />
+                    <span className="mt-1">Navegación</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -400,7 +451,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
             {...viewport}
             onMove={evt => setViewport(evt.viewState)}
             onClick={handleMapClick}
-            mapStyle="mapbox://styles/mapbox/streets-v12"
+            mapStyle={obtenerEstiloMapa()}
             mapboxAccessToken={MAPBOX_TOKEN}
             style={{ width: '100%', height: '100%' }}
           >
