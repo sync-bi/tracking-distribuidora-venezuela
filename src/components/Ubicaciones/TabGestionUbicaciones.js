@@ -1,7 +1,7 @@
 // src/components/Ubicaciones/TabGestionUbicaciones.js
 import React, { useState, useMemo } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl';
-import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation, Eye, RotateCcw, Filter, Layers, ZoomIn, ZoomOut, Map as MapIcon, Globe, Compass } from 'lucide-react';
+import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation, Eye, RotateCcw, Filter, Layers, ZoomIn, ZoomOut, Map as MapIcon, Globe, Compass, Users } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
@@ -25,6 +25,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [mostrarCapas, setMostrarCapas] = useState(true);
   const [estiloMapa, setEstiloMapa] = useState('streets'); // streets, satellite, navigation
+  const [agruparPorCliente, setAgruparPorCliente] = useState(false);
 
   // Filtrar pedidos por estado y búsqueda
   const pedidosFiltrados = useMemo(() => {
@@ -63,6 +64,39 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
 
     return resultado;
   }, [pedidos, busqueda, filtroEstado]);
+
+  // Agrupar pedidos por cliente
+  const pedidosAgrupadosPorCliente = useMemo(() => {
+    if (!agruparPorCliente) return null;
+
+    const grupos = {};
+    pedidosFiltrados.forEach(pedido => {
+      const nombreCliente = pedido.cliente || 'Sin cliente';
+      if (!grupos[nombreCliente]) {
+        grupos[nombreCliente] = {
+          cliente: nombreCliente,
+          pedidos: [],
+          ubicaciones: new Set(),
+          totalPedidos: 0
+        };
+      }
+      grupos[nombreCliente].pedidos.push(pedido);
+      grupos[nombreCliente].totalPedidos++;
+
+      // Agregar ubicación única
+      if (pedido.coordenadas) {
+        const ubicacionKey = `${pedido.coordenadas.lat.toFixed(4)},${pedido.coordenadas.lng.toFixed(4)}`;
+        grupos[nombreCliente].ubicaciones.add(ubicacionKey);
+      }
+    });
+
+    // Convertir a array y agregar conteo de ubicaciones
+    return Object.values(grupos).map(grupo => ({
+      ...grupo,
+      cantidadUbicaciones: grupo.ubicaciones.size,
+      ubicaciones: Array.from(grupo.ubicaciones)
+    })).sort((a, b) => b.totalPedidos - a.totalPedidos);
+  }, [pedidosFiltrados, agruparPorCliente]);
 
   // Estadísticas
   const estadisticas = useMemo(() => {
@@ -303,23 +337,35 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
               {/* Botones de control */}
               <div className="grid grid-cols-2 gap-2">
                 <button
+                  className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs transition-colors ${
+                    agruparPorCliente
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  }`}
+                  onClick={() => setAgruparPorCliente(!agruparPorCliente)}
+                >
+                  <Users size={14} />
+                  {agruparPorCliente ? 'Ver Todos' : 'Agrupar'}
+                </button>
+                <button
                   className="flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
                   onClick={() => setMostrarCapas(!mostrarCapas)}
                 >
                   <Layers size={14} />
                   {mostrarCapas ? 'Ocultar' : 'Mostrar'}
                 </button>
-                <button
-                  className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
-                  onClick={() => {
-                    setFiltroEstado('todos');
-                    setBusqueda('');
-                  }}
-                >
-                  <Filter size={14} />
-                  Limpiar
-                </button>
               </div>
+              <button
+                className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 w-full"
+                onClick={() => {
+                  setFiltroEstado('todos');
+                  setBusqueda('');
+                  setAgruparPorCliente(false);
+                }}
+              >
+                <Filter size={14} />
+                Limpiar Filtros
+              </button>
 
               {/* Controles de Zoom */}
               <div className="flex items-center justify-center gap-3 pt-2">
@@ -387,7 +433,66 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
               <div className="p-4 text-center text-gray-500">
                 No se encontraron clientes
               </div>
+            ) : agruparPorCliente && pedidosAgrupadosPorCliente ? (
+              /* Vista agrupada por cliente */
+              <div className="divide-y divide-gray-200">
+                {pedidosAgrupadosPorCliente.map(grupo => (
+                  <div key={grupo.cliente} className="p-4">
+                    {/* Encabezado del cliente */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-600" />
+                        <h3 className="font-bold text-gray-900">{grupo.cliente}</h3>
+                      </div>
+                      <div className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">
+                        {grupo.totalPedidos} pedido{grupo.totalPedidos !== 1 ? 's' : ''}
+                      </div>
+                    </div>
+
+                    {/* Ubicaciones únicas */}
+                    <div className="ml-7 space-y-1">
+                      <div className="text-xs text-gray-600 flex items-center gap-1">
+                        <MapPin className="w-3 h-3" />
+                        <span className="font-medium">{grupo.cantidadUbicaciones} ubicación{grupo.cantidadUbicaciones !== 1 ? 'es' : ''} diferente{grupo.cantidadUbicaciones !== 1 ? 's' : ''}</span>
+                      </div>
+
+                      {/* Lista de pedidos del cliente */}
+                      <details className="mt-2">
+                        <summary className="text-xs text-blue-600 hover:text-blue-800 cursor-pointer">
+                          Ver {grupo.totalPedidos} pedido{grupo.totalPedidos !== 1 ? 's' : ''}
+                        </summary>
+                        <div className="ml-4 mt-2 space-y-2">
+                          {grupo.pedidos.map(pedido => (
+                            <div
+                              key={pedido.id}
+                              className={`p-2 rounded border cursor-pointer hover:bg-gray-50 ${
+                                pedidoSeleccionado?.id === pedido.id ? 'bg-blue-50 border-blue-300' : 'border-gray-200'
+                              }`}
+                              onClick={() => handleCentrarEnPedido(pedido)}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-gray-700">{pedido.id}</span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleIniciarEdicion(pedido);
+                                  }}
+                                  className="p-1 hover:bg-blue-100 rounded text-blue-600"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1">{pedido.direccion}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
+              /* Vista normal de pedidos */
               <div className="divide-y divide-gray-200">
                 {pedidosFiltrados.map(pedido => (
                   <div
