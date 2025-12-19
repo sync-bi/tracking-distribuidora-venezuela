@@ -52,17 +52,7 @@ const TabMapa = ({
     let camionesFiltrados = camiones;
     let pedidosFiltrados = pedidos;
 
-    // Aplicar búsqueda de cliente
-    if (busquedaCliente.trim()) {
-      const termino = busquedaCliente.toLowerCase();
-      pedidosFiltrados = pedidosFiltrados.filter(p =>
-        (p.cliente || '').toLowerCase().includes(termino) ||
-        (p.direccion || '').toLowerCase().includes(termino) ||
-        (p.ciudad || '').toLowerCase().includes(termino) ||
-        (p.id || '').toLowerCase().includes(termino)
-      );
-    }
-
+    // PRIMERO: Aplicar filtros por estado según la opción seleccionada
     switch (filtroMapa) {
       case 'todos':
         // Mostrar todos los camiones activos y TODOS los pedidos en seguimiento
@@ -108,6 +98,17 @@ const TabMapa = ({
           p.estado !== 'Entregado' && p.estado !== 'Cancelado'
         );
         break;
+    }
+
+    // SEGUNDO: Aplicar búsqueda de cliente DESPUÉS de los filtros de estado
+    if (busquedaCliente.trim()) {
+      const termino = busquedaCliente.toLowerCase();
+      pedidosFiltrados = pedidosFiltrados.filter(p =>
+        (p.cliente || '').toLowerCase().includes(termino) ||
+        (p.direccion || '').toLowerCase().includes(termino) ||
+        (p.ciudad || '').toLowerCase().includes(termino) ||
+        (p.id || '').toLowerCase().includes(termino)
+      );
     }
 
     return { camionesFiltrados, pedidosFiltrados };
