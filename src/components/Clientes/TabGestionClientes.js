@@ -363,8 +363,8 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
               return (
                 <Marker
                   key={cliente.nombre}
-                  latitude={cliente.coordenadas.lat}
-                  longitude={cliente.coordenadas.lng}
+                  latitude={esEditando ? formulario.lat : cliente.coordenadas.lat}
+                  longitude={esEditando ? formulario.lng : cliente.coordenadas.lng}
                   draggable={esEditando}
                   onDragStart={esEditando ? handleMarkerDragStart : undefined}
                   onDragEnd={esEditando ? handleMarkerDragEnd : undefined}
