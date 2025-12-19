@@ -14,7 +14,6 @@ import {
   Filter,
   History,
   Building2,
-  Navigation,
   Layers,
   ZoomIn,
   ZoomOut,
@@ -36,6 +35,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
     historialCambios,
     actualizarUbicacionCliente,
     obtenerClientesPorVendedor,
+    obtenerSedesPorCliente,
     buscarClientes,
     estadisticas
   } = useClientes(pedidos);
@@ -56,12 +56,13 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
   const [busqueda, setBusqueda] = useState('');
   const [vendedorFiltro, setVendedorFiltro] = useState('todos');
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
-  const [marcadorTemporal, setMarcadorTemporal] = useState(null);
   const [arrastrando, setArrastrando] = useState(false);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [mostrarCapas, setMostrarCapas] = useState(true);
   const [estiloMapa, setEstiloMapa] = useState('streets'); // streets, satellite, navigation
+  const [verSedes, setVerSedes] = useState(false);
+  const [clienteSedesExpandido, setClienteSedesExpandido] = useState(null);
 
   // Filtrar clientes por vendedor, estado y búsqueda
   const clientesFiltrados = useMemo(() => {
@@ -134,7 +135,6 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
   const handleCancelarEdicion = useCallback(() => {
     setClienteEditando(null);
     setClienteSeleccionado(null);
-    setMarcadorTemporal(null);
     setFormulario({
       direccion: '',
       ciudad: '',
@@ -198,7 +198,6 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
       lat: lngLat.lat,
       lng: lngLat.lng
     }));
-    setMarcadorTemporal({ lat: lngLat.lat, lng: lngLat.lng });
     setArrastrando(false);
   }, []);
 
@@ -305,24 +304,36 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
           {/* Botones de control */}
           <div className="grid grid-cols-2 gap-2">
             <button
+              className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs transition-colors ${
+                verSedes
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              }`}
+              onClick={() => setVerSedes(!verSedes)}
+            >
+              <Building2 size={14} />
+              {verSedes ? 'Ver Normal' : 'Ver Sedes'}
+            </button>
+            <button
               className="flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
               onClick={() => setMostrarCapas(!mostrarCapas)}
             >
               <Layers size={14} />
               {mostrarCapas ? 'Ocultar' : 'Mostrar'}
             </button>
-            <button
-              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
-              onClick={() => {
-                setFiltroEstado('todos');
-                setVendedorFiltro('todos');
-                setBusqueda('');
-              }}
-            >
-              <RotateCcw size={14} />
-              Limpiar
-            </button>
           </div>
+          <button
+            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 w-full"
+            onClick={() => {
+              setFiltroEstado('todos');
+              setVendedorFiltro('todos');
+              setBusqueda('');
+              setVerSedes(false);
+            }}
+          >
+            <RotateCcw size={14} />
+            Limpiar Filtros
+          </button>
 
           {/* Controles de Zoom */}
           <div className="flex items-center justify-center gap-3 pt-1">
@@ -408,7 +419,121 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                   : 'No hay clientes disponibles'}
               </p>
             </div>
+          ) : verSedes ? (
+            // Vista de Sedes - Agrupado por cliente mostrando sus diferentes ubicaciones
+            <div className="divide-y">
+              {clientesFiltrados.map((cliente) => {
+                const sedes = obtenerSedesPorCliente(cliente.nombre);
+                const expandido = clienteSedesExpandido === cliente.nombre;
+
+                return (
+                  <div key={cliente.nombre} className="border-b">
+                    {/* Header del cliente */}
+                    <div
+                      className="p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
+                      onClick={() => setClienteSedesExpandido(expandido ? null : cliente.nombre)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                            <Building2 size={18} className="text-blue-600" />
+                            {cliente.nombre}
+                          </h3>
+                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
+                            <span className="flex items-center gap-1">
+                              <MapPin size={12} />
+                              {sedes.length} sede{sedes.length !== 1 ? 's' : ''}
+                            </span>
+                            <span>
+                              📦 {cliente.totalPedidos} pedido{cliente.totalPedidos !== 1 ? 's' : ''}
+                            </span>
+                            <span className="text-blue-600">
+                              👤 {cliente.vendedorAsignado}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">
+                            {expandido ? 'Ocultar' : 'Ver sedes'}
+                          </span>
+                          <Eye size={16} className={`text-gray-400 transition-transform ${expandido ? 'rotate-180' : ''}`} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Lista de sedes expandible */}
+                    {expandido && (
+                      <div className="bg-white divide-y">
+                        {sedes.map((sede, index) => (
+                          <div key={sede.id} className="p-4 pl-8 hover:bg-blue-50 transition-colors">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
+                                    Sede {index + 1}
+                                  </span>
+                                  {index === 0 && (
+                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
+                                      Principal
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-700 flex items-start gap-1 mt-2">
+                                  <MapPin size={14} className="flex-shrink-0 mt-0.5" />
+                                  <span>{sede.direccion || 'Sin dirección'}</span>
+                                </p>
+                                {sede.ciudad && (
+                                  <p className="text-xs text-gray-500 ml-5">{sede.ciudad}</p>
+                                )}
+                              </div>
+                              <div className="text-right text-xs text-gray-500">
+                                <p className="font-semibold text-gray-700">
+                                  {sede.cantidadPedidos} pedido{sede.cantidadPedidos !== 1 ? 's' : ''}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Coordenadas */}
+                            <div className="text-xs text-gray-400 ml-5 mb-2">
+                              📍 {sede.coordenadas.lat.toFixed(6)}, {sede.coordenadas.lng.toFixed(6)}
+                            </div>
+
+                            {/* Fechas */}
+                            <div className="text-xs text-gray-500 ml-5 flex gap-4">
+                              <span>
+                                Primer pedido: {new Date(sede.primerPedido).toLocaleDateString('es-VE')}
+                              </span>
+                              <span>
+                                Último: {new Date(sede.ultimoPedido).toLocaleDateString('es-VE')}
+                              </span>
+                            </div>
+
+                            {/* Botón para ver en mapa */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setViewport({
+                                  latitude: sede.coordenadas.lat,
+                                  longitude: sede.coordenadas.lng,
+                                  zoom: 17
+                                });
+                                setClienteSeleccionado(cliente);
+                              }}
+                              className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              <MapPinned size={14} />
+                              Ver en Mapa
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           ) : (
+            // Vista Normal - Lista de clientes tradicional
             <div className="divide-y">
               {clientesFiltrados.map((cliente) => {
                 const esEditando = clienteEditando === cliente.nombre;
@@ -503,74 +628,145 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             <NavigationControl position="top-right" />
 
             {/* Marcadores de todos los clientes filtrados */}
-            {mostrarCapas && clientesFiltrados.map((cliente) => {
-              if (!cliente.coordenadas?.lat || !cliente.coordenadas?.lng) return null;
+            {mostrarCapas && (verSedes && clienteSedesExpandido ? (
+              // Vista de sedes: Mostrar todos los marcadores de las sedes del cliente expandido
+              (() => {
+                const clienteExpandido = clientesFiltrados.find(c => c.nombre === clienteSedesExpandido);
+                if (!clienteExpandido) return null;
 
-              const esEditando = clienteEditando === cliente.nombre;
-              const esSeleccionado = clienteSeleccionado?.nombre === cliente.nombre;
-
-              return (
-                <Marker
-                  key={cliente.nombre}
-                  latitude={esEditando ? formulario.lat : cliente.coordenadas.lat}
-                  longitude={esEditando ? formulario.lng : cliente.coordenadas.lng}
-                  draggable={esEditando}
-                  onDragStart={esEditando ? handleMarkerDragStart : undefined}
-                  onDragEnd={esEditando ? handleMarkerDragEnd : undefined}
-                  onClick={() => handleZoomCliente(cliente)}
-                >
-                  <div className="relative">
-                    {/* Marcador preciso con punta - Solo azul o amarillo */}
-                    <div className={`cursor-pointer transition-all ${
-                      esEditando ? 'animate-pulse' : ''
-                    }`}>
-                      <svg
-                        width={esEditando ? 40 : esSeleccionado ? 36 : 32}
-                        height={esEditando ? 40 : esSeleccionado ? 36 : 32}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        {/* Punta precisa del marcador */}
-                        <path
-                          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
-                          fill={esEditando ? '#eab308' : '#3b82f6'}
-                          stroke="white"
-                          strokeWidth="1.5"
-                        />
-                        {/* Punto central para precisión */}
-                        <circle cx="12" cy="9" r="2.5" fill="white" />
-                      </svg>
-                    </div>
-                    {esEditando && arrastrando && (
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                        Arrastra la punta
+                const sedes = obtenerSedesPorCliente(clienteExpandido.nombre);
+                return sedes.map((sede, index) => (
+                  <Marker
+                    key={`${clienteExpandido.nombre}-sede-${index}`}
+                    latitude={sede.coordenadas.lat}
+                    longitude={sede.coordenadas.lng}
+                    onClick={() => {
+                      setViewport({
+                        latitude: sede.coordenadas.lat,
+                        longitude: sede.coordenadas.lng,
+                        zoom: 17
+                      });
+                    }}
+                  >
+                    <div className="relative">
+                      <div className="cursor-pointer transition-all">
+                        <svg
+                          width={index === 0 ? 36 : 32}
+                          height={index === 0 ? 36 : 32}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                            fill={index === 0 ? '#10b981' : '#3b82f6'}
+                            stroke="white"
+                            strokeWidth="1.5"
+                          />
+                          <circle cx="12" cy="9" r="2.5" fill="white" />
+                        </svg>
                       </div>
-                    )}
-                  </div>
-                </Marker>
-              );
-            })}
+                      <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-0.5 rounded whitespace-nowrap">
+                        Sede {index + 1}
+                      </div>
+                    </div>
+                  </Marker>
+                ));
+              })()
+            ) : (
+              // Vista normal: Mostrar todos los clientes filtrados
+              clientesFiltrados.map((cliente) => {
+                if (!cliente.coordenadas?.lat || !cliente.coordenadas?.lng) return null;
+
+                const esEditando = clienteEditando === cliente.nombre;
+                const esSeleccionado = clienteSeleccionado?.nombre === cliente.nombre;
+
+                return (
+                  <Marker
+                    key={cliente.nombre}
+                    latitude={esEditando ? formulario.lat : cliente.coordenadas.lat}
+                    longitude={esEditando ? formulario.lng : cliente.coordenadas.lng}
+                    draggable={esEditando}
+                    onDragStart={esEditando ? handleMarkerDragStart : undefined}
+                    onDragEnd={esEditando ? handleMarkerDragEnd : undefined}
+                    onClick={() => handleZoomCliente(cliente)}
+                  >
+                    <div className="relative">
+                      {/* Marcador preciso con punta - Solo azul o amarillo */}
+                      <div className={`cursor-pointer transition-all ${
+                        esEditando ? 'animate-pulse' : ''
+                      }`}>
+                        <svg
+                          width={esEditando ? 40 : esSeleccionado ? 36 : 32}
+                          height={esEditando ? 40 : esSeleccionado ? 36 : 32}
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          {/* Punta precisa del marcador */}
+                          <path
+                            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                            fill={esEditando ? '#eab308' : '#3b82f6'}
+                            stroke="white"
+                            strokeWidth="1.5"
+                          />
+                          {/* Punto central para precisión */}
+                          <circle cx="12" cy="9" r="2.5" fill="white" />
+                        </svg>
+                      </div>
+                      {esEditando && arrastrando && (
+                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                          Arrastra la punta
+                        </div>
+                      )}
+                    </div>
+                  </Marker>
+                );
+              })
+            ))}
           </Map>
 
           {/* Leyenda simplificada */}
           <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg text-xs">
             <h4 className="font-semibold mb-2 text-gray-700">Leyenda</h4>
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
-                  <circle cx="12" cy="9" r="2.5" fill="white"/>
-                </svg>
-                <span>Ubicación del cliente</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#eab308" stroke="white" strokeWidth="1.5"/>
-                  <circle cx="12" cy="9" r="2.5" fill="white"/>
-                </svg>
-                <span>Editando (arrástralo)</span>
-              </div>
+              {verSedes && clienteSedesExpandido ? (
+                // Leyenda para vista de sedes
+                <>
+                  <div className="flex items-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#10b981" stroke="white" strokeWidth="1.5"/>
+                      <circle cx="12" cy="9" r="2.5" fill="white"/>
+                    </svg>
+                    <span>Sede Principal</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
+                      <circle cx="12" cy="9" r="2.5" fill="white"/>
+                    </svg>
+                    <span>Sede Secundaria</span>
+                  </div>
+                </>
+              ) : (
+                // Leyenda para vista normal
+                <>
+                  <div className="flex items-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
+                      <circle cx="12" cy="9" r="2.5" fill="white"/>
+                    </svg>
+                    <span>Ubicación del cliente</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#eab308" stroke="white" strokeWidth="1.5"/>
+                      <circle cx="12" cy="9" r="2.5" fill="white"/>
+                    </svg>
+                    <span>Editando (arrástralo)</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
