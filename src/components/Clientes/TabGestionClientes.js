@@ -508,22 +508,41 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                               </span>
                             </div>
 
-                            {/* Botón para ver en mapa */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setViewport({
-                                  latitude: sede.coordenadas.lat,
-                                  longitude: sede.coordenadas.lng,
-                                  zoom: 17
-                                });
-                                setClienteSeleccionado(cliente);
-                              }}
-                              className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                            >
-                              <MapPinned size={14} />
-                              Ver en Mapa
-                            </button>
+                            {/* Botones de acción */}
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewport({
+                                    latitude: sede.coordenadas.lat,
+                                    longitude: sede.coordenadas.lng,
+                                    zoom: 17
+                                  });
+                                  setClienteSeleccionado(cliente);
+                                }}
+                                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                <Eye size={14} />
+                                Ver
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  // Crear un objeto cliente temporal con las coordenadas de esta sede
+                                  const clienteConSede = {
+                                    ...cliente,
+                                    coordenadas: sede.coordenadas,
+                                    direccion: sede.direccion,
+                                    ciudad: sede.ciudad
+                                  };
+                                  handleIniciarEdicion(clienteConSede);
+                                }}
+                                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                              >
+                                <Edit2 size={14} />
+                                Corregir
+                              </button>
+                            </div>
                           </div>
                         ))}
                       </div>
