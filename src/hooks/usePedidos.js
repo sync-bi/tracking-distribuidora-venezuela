@@ -6,20 +6,44 @@ import { generarCoordenadasVenezuela } from '../utils/calculos';
 import { ESTADOS_PEDIDO } from '../utils/constants';
 
 export const usePedidos = () => {
-  const [pedidos, setPedidos] = useState(pedidosIniciales);
+  const [pedidos, setPedidos] = useState([]);
+  const [cargando, setCargando] = useState(true);
 
-  // Autocarga de pedidos desde /public/pedidos.xlsx|csv si existe
+  // Autocarga de pedidos desde /public/Pedidos.xlsx PRIMERO, luego mockData como fallback
   useEffect(() => {
     let mounted = true;
     const shouldAuto = String(process.env.REACT_APP_AUTOLOAD_PEDIDOS || 'true').toLowerCase() === 'true';
-    if (shouldAuto && (!pedidos || pedidos.length === 0)) {
+
+    if (shouldAuto) {
       (async () => {
         try {
+          console.log('📦 Intentando cargar pedidos desde Pedidos.xlsx...');
           const imported = await loadPedidosFromPublic();
-          if (mounted && imported.length) setPedidos(imported);
-        } catch (_) { /* ignore */ }
+
+          if (mounted) {
+            if (imported && imported.length > 0) {
+              console.log(`✅ ${imported.length} pedidos cargados desde Pedidos.xlsx`);
+              setPedidos(imported);
+            } else {
+              console.log('⚠️ Pedidos.xlsx vacío o no encontrado, usando datos mock');
+              setPedidos(pedidosIniciales);
+            }
+            setCargando(false);
+          }
+        } catch (error) {
+          console.error('❌ Error al cargar Pedidos.xlsx:', error);
+          if (mounted) {
+            console.log('📋 Usando datos mock como fallback');
+            setPedidos(pedidosIniciales);
+            setCargando(false);
+          }
+        }
       })();
+    } else {
+      setPedidos(pedidosIniciales);
+      setCargando(false);
     }
+
     return () => { mounted = false; };
   }, []);
 
@@ -130,6 +154,7 @@ export const usePedidos = () => {
 
   return {
     pedidos,
+    cargando,
     crearPedido,
     actualizarEstadoPedido,
     asignarCamionAPedido,
