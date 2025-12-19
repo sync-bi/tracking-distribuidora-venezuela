@@ -103,6 +103,46 @@ export const useClientes = (pedidos = []) => {
     );
   }, [clientes]);
 
+  // Obtener sedes por cliente (múltiples ubicaciones de un mismo cliente)
+  const obtenerSedesPorCliente = useCallback((nombreCliente) => {
+    const pedidosCliente = pedidos.filter(p => p.cliente === nombreCliente);
+    const sedesMap = new Map();
+
+    pedidosCliente.forEach(pedido => {
+      if (!pedido.coordenadas) return;
+
+      // Crear clave única por ubicación (precisión de 4 decimales ~11 metros)
+      const ubicacionKey = `${pedido.coordenadas.lat.toFixed(4)},${pedido.coordenadas.lng.toFixed(4)}`;
+
+      if (!sedesMap.has(ubicacionKey)) {
+        sedesMap.set(ubicacionKey, {
+          id: `sede-${sedesMap.size + 1}`,
+          direccion: pedido.direccion || '',
+          ciudad: pedido.ciudad || '',
+          coordenadas: pedido.coordenadas,
+          pedidosAsociados: [],
+          cantidadPedidos: 0,
+          ultimoPedido: pedido.fechaCreacion,
+          primerPedido: pedido.fechaCreacion
+        });
+      }
+
+      const sede = sedesMap.get(ubicacionKey);
+      sede.pedidosAsociados.push(pedido.id);
+      sede.cantidadPedidos++;
+
+      // Actualizar fechas
+      if (pedido.fechaCreacion > sede.ultimoPedido) {
+        sede.ultimoPedido = pedido.fechaCreacion;
+      }
+      if (pedido.fechaCreacion < sede.primerPedido) {
+        sede.primerPedido = pedido.fechaCreacion;
+      }
+    });
+
+    return Array.from(sedesMap.values()).sort((a, b) => b.cantidadPedidos - a.cantidadPedidos);
+  }, [pedidos]);
+
   // Estadísticas
   const estadisticas = useMemo(() => {
     const total = clientes.length;
@@ -135,6 +175,7 @@ export const useClientes = (pedidos = []) => {
     historialCambios,
     actualizarUbicacionCliente,
     obtenerClientesPorVendedor,
+    obtenerSedesPorCliente,
     buscarClientes,
     estadisticas
   };
