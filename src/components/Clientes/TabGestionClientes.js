@@ -14,7 +14,12 @@ import {
   Filter,
   History,
   Building2,
-  Navigation
+  Navigation,
+  Layers,
+  ZoomIn,
+  ZoomOut,
+  Eye,
+  RotateCcw
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useClientes } from '../../hooks/useClientes';
@@ -51,19 +56,53 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
   const [marcadorTemporal, setMarcadorTemporal] = useState(null);
   const [arrastrando, setArrastrando] = useState(false);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+  const [mostrarCapas, setMostrarCapas] = useState(true);
 
-  // Filtrar clientes
+  // Filtrar clientes por vendedor, estado y búsqueda
   const clientesFiltrados = useMemo(() => {
     let resultado = obtenerClientesPorVendedor(vendedorFiltro);
 
+    // Aplicar filtro por estado de coordenadas
+    switch (filtroEstado) {
+      case 'conCoordenadas':
+        resultado = resultado.filter(c => c.coordenadas && c.coordenadas.lat && c.coordenadas.lng);
+        break;
+      case 'sinCoordenadas':
+        resultado = resultado.filter(c => !c.coordenadas || !c.coordenadas.lat || !c.coordenadas.lng);
+        break;
+      case 'conPedidos':
+        resultado = resultado.filter(c => {
+          const pedidosCliente = pedidos.filter(p => p.cliente === c.nombre);
+          return pedidosCliente.length > 0;
+        });
+        break;
+      case 'sinPedidos':
+        resultado = resultado.filter(c => {
+          const pedidosCliente = pedidos.filter(p => p.cliente === c.nombre);
+          return pedidosCliente.length === 0;
+        });
+        break;
+      case 'todos':
+      default:
+        // No filtrar por estado
+        break;
+    }
+
+    // Aplicar búsqueda
     if (busqueda) {
       resultado = buscarClientes(busqueda).filter(c =>
-        vendedorFiltro === 'todos' || c.vendedorAsignado === vendedorFiltro
+        (vendedorFiltro === 'todos' || c.vendedorAsignado === vendedorFiltro) &&
+        (filtroEstado === 'todos' ||
+          (filtroEstado === 'conCoordenadas' && c.coordenadas?.lat) ||
+          (filtroEstado === 'sinCoordenadas' && !c.coordenadas?.lat) ||
+          (filtroEstado === 'conPedidos' && pedidos.some(p => p.cliente === c.nombre)) ||
+          (filtroEstado === 'sinPedidos' && !pedidos.some(p => p.cliente === c.nombre)))
       );
     }
 
     return resultado;
-  }, [clientes, busqueda, vendedorFiltro, obtenerClientesPorVendedor, buscarClientes]);
+  }, [clientes, busqueda, vendedorFiltro, filtroEstado, pedidos, obtenerClientesPorVendedor, buscarClientes]);
 
   // Iniciar edición de cliente
   const handleIniciarEdicion = useCallback((cliente) => {
@@ -159,13 +198,13 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
     setArrastrando(false);
   }, []);
 
-  // Hacer zoom a cliente seleccionado
+  // Hacer zoom a cliente seleccionado con mayor cercanía
   const handleZoomCliente = useCallback((cliente) => {
     if (cliente.coordenadas) {
       setViewport({
         latitude: cliente.coordenadas.lat,
         longitude: cliente.coordenadas.lng,
-        zoom: 14
+        zoom: 17  // Aumentado de 14 a 17 para mayor cercanía
       });
       setClienteSeleccionado(cliente);
     }
@@ -231,6 +270,62 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                 </option>
               ))}
             </select>
+          </div>
+
+          {/* Filtro por estado */}
+          <div className="relative">
+            <MapPinned className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <select
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              value={filtroEstado}
+              onChange={(e) => setFiltroEstado(e.target.value)}
+            >
+              <option value="todos">Todos los Estados</option>
+              <option value="conCoordenadas">Con Coordenadas</option>
+              <option value="sinCoordenadas">Sin Coordenadas</option>
+              <option value="conPedidos">Con Pedidos Activos</option>
+              <option value="sinPedidos">Sin Pedidos</option>
+            </select>
+          </div>
+
+          {/* Botones de control */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
+              onClick={() => setMostrarCapas(!mostrarCapas)}
+            >
+              <Layers size={14} />
+              {mostrarCapas ? 'Ocultar' : 'Mostrar'}
+            </button>
+            <button
+              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
+              onClick={() => {
+                setFiltroEstado('todos');
+                setVendedorFiltro('todos');
+                setBusqueda('');
+              }}
+            >
+              <RotateCcw size={14} />
+              Limpiar
+            </button>
+          </div>
+
+          {/* Controles de Zoom */}
+          <div className="flex items-center justify-center gap-3 pt-1">
+            <span className="text-xs text-gray-600">Zoom:</span>
+            <button
+              className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+              onClick={() => setViewport(prev => ({ ...prev, zoom: Math.max(prev.zoom - 1, 3) }))}
+            >
+              <ZoomOut size={14} />
+            </button>
+            <span className="text-xs font-mono text-gray-700">{Math.round(viewport.zoom)}</span>
+            <button
+              className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+              onClick={() => setViewport(prev => ({ ...prev, zoom: Math.min(prev.zoom + 1, 18) }))}
+            >
+              <ZoomIn size={14} />
+            </button>
           </div>
 
           {/* Contador */}
@@ -354,7 +449,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             <NavigationControl position="top-right" />
 
             {/* Marcadores de todos los clientes filtrados */}
-            {clientesFiltrados.map((cliente) => {
+            {mostrarCapas && clientesFiltrados.map((cliente) => {
               if (!cliente.coordenadas?.lat || !cliente.coordenadas?.lng) return null;
 
               const esEditando = clienteEditando === cliente.nombre;

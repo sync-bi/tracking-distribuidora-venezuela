@@ -1,7 +1,7 @@
 // src/components/Ubicaciones/TabGestionUbicaciones.js
 import React, { useState, useMemo } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl';
-import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation } from 'lucide-react';
+import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation, Eye, RotateCcw, Filter, Layers, ZoomIn, ZoomOut } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
@@ -22,19 +22,46 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [marcadorTemporal, setMarcadorTemporal] = useState(null);
   const [arrastrando, setArrastrando] = useState(false);
+  const [filtroEstado, setFiltroEstado] = useState('todos');
+  const [mostrarCapas, setMostrarCapas] = useState(true);
 
-  // Filtrar pedidos por búsqueda
+  // Filtrar pedidos por estado y búsqueda
   const pedidosFiltrados = useMemo(() => {
-    if (!busqueda) return pedidos;
+    let resultado = pedidos;
 
-    const termino = busqueda.toLowerCase();
-    return pedidos.filter(p =>
-      p.cliente?.toLowerCase().includes(termino) ||
-      p.id?.toLowerCase().includes(termino) ||
-      p.direccion?.toLowerCase().includes(termino) ||
-      p.ciudad?.toLowerCase().includes(termino)
-    );
-  }, [pedidos, busqueda]);
+    // PRIMERO: Aplicar filtro de estado
+    switch (filtroEstado) {
+      case 'conCoordenadas':
+        resultado = resultado.filter(p => p.coordenadas && p.coordenadas.lat && p.coordenadas.lng);
+        break;
+      case 'sinCoordenadas':
+        resultado = resultado.filter(p => !p.coordenadas || !p.coordenadas.lat || !p.coordenadas.lng);
+        break;
+      case 'corregidas':
+        resultado = resultado.filter(p => p.coordenadas?.corregida === true);
+        break;
+      case 'verificadas':
+        resultado = resultado.filter(p => p.coordenadas && !p.coordenadas.corregida);
+        break;
+      case 'todos':
+      default:
+        // No filtrar por estado
+        break;
+    }
+
+    // SEGUNDO: Aplicar búsqueda
+    if (busqueda) {
+      const termino = busqueda.toLowerCase();
+      resultado = resultado.filter(p =>
+        p.cliente?.toLowerCase().includes(termino) ||
+        p.id?.toLowerCase().includes(termino) ||
+        p.direccion?.toLowerCase().includes(termino) ||
+        p.ciudad?.toLowerCase().includes(termino)
+      );
+    }
+
+    return resultado;
+  }, [pedidos, busqueda, filtroEstado]);
 
   // Estadísticas
   const estadisticas = useMemo(() => {
@@ -181,14 +208,14 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
     }));
   };
 
-  // Centrar en pedido
+  // Centrar en pedido con zoom más cercano
   const handleCentrarEnPedido = (pedido) => {
     if (pedido.coordenadas) {
       setViewport(prev => ({
         ...prev,
         latitude: pedido.coordenadas.lat,
         longitude: pedido.coordenadas.lng,
-        zoom: 15
+        zoom: 17  // Aumentado de 15 a 17 para mayor cercanía
       }));
       setPedidoSeleccionado(pedido);
     }
@@ -245,6 +272,61 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
                 onChange={(e) => setBusqueda(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
+            </div>
+
+            {/* Filtros y Controles */}
+            <div className="mt-3 space-y-2">
+              {/* Filtro por estado */}
+              <select
+                className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value)}
+              >
+                <option value="todos">Todas las Ubicaciones</option>
+                <option value="conCoordenadas">Con Coordenadas</option>
+                <option value="sinCoordenadas">Sin Coordenadas</option>
+                <option value="corregidas">Corregidas Automáticamente</option>
+                <option value="verificadas">Verificadas Manualmente</option>
+              </select>
+
+              {/* Botones de control */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  className="flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
+                  onClick={() => setMostrarCapas(!mostrarCapas)}
+                >
+                  <Layers size={14} />
+                  {mostrarCapas ? 'Ocultar' : 'Mostrar'}
+                </button>
+                <button
+                  className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600"
+                  onClick={() => {
+                    setFiltroEstado('todos');
+                    setBusqueda('');
+                  }}
+                >
+                  <Filter size={14} />
+                  Limpiar
+                </button>
+              </div>
+
+              {/* Controles de Zoom */}
+              <div className="flex items-center justify-center gap-3 pt-2">
+                <span className="text-xs text-gray-600">Zoom:</span>
+                <button
+                  className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+                  onClick={() => setViewport(prev => ({ ...prev, zoom: Math.max(prev.zoom - 1, 3) }))}
+                >
+                  <ZoomOut size={14} />
+                </button>
+                <span className="text-xs font-mono text-gray-700">{Math.round(viewport.zoom)}</span>
+                <button
+                  className="p-1 bg-gray-200 rounded hover:bg-gray-300"
+                  onClick={() => setViewport(prev => ({ ...prev, zoom: Math.min(prev.zoom + 1, 18) }))}
+                >
+                  <ZoomIn size={14} />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -325,7 +407,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
             <NavigationControl position="top-right" />
 
             {/* Marcadores de todos los pedidos */}
-            {pedidosFiltrados.map(pedido => {
+            {mostrarCapas && pedidosFiltrados.map(pedido => {
               if (!pedido.coordenadas) return null;
 
               const esSeleccionado = pedidoSeleccionado?.id === pedido.id;
