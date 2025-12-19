@@ -13,7 +13,8 @@ import {
   MapPinned,
   Filter,
   History,
-  Building2
+  Building2,
+  Navigation
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useClientes } from '../../hooks/useClientes';
@@ -394,21 +395,23 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             })}
           </Map>
 
-          {/* Leyenda */}
+          {/* Leyenda simplificada */}
           <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg text-xs">
             <h4 className="font-semibold mb-2 text-gray-700">Leyenda</h4>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-green-600" fill="currentColor" />
-                <span>Ubicación corregida</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Ubicación del cliente</span>
               </div>
               <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-red-500" fill="currentColor" />
-                <span>Sin corregir</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-yellow-500" fill="currentColor" />
-                <span>Editando (arrastrable)</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#eab308" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Editando (arrástralo)</span>
               </div>
             </div>
           </div>
@@ -520,7 +523,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             {/* Instrucciones */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm text-blue-800">
-                💡 <strong>Tip:</strong> Arrastra el marcador amarillo en el mapa para ajustar la ubicación con precisión.
+                💡 <strong>Tip:</strong> Arrastra el marcador amarillo en el mapa. La punta del marcador indica la ubicación exacta.
               </p>
             </div>
           </div>
