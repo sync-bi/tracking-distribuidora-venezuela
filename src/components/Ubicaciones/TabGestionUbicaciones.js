@@ -1,7 +1,7 @@
 // src/components/Ubicaciones/TabGestionUbicaciones.js
 import React, { useState, useMemo } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl';
-import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle } from 'lucide-react';
+import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
@@ -344,26 +344,33 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
                   onDragEnd={handleMarkerDragEnd}
                 >
                   <div className="relative group">
-                    <MapPin
-                      className={`w-8 h-8 transition-all ${
-                        arrastrando && esEditando
-                          ? 'text-green-500 scale-150 cursor-move'
-                          : esEditando
-                            ? 'text-yellow-500 scale-125 cursor-move'
-                            : esSeleccionado
-                              ? 'text-blue-500 scale-110 cursor-pointer'
-                              : pedido.coordenadas.corregida
-                                ? 'text-orange-500 cursor-move'
-                                : 'text-red-500 cursor-move'
-                      }`}
-                      fill="currentColor"
+                    <div
+                      className={`cursor-pointer transition-all ${esEditando || arrastrando ? 'animate-pulse' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!arrastrando) {
                           handleCentrarEnPedido(pedido);
                         }
                       }}
-                    />
+                    >
+                      <svg
+                        width={esEditando || arrastrando ? 40 : esSeleccionado ? 36 : 32}
+                        height={esEditando || arrastrando ? 40 : esSeleccionado ? 36 : 32}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        {/* Punta precisa del marcador GPS */}
+                        <path
+                          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                          fill={esEditando || arrastrando ? '#eab308' : '#3b82f6'}
+                          stroke="white"
+                          strokeWidth="1.5"
+                        />
+                        {/* Punto central para precisión */}
+                        <circle cx="12" cy="9" r="2.5" fill="white" />
+                      </svg>
+                    </div>
                     {/* Tooltip */}
                     {!arrastrando && (
                       <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block z-50">
