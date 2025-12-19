@@ -231,7 +231,11 @@ const App = () => {
     estadisticasPedidos,
     estadisticasCamiones,
     estadisticasRutas,
-    estadisticasDespachos
+    estadisticasDespachos,
+    onAsignarCamion: handleAsignarCamion,
+    onOptimizarRuta: handleOptimizarRuta,
+    onLimpiarRuta: limpiarRutaCamion,
+    onRecalcularRutas: recalcularTodasLasRutas
   };
 
   // Props para Conductor (tracking en dispositivo)

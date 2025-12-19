@@ -4,11 +4,19 @@ import Map, { Marker, Popup } from 'react-map-gl';
 import { Truck, Navigation, Package, AlertTriangle } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
-const MapaReal = ({ camiones = [], pedidos = [], rutas = [] }) => {
+const MapaReal = ({
+  camiones = [],
+  pedidos = [],
+  rutas = [],
+  zoomLevel = 11,
+  mostrarCapas = true,
+  busquedaCliente = '',
+  onAsignarPedido = null
+}) => {
   const [viewState, setViewState] = useState({
     longitude: -66.9036, // Caracas, Venezuela
     latitude: 10.4806,
-    zoom: 6
+    zoom: zoomLevel
   });
 
   const [popupInfo, setPopupInfo] = useState(null);
@@ -167,6 +175,26 @@ const MapaReal = ({ camiones = [], pedidos = [], rutas = [] }) => {
                     <div><strong>Productos:</strong> {popupInfo.data.productos.length} items</div>
                     {popupInfo.data.camionAsignado && (
                       <div><strong>Camión:</strong> {popupInfo.data.camionAsignado}</div>
+                    )}
+                    {/* Asignar a camión si está pendiente */}
+                    {onAsignarPedido && popupInfo.data.estado === 'Pendiente' && camiones.length > 0 && (
+                      <div className="mt-3 pt-2 border-t">
+                        <select
+                          className="w-full text-xs p-1 border rounded"
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              onAsignarPedido(popupInfo.data.id, e.target.value);
+                              setPopupInfo(null);
+                            }
+                          }}
+                          defaultValue=""
+                        >
+                          <option value="">Asignar a camión...</option>
+                          {camiones.filter(c => c.estado === 'Disponible' || c.estado === 'Asignado').map(c => (
+                            <option key={c.id} value={c.id}>{c.id} - {c.conductor}</option>
+                          ))}
+                        </select>
+                      </div>
                     )}
                     {popupInfo.data.ciudad && (
                       <div><strong>Ciudad:</strong> {popupInfo.data.ciudad}</div>

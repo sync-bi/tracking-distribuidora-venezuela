@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Truck, MapPin, Clock, Fuel, Route, Navigation, Zap,
   ChevronUp, ChevronDown, Play, Pause, CheckCircle,
-  AlertCircle, Package, Radio
+  AlertCircle, Package, Radio, RotateCcw
 } from 'lucide-react';
 import MapaDespachos from './MapaDespachos';
 import { escucharPosicionVehiculo, isFirebaseAvailable } from '../../services/firebase';
@@ -433,6 +433,37 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
               >
                 <Zap size={16} />
                 Optimizar Ruta
+              </button>
+
+              <button
+                onClick={() => {
+                  // Recalcular ruta con algoritmo inteligente
+                  handleOptimizarRuta();
+                }}
+                disabled={modoEdicion || rutaActual.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+              >
+                <RotateCcw size={16} />
+                Recalcular Ruta
+              </button>
+
+              <button
+                onClick={() => {
+                  // Re-iniciar ruta: resetear progreso
+                  if (despacho && window.confirm('¿Reiniciar el progreso de la ruta? Esto marcará todas las paradas como pendientes.')) {
+                    const rutaReiniciada = rutaActual.map(parada => ({
+                      ...parada,
+                      completada: false
+                    }));
+                    onModificarRuta(despacho.camionId, rutaReiniciada);
+                    onActualizarDespacho(despacho.id, { progreso: 0 });
+                  }
+                }}
+                disabled={modoEdicion || rutaActual.length === 0}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+              >
+                <Play size={16} />
+                Re-iniciar Ruta
               </button>
 
               <button

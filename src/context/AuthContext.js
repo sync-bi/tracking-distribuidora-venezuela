@@ -123,14 +123,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async ({ email, password }) => {
-    if (!auth) {
-      // Modo MOCK
-      console.warn('⚠️ Usando autenticación MOCK (Firebase no configurado)');
-      const found = MOCK_USERS.find(u => u.email === email && u.password === password);
+    // PRIORIDAD 1: Intentar con usuarios MOCK primero
+    const found = MOCK_USERS.find(u => u.email === email && u.password === password);
+    if (found) {
+      console.warn('⚠️ Usando autenticación MOCK');
       await new Promise(r => setTimeout(r, 300));
-      if (!found) {
-        throw new Error('Credenciales inválidas');
-      }
       const safeUser = {
         uid: found.uid,
         id: found.id,
@@ -141,6 +138,12 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
       setUser(safeUser);
       return safeUser;
+    }
+
+    // PRIORIDAD 2: Si no está en MOCK y Firebase está configurado, intentar con Firebase
+    if (!auth) {
+      // Si no hay Firebase configurado y tampoco está en MOCK, error
+      throw new Error('Credenciales inválidas');
     }
 
     // Modo Firebase

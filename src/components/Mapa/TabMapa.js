@@ -1,6 +1,6 @@
 // src/components/Mapa/TabMapa.js
 import React, { useState, useEffect } from 'react';
-import { Truck, Package, Route, Eye, RotateCcw, Filter, Navigation, BarChart3 } from 'lucide-react';
+import { Truck, Package, Route, Eye, RotateCcw, Filter, Navigation, BarChart3, Search, ZoomIn, ZoomOut, Layers } from 'lucide-react';
 import MapaReal from './MapaReal';
 
 const TabMapa = ({
@@ -9,11 +9,18 @@ const TabMapa = ({
   rutas,
   estadisticasPedidos,
   estadisticasCamiones,
-  estadisticasRutas
+  estadisticasRutas,
+  onAsignarCamion,
+  onOptimizarRuta,
+  onLimpiarRuta,
+  onRecalcularRutas
 }) => {
   const [filtroMapa, setFiltroMapa] = useState('todos');
   const [actualizacionAutomatica, setActualizacionAutomatica] = useState(true);
   const [ultimaActualizacion, setUltimaActualizacion] = useState(new Date());
+  const [busquedaCliente, setBusquedaCliente] = useState('');
+  const [zoomLevel, setZoomLevel] = useState(11);
+  const [mostrarCapas, setMostrarCapas] = useState(true);
 
   // Simular actualización automática
   useEffect(() => {
@@ -40,11 +47,21 @@ const TabMapa = ({
     return (totalDistancia / rutasConDistancia.length).toFixed(1);
   };
 
-  // Filtrar datos según el filtro seleccionado
-  // CAMBIADO: Por defecto mostrar TODOS los pedidos en seguimiento (no entregados)
+  // Filtrar datos según el filtro seleccionado y búsqueda
   const datosFiltrados = () => {
     let camionesFiltrados = camiones;
     let pedidosFiltrados = pedidos;
+
+    // Aplicar búsqueda de cliente
+    if (busquedaCliente.trim()) {
+      const termino = busquedaCliente.toLowerCase();
+      pedidosFiltrados = pedidosFiltrados.filter(p =>
+        (p.cliente || '').toLowerCase().includes(termino) ||
+        (p.direccion || '').toLowerCase().includes(termino) ||
+        (p.ciudad || '').toLowerCase().includes(termino) ||
+        (p.id || '').toLowerCase().includes(termino)
+      );
+    }
 
     switch (filtroMapa) {
       case 'todos':
@@ -167,8 +184,22 @@ const TabMapa = ({
             Última actualización: {ultimaActualizacion.toLocaleTimeString()}
           </div>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+
+        {/* Búsqueda de clientes */}
+        <div className="mb-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar cliente por nombre, dirección o ciudad..."
+              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              value={busquedaCliente}
+              onChange={(e) => setBusquedaCliente(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
           <select
             className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
             value={filtroMapa}
@@ -182,34 +213,68 @@ const TabMapa = ({
             <option value="asignados">Solo Asignados</option>
           </select>
 
-          <button 
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          <button
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
             onClick={() => {
               // Centrar vista en elementos filtrados
               setUltimaActualizacion(new Date());
             }}
           >
             <Eye size={16} />
-            Centrar Vista
+            Centrar
           </button>
 
-          <button 
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+          <button
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
             onClick={() => setUltimaActualizacion(new Date())}
           >
             <RotateCcw size={16} />
             Actualizar
           </button>
 
-          <button 
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+          <button
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600"
+            onClick={() => setMostrarCapas(!mostrarCapas)}
+          >
+            <Layers size={16} />
+            {mostrarCapas ? 'Ocultar' : 'Mostrar'} Capas
+          </button>
+
+          <button
+            className="flex items-center justify-center gap-2 px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
             onClick={() => {
-              // Resetear filtros
               setFiltroMapa('todos');
+              setBusquedaCliente('');
             }}
           >
             <Filter size={16} />
-            Limpiar Filtros
+            Limpiar
+          </button>
+        </div>
+
+        {/* Controles de Zoom */}
+        <div className="flex items-center gap-2 mt-4">
+          <span className="text-sm text-gray-600">Zoom:</span>
+          <button
+            className="flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={() => setZoomLevel(Math.min(zoomLevel + 1, 18))}
+            title="Acercar zoom"
+          >
+            <ZoomIn size={16} />
+          </button>
+          <span className="text-sm font-mono text-gray-700 min-w-[3rem] text-center">{zoomLevel}</span>
+          <button
+            className="flex items-center justify-center w-8 h-8 bg-blue-500 text-white rounded hover:bg-blue-600"
+            onClick={() => setZoomLevel(Math.max(zoomLevel - 1, 3))}
+            title="Alejar zoom"
+          >
+            <ZoomOut size={16} />
+          </button>
+          <button
+            className="ml-2 px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+            onClick={() => setZoomLevel(11)}
+          >
+            Reset
           </button>
         </div>
       </div>
@@ -221,6 +286,10 @@ const TabMapa = ({
             camiones={camionesFiltrados}
             pedidos={pedidosFiltrados}
             rutas={rutas}
+            zoomLevel={zoomLevel}
+            mostrarCapas={mostrarCapas}
+            busquedaCliente={busquedaCliente}
+            onAsignarPedido={onAsignarCamion}
           />
         </div>
         
