@@ -14,31 +14,35 @@ import {
   Filter,
   History,
   Building2,
-  Layers,
   ZoomIn,
   ZoomOut,
-  Eye,
   RotateCcw,
   Map as MapIcon,
   Globe,
-  Compass
+  Compass,
+  Download,
+  RefreshCw,
+  Loader2
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { useClientes } from '../../hooks/useClientes';
+import { useClientesCSV } from '../../hooks/useClientesCSV';
 
 const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN;
 
-const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
+const TabGestionClientes = () => {
   const {
     clientes,
-    vendedores,
+    ciudades,
     historialCambios,
+    cargando,
+    error,
     actualizarUbicacionCliente,
-    obtenerClientesPorVendedor,
-    obtenerSedesPorCliente,
+    obtenerClientesPorCiudad,
     buscarClientes,
-    estadisticas
-  } = useClientes(pedidos);
+    estadisticas,
+    recargarClientes,
+    exportarClientesCSV
+  } = useClientesCSV();
 
   const [viewport, setViewport] = useState({
     latitude: 10.4806,
@@ -54,64 +58,58 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
     lng: 0
   });
   const [busqueda, setBusqueda] = useState('');
-  const [vendedorFiltro, setVendedorFiltro] = useState('todos');
+  const [ciudadFiltro, setCiudadFiltro] = useState('todos');
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [arrastrando, setArrastrando] = useState(false);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('todos');
-  const [mostrarCapas, setMostrarCapas] = useState(true);
-  const [estiloMapa, setEstiloMapa] = useState('streets'); // streets, satellite, navigation
-  const [verSedes, setVerSedes] = useState(false);
-  const [clienteSedesExpandido, setClienteSedesExpandido] = useState(null);
+  const [estiloMapa, setEstiloMapa] = useState('streets');
 
-  // Filtrar clientes por vendedor, estado y búsqueda
+  // Filtrar clientes por ciudad, estado y búsqueda
   const clientesFiltrados = useMemo(() => {
-    let resultado = obtenerClientesPorVendedor(vendedorFiltro);
+    let resultado = obtenerClientesPorCiudad(ciudadFiltro);
 
     // Aplicar filtro por estado de coordenadas
     switch (filtroEstado) {
       case 'conCoordenadas':
-        resultado = resultado.filter(c => c.coordenadas && c.coordenadas.lat && c.coordenadas.lng);
+        resultado = resultado.filter(c =>
+          c.coordenadas && c.coordenadas.lat && c.coordenadas.lng &&
+          c.coordenadas.lat !== 0 && c.coordenadas.lng !== 0
+        );
         break;
       case 'sinCoordenadas':
-        resultado = resultado.filter(c => !c.coordenadas || !c.coordenadas.lat || !c.coordenadas.lng);
+        resultado = resultado.filter(c =>
+          !c.coordenadas || !c.coordenadas.lat || !c.coordenadas.lng ||
+          c.coordenadas.lat === 0 || c.coordenadas.lng === 0
+        );
         break;
-      case 'conPedidos':
-        resultado = resultado.filter(c => {
-          const pedidosCliente = pedidos.filter(p => p.cliente === c.nombre);
-          return pedidosCliente.length > 0;
-        });
+      case 'corregidas':
+        resultado = resultado.filter(c => c.coordenadas?.corregida);
         break;
-      case 'sinPedidos':
-        resultado = resultado.filter(c => {
-          const pedidosCliente = pedidos.filter(p => p.cliente === c.nombre);
-          return pedidosCliente.length === 0;
-        });
+      case 'sinCorregir':
+        resultado = resultado.filter(c => !c.coordenadas?.corregida);
         break;
-      case 'todos':
       default:
-        // No filtrar por estado
         break;
     }
 
     // Aplicar búsqueda
     if (busqueda) {
-      resultado = buscarClientes(busqueda).filter(c =>
-        (vendedorFiltro === 'todos' || c.vendedorAsignado === vendedorFiltro) &&
-        (filtroEstado === 'todos' ||
-          (filtroEstado === 'conCoordenadas' && c.coordenadas?.lat) ||
-          (filtroEstado === 'sinCoordenadas' && !c.coordenadas?.lat) ||
-          (filtroEstado === 'conPedidos' && pedidos.some(p => p.cliente === c.nombre)) ||
-          (filtroEstado === 'sinPedidos' && !pedidos.some(p => p.cliente === c.nombre)))
+      const terminoLower = busqueda.toLowerCase();
+      resultado = resultado.filter(c =>
+        c.nombre?.toLowerCase().includes(terminoLower) ||
+        c.codigoCliente?.toLowerCase().includes(terminoLower) ||
+        c.direccion?.toLowerCase().includes(terminoLower) ||
+        c.ciudad?.toLowerCase().includes(terminoLower)
       );
     }
 
     return resultado;
-  }, [clientes, busqueda, vendedorFiltro, filtroEstado, pedidos, obtenerClientesPorVendedor, buscarClientes]);
+  }, [clientes, busqueda, ciudadFiltro, filtroEstado, obtenerClientesPorCiudad]);
 
   // Iniciar edición de cliente
   const handleIniciarEdicion = useCallback((cliente) => {
-    setClienteEditando(cliente.nombre);
+    setClienteEditando(cliente.id);
     setClienteSeleccionado(cliente);
     setFormulario({
       direccion: cliente.direccion || '',
@@ -121,7 +119,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
     });
 
     // Centrar mapa en el cliente
-    if (cliente.coordenadas) {
+    if (cliente.coordenadas?.lat && cliente.coordenadas?.lng) {
       setViewport(prev => ({
         ...prev,
         latitude: cliente.coordenadas.lat,
@@ -155,36 +153,15 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
       corregida: true
     };
 
-    // Obtener todos los pedidos de este cliente
-    const pedidosCliente = pedidos.filter(p =>
-      p.cliente === clienteSeleccionado.nombre ||
-      p.codigoCliente === clienteSeleccionado.codigoCliente
-    );
-
-    // Actualizar todos los pedidos del cliente
-    pedidosCliente.forEach(pedido => {
-      onActualizarPedido(pedido.id, {
-        direccion: formulario.direccion,
-        ciudad: formulario.ciudad,
-        coordenadas: {
-          lat: formulario.lat,
-          lng: formulario.lng,
-          corregida: true
-        }
-      });
-    });
-
-    // Registrar en historial
     actualizarUbicacionCliente(
-      clienteSeleccionado.nombre,
+      clienteSeleccionado.id,
       nuevaUbicacion,
-      pedidosCliente,
       'manual',
-      'Corrección de ubicación por vendedor'
+      'Corrección manual de ubicación'
     );
 
     handleCancelarEdicion();
-  }, [clienteSeleccionado, formulario, pedidos, onActualizarPedido, actualizarUbicacionCliente, handleCancelarEdicion]);
+  }, [clienteSeleccionado, formulario, actualizarUbicacionCliente, handleCancelarEdicion]);
 
   // Manejar drag del marcador
   const handleMarkerDragStart = useCallback(() => {
@@ -201,13 +178,13 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
     setArrastrando(false);
   }, []);
 
-  // Hacer zoom a cliente seleccionado con mayor cercanía
+  // Hacer zoom a cliente seleccionado
   const handleZoomCliente = useCallback((cliente) => {
-    if (cliente.coordenadas) {
+    if (cliente.coordenadas?.lat && cliente.coordenadas?.lng) {
       setViewport({
         latitude: cliente.coordenadas.lat,
         longitude: cliente.coordenadas.lng,
-        zoom: 17  // Aumentado de 14 a 17 para mayor cercanía
+        zoom: 17
       });
       setClienteSeleccionado(cliente);
     }
@@ -223,6 +200,41 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
     return estilos[estiloMapa] || estilos.streets;
   };
 
+  // Pantalla de carga
+  if (cargando) {
+    return (
+      <div className="fixed inset-0 top-[168px] flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <Loader2 size={48} className="animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">Cargando clientes desde CSV...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Pantalla de error
+  if (error) {
+    return (
+      <div className="fixed inset-0 top-[168px] flex items-center justify-center bg-gray-50">
+        <div className="text-center max-w-md p-6 bg-white rounded-lg shadow-lg">
+          <AlertTriangle size={48} className="text-orange-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">Error al cargar clientes</h3>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <p className="text-sm text-gray-500 mb-4">
+            Asegúrate de que el archivo <code className="bg-gray-100 px-1 rounded">clientes.csv</code> esté en la carpeta <code className="bg-gray-100 px-1 rounded">public/</code>
+          </p>
+          <button
+            onClick={recargarClientes}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mx-auto"
+          >
+            <RefreshCw size={16} />
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 top-[168px] flex gap-4 p-6">
       {/* Panel izquierdo - Lista de clientes */}
@@ -234,22 +246,24 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             Gestión de Clientes
           </h2>
           <p className="text-blue-100 text-sm mt-1">
-            Corrección de ubicaciones por vendedor
+            Corrección de ubicaciones desde CSV
           </p>
         </div>
 
         {/* Estadísticas */}
         <div className="p-4 bg-blue-50 border-b">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white p-3 rounded-lg shadow-sm">
-              <div className="text-2xl font-bold text-blue-600">{estadisticas.total}</div>
-              <div className="text-xs text-gray-600">Total Clientes</div>
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white p-2 rounded-lg shadow-sm text-center">
+              <div className="text-xl font-bold text-blue-600">{estadisticas.total}</div>
+              <div className="text-xs text-gray-600">Total</div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow-sm">
-              <div className="text-2xl font-bold text-green-600">
-                {estadisticas.porcentajeCompleto}%
-              </div>
-              <div className="text-xs text-gray-600">Ubicados</div>
+            <div className="bg-white p-2 rounded-lg shadow-sm text-center">
+              <div className="text-xl font-bold text-green-600">{estadisticas.conCoordenadas}</div>
+              <div className="text-xs text-gray-600">Con GPS</div>
+            </div>
+            <div className="bg-white p-2 rounded-lg shadow-sm text-center">
+              <div className="text-xl font-bold text-purple-600">{estadisticas.corregidas}</div>
+              <div className="text-xs text-gray-600">Corregidas</div>
             </div>
           </div>
         </div>
@@ -268,18 +282,18 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             />
           </div>
 
-          {/* Filtro por vendedor */}
+          {/* Filtro por ciudad */}
           <div className="relative">
             <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <select
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
-              value={vendedorFiltro}
-              onChange={(e) => setVendedorFiltro(e.target.value)}
+              value={ciudadFiltro}
+              onChange={(e) => setCiudadFiltro(e.target.value)}
             >
-              <option value="todos">Todos los vendedores</option>
-              {vendedores.map(vendedor => (
-                <option key={vendedor} value={vendedor}>
-                  {vendedor}
+              <option value="todos">Todas las ciudades</option>
+              {ciudades.map(ciudad => (
+                <option key={ciudad} value={ciudad}>
+                  {ciudad}
                 </option>
               ))}
             </select>
@@ -293,42 +307,38 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
             >
-              <option value="todos">Todos los Estados</option>
-              <option value="conCoordenadas">Con Coordenadas</option>
-              <option value="sinCoordenadas">Sin Coordenadas</option>
-              <option value="conPedidos">Con Pedidos Activos</option>
-              <option value="sinPedidos">Sin Pedidos</option>
+              <option value="todos">Todos los estados</option>
+              <option value="conCoordenadas">Con coordenadas</option>
+              <option value="sinCoordenadas">Sin coordenadas</option>
+              <option value="corregidas">Corregidas</option>
+              <option value="sinCorregir">Sin corregir</option>
             </select>
           </div>
 
           {/* Botones de control */}
           <div className="grid grid-cols-2 gap-2">
             <button
-              className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs transition-colors ${
-                verSedes
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-              }`}
-              onClick={() => setVerSedes(!verSedes)}
+              onClick={recargarClientes}
+              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200"
             >
-              <Building2 size={14} />
-              {verSedes ? 'Ver Normal' : 'Ver Sedes'}
+              <RefreshCw size={14} />
+              Recargar CSV
             </button>
             <button
-              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-purple-500 text-white rounded text-xs hover:bg-purple-600"
-              onClick={() => setMostrarCapas(!mostrarCapas)}
+              onClick={exportarClientesCSV}
+              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200"
             >
-              <Layers size={14} />
-              {mostrarCapas ? 'Ocultar' : 'Mostrar'}
+              <Download size={14} />
+              Exportar
             </button>
           </div>
+
           <button
             className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 w-full"
             onClick={() => {
               setFiltroEstado('todos');
-              setVendedorFiltro('todos');
+              setCiudadFiltro('todos');
               setBusqueda('');
-              setVerSedes(false);
             }}
           >
             <RotateCcw size={14} />
@@ -388,7 +398,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                 onClick={() => setEstiloMapa('navigation')}
               >
                 <Compass size={16} />
-                <span className="mt-1">Navegación</span>
+                <span className="mt-1">Nav</span>
               </button>
             </div>
           </div>
@@ -414,155 +424,23 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             <div className="flex flex-col items-center justify-center h-full text-gray-400 p-8">
               <Users size={48} className="mb-4" />
               <p className="text-center">
-                {busqueda || vendedorFiltro !== 'todos'
+                {busqueda || ciudadFiltro !== 'todos'
                   ? 'No se encontraron clientes con los filtros aplicados'
                   : 'No hay clientes disponibles'}
               </p>
             </div>
-          ) : verSedes ? (
-            // Vista de Sedes - Agrupado por cliente mostrando sus diferentes ubicaciones
-            <div className="divide-y">
-              {clientesFiltrados.map((cliente) => {
-                const sedes = obtenerSedesPorCliente(cliente.nombre);
-                const expandido = clienteSedesExpandido === cliente.nombre;
-
-                return (
-                  <div key={cliente.nombre} className="border-b">
-                    {/* Header del cliente */}
-                    <div
-                      className="p-4 bg-gray-50 hover:bg-gray-100 cursor-pointer transition-colors"
-                      onClick={() => setClienteSedesExpandido(expandido ? null : cliente.nombre)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                            <Building2 size={18} className="text-blue-600" />
-                            {cliente.nombre}
-                          </h3>
-                          <div className="flex items-center gap-4 mt-1 text-xs text-gray-600">
-                            <span className="flex items-center gap-1">
-                              <MapPin size={12} />
-                              {sedes.length} sede{sedes.length !== 1 ? 's' : ''}
-                            </span>
-                            <span>
-                              📦 {cliente.totalPedidos} pedido{cliente.totalPedidos !== 1 ? 's' : ''}
-                            </span>
-                            <span className="text-blue-600">
-                              👤 {cliente.vendedorAsignado}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500">
-                            {expandido ? 'Ocultar' : 'Ver sedes'}
-                          </span>
-                          <Eye size={16} className={`text-gray-400 transition-transform ${expandido ? 'rotate-180' : ''}`} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Lista de sedes expandible */}
-                    {expandido && (
-                      <div className="bg-white divide-y">
-                        {sedes.map((sede, index) => (
-                          <div key={sede.id} className="p-4 pl-8 hover:bg-blue-50 transition-colors">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded">
-                                    Sede {index + 1}
-                                  </span>
-                                  {index === 0 && (
-                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
-                                      Principal
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-sm text-gray-700 flex items-start gap-1 mt-2">
-                                  <MapPin size={14} className="flex-shrink-0 mt-0.5" />
-                                  <span>{sede.direccion || 'Sin dirección'}</span>
-                                </p>
-                                {sede.ciudad && (
-                                  <p className="text-xs text-gray-500 ml-5">{sede.ciudad}</p>
-                                )}
-                              </div>
-                              <div className="text-right text-xs text-gray-500">
-                                <p className="font-semibold text-gray-700">
-                                  {sede.cantidadPedidos} pedido{sede.cantidadPedidos !== 1 ? 's' : ''}
-                                </p>
-                              </div>
-                            </div>
-
-                            {/* Coordenadas */}
-                            <div className="text-xs text-gray-400 ml-5 mb-2">
-                              📍 {sede.coordenadas.lat.toFixed(6)}, {sede.coordenadas.lng.toFixed(6)}
-                            </div>
-
-                            {/* Fechas */}
-                            <div className="text-xs text-gray-500 ml-5 flex gap-4">
-                              <span>
-                                Primer pedido: {new Date(sede.primerPedido).toLocaleDateString('es-VE')}
-                              </span>
-                              <span>
-                                Último: {new Date(sede.ultimoPedido).toLocaleDateString('es-VE')}
-                              </span>
-                            </div>
-
-                            {/* Botones de acción */}
-                            <div className="mt-2 grid grid-cols-2 gap-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setViewport({
-                                    latitude: sede.coordenadas.lat,
-                                    longitude: sede.coordenadas.lng,
-                                    zoom: 17
-                                  });
-                                  setClienteSeleccionado(cliente);
-                                }}
-                                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                <Eye size={14} />
-                                Ver
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Crear un objeto cliente temporal con las coordenadas de esta sede
-                                  const clienteConSede = {
-                                    ...cliente,
-                                    coordenadas: sede.coordenadas,
-                                    direccion: sede.direccion,
-                                    ciudad: sede.ciudad
-                                  };
-                                  handleIniciarEdicion(clienteConSede);
-                                }}
-                                className="flex items-center justify-center gap-1 px-2 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                              >
-                                <Edit2 size={14} />
-                                Corregir
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
           ) : (
-            // Vista Normal - Lista de clientes tradicional
             <div className="divide-y">
               {clientesFiltrados.map((cliente) => {
-                const esEditando = clienteEditando === cliente.nombre;
-                const tieneUbicacion = cliente.coordenadas?.lat && cliente.coordenadas?.lng;
+                const esEditando = clienteEditando === cliente.id;
+                const tieneUbicacion = cliente.coordenadas?.lat && cliente.coordenadas?.lng &&
+                  cliente.coordenadas.lat !== 0 && cliente.coordenadas.lng !== 0;
 
                 return (
                   <div
-                    key={cliente.nombre}
+                    key={cliente.id}
                     className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                      clienteSeleccionado?.nombre === cliente.nombre ? 'bg-blue-50' : ''
+                      clienteSeleccionado?.id === cliente.id ? 'bg-blue-50' : ''
                     } ${esEditando ? 'bg-yellow-50' : ''}`}
                     onClick={() => handleZoomCliente(cliente)}
                   >
@@ -577,11 +455,18 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                           </p>
                         )}
                       </div>
-                      {tieneUbicacion ? (
-                        <CheckCircle className="text-green-500 flex-shrink-0" size={20} />
-                      ) : (
-                        <AlertTriangle className="text-orange-500 flex-shrink-0" size={20} />
-                      )}
+                      <div className="flex items-center gap-1">
+                        {cliente.coordenadas?.corregida && (
+                          <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">
+                            Corregida
+                          </span>
+                        )}
+                        {tieneUbicacion ? (
+                          <CheckCircle className="text-green-500 flex-shrink-0" size={20} />
+                        ) : (
+                          <AlertTriangle className="text-orange-500 flex-shrink-0" size={20} />
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-1 text-sm text-gray-600">
@@ -590,14 +475,15 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                         <span className="truncate">{cliente.direccion || 'Sin dirección'}</span>
                       </p>
                       {cliente.ciudad && (
-                        <p className="text-xs text-gray-500 ml-5">{cliente.ciudad}</p>
+                        <p className="text-xs text-blue-600 ml-5">
+                          {cliente.ciudad}
+                        </p>
                       )}
-                      <p className="text-xs text-blue-600 ml-5">
-                        👤 {cliente.vendedorAsignado}
-                      </p>
-                      <p className="text-xs text-gray-400 ml-5">
-                        {cliente.totalPedidos} pedido{cliente.totalPedidos !== 1 ? 's' : ''}
-                      </p>
+                      {tieneUbicacion && (
+                        <p className="text-xs text-gray-400 ml-5">
+                          {cliente.coordenadas.lat.toFixed(6)}, {cliente.coordenadas.lng.toFixed(6)}
+                        </p>
+                      )}
                     </div>
 
                     {!esEditando && (
@@ -646,146 +532,107 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
           >
             <NavigationControl position="top-right" />
 
-            {/* Marcadores de todos los clientes filtrados */}
-            {mostrarCapas && (verSedes && clienteSedesExpandido ? (
-              // Vista de sedes: Mostrar todos los marcadores de las sedes del cliente expandido
-              (() => {
-                const clienteExpandido = clientesFiltrados.find(c => c.nombre === clienteSedesExpandido);
-                if (!clienteExpandido) return null;
+            {/* Marcadores de clientes (no mostrar el que se está editando) */}
+            {clientesFiltrados.map((cliente) => {
+              if (!cliente.coordenadas?.lat || !cliente.coordenadas?.lng ||
+                  cliente.coordenadas.lat === 0 || cliente.coordenadas.lng === 0) return null;
 
-                const sedes = obtenerSedesPorCliente(clienteExpandido.nombre);
-                return sedes.map((sede, index) => (
-                  <Marker
-                    key={`${clienteExpandido.nombre}-sede-${index}`}
-                    latitude={sede.coordenadas.lat}
-                    longitude={sede.coordenadas.lng}
-                    onClick={() => {
-                      setViewport({
-                        latitude: sede.coordenadas.lat,
-                        longitude: sede.coordenadas.lng,
-                        zoom: 17
-                      });
-                    }}
-                  >
-                    <div className="relative">
-                      <div className="cursor-pointer transition-all">
-                        <svg
-                          width={index === 0 ? 36 : 32}
-                          height={index === 0 ? 36 : 32}
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          <path
-                            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
-                            fill={index === 0 ? '#10b981' : '#3b82f6'}
-                            stroke="white"
-                            strokeWidth="1.5"
-                          />
-                          <circle cx="12" cy="9" r="2.5" fill="white" />
-                        </svg>
-                      </div>
-                      <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-0.5 rounded whitespace-nowrap">
-                        Sede {index + 1}
-                      </div>
+              // Si este cliente se está editando, no mostrar su marcador aquí
+              if (clienteEditando === cliente.id) return null;
+
+              const esSeleccionado = clienteSeleccionado?.id === cliente.id;
+
+              return (
+                <Marker
+                  key={cliente.id}
+                  latitude={cliente.coordenadas.lat}
+                  longitude={cliente.coordenadas.lng}
+                  onClick={() => handleZoomCliente(cliente)}
+                >
+                  <div className="relative cursor-pointer">
+                    <svg
+                      width={esSeleccionado ? 36 : 32}
+                      height={esSeleccionado ? 36 : 32}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                        fill={cliente.coordenadas?.corregida ? '#8b5cf6' : '#3b82f6'}
+                        stroke="white"
+                        strokeWidth="1.5"
+                      />
+                      <circle cx="12" cy="9" r="2.5" fill="white" />
+                    </svg>
+                  </div>
+                </Marker>
+              );
+            })}
+
+            {/* Marcador amarillo editable (solo cuando hay cliente editando) */}
+            {clienteEditando && (
+              <Marker
+                key="marker-editando"
+                latitude={formulario.lat}
+                longitude={formulario.lng}
+                draggable={true}
+                onDragStart={handleMarkerDragStart}
+                onDragEnd={handleMarkerDragEnd}
+              >
+                <div className="relative">
+                  <div className="cursor-move animate-pulse">
+                    <svg
+                      width={44}
+                      height={44}
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                        fill="#eab308"
+                        stroke="white"
+                        strokeWidth="2"
+                      />
+                      <circle cx="12" cy="9" r="2.5" fill="white" />
+                    </svg>
+                  </div>
+                  {arrastrando && (
+                    <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                      Suelta para fijar
                     </div>
-                  </Marker>
-                ));
-              })()
-            ) : (
-              // Vista normal: Mostrar todos los clientes filtrados
-              clientesFiltrados.map((cliente) => {
-                if (!cliente.coordenadas?.lat || !cliente.coordenadas?.lng) return null;
-
-                const esEditando = clienteEditando === cliente.nombre;
-                const esSeleccionado = clienteSeleccionado?.nombre === cliente.nombre;
-
-                return (
-                  <Marker
-                    key={cliente.nombre}
-                    latitude={esEditando ? formulario.lat : cliente.coordenadas.lat}
-                    longitude={esEditando ? formulario.lng : cliente.coordenadas.lng}
-                    draggable={esEditando}
-                    onDragStart={esEditando ? handleMarkerDragStart : undefined}
-                    onDragEnd={esEditando ? handleMarkerDragEnd : undefined}
-                    onClick={() => handleZoomCliente(cliente)}
-                  >
-                    <div className="relative">
-                      {/* Marcador preciso con punta - Solo azul o amarillo */}
-                      <div className={`cursor-pointer transition-all ${
-                        esEditando ? 'animate-pulse' : ''
-                      }`}>
-                        <svg
-                          width={esEditando ? 40 : esSeleccionado ? 36 : 32}
-                          height={esEditando ? 40 : esSeleccionado ? 36 : 32}
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          xmlns="http://www.w3.org/2000/svg"
-                        >
-                          {/* Punta precisa del marcador */}
-                          <path
-                            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
-                            fill={esEditando ? '#eab308' : '#3b82f6'}
-                            stroke="white"
-                            strokeWidth="1.5"
-                          />
-                          {/* Punto central para precisión */}
-                          <circle cx="12" cy="9" r="2.5" fill="white" />
-                        </svg>
-                      </div>
-                      {esEditando && arrastrando && (
-                        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                          Arrastra la punta
-                        </div>
-                      )}
-                    </div>
-                  </Marker>
-                );
-              })
-            ))}
+                  )}
+                </div>
+              </Marker>
+            )}
           </Map>
 
-          {/* Leyenda simplificada */}
+          {/* Leyenda */}
           <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg text-xs">
             <h4 className="font-semibold mb-2 text-gray-700">Leyenda</h4>
             <div className="space-y-1">
-              {verSedes && clienteSedesExpandido ? (
-                // Leyenda para vista de sedes
-                <>
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#10b981" stroke="white" strokeWidth="1.5"/>
-                      <circle cx="12" cy="9" r="2.5" fill="white"/>
-                    </svg>
-                    <span>Sede Principal</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
-                      <circle cx="12" cy="9" r="2.5" fill="white"/>
-                    </svg>
-                    <span>Sede Secundaria</span>
-                  </div>
-                </>
-              ) : (
-                // Leyenda para vista normal
-                <>
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
-                      <circle cx="12" cy="9" r="2.5" fill="white"/>
-                    </svg>
-                    <span>Ubicación del cliente</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#eab308" stroke="white" strokeWidth="1.5"/>
-                      <circle cx="12" cy="9" r="2.5" fill="white"/>
-                    </svg>
-                    <span>Editando (arrástralo)</span>
-                  </div>
-                </>
-              )}
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Ubicación original</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#8b5cf6" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Ubicación corregida</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#eab308" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Editando (arrástralo)</span>
+              </div>
             </div>
           </div>
         </div>
@@ -819,22 +666,9 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             <div className="bg-blue-50 p-3 rounded-lg text-sm">
               <p className="font-semibold text-blue-900 mb-2">Información del Cliente</p>
               <div className="space-y-1 text-blue-700">
-                <p>👤 Vendedor: {clienteSeleccionado.vendedorAsignado}</p>
-                <p>📦 Pedidos: {clienteSeleccionado.totalPedidos}</p>
-                {clienteSeleccionado.codigoCliente && (
-                  <p>🔖 Código: {clienteSeleccionado.codigoCliente}</p>
-                )}
+                <p>🏢 Ciudad: {clienteSeleccionado.ciudad || 'Sin ciudad'}</p>
+                <p>🔖 Código: {clienteSeleccionado.codigoCliente || 'N/A'}</p>
               </div>
-            </div>
-
-            {/* Advertencia */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-              <p className="text-sm text-yellow-800 flex items-start gap-2">
-                <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />
-                <span>
-                  Los cambios afectarán a <strong>{clienteSeleccionado.totalPedidos}</strong> pedido(s) de este cliente.
-                </span>
-              </p>
             </div>
 
             {/* Dirección */}
@@ -896,7 +730,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
             {/* Instrucciones */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
               <p className="text-sm text-blue-800">
-                💡 <strong>Tip:</strong> Arrastra el marcador amarillo en el mapa. La punta del marcador indica la ubicación exacta.
+                Arrastra el marcador amarillo en el mapa para posicionar la ubicación exacta del cliente.
               </p>
             </div>
           </div>
@@ -951,6 +785,9 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                       <div className="flex items-start justify-between mb-2">
                         <div>
                           <h4 className="font-semibold text-gray-900">{cambio.cliente}</h4>
+                          <p className="text-xs text-gray-500">
+                            Código: {cambio.codigoCliente}
+                          </p>
                           <p className="text-sm text-gray-500">
                             {new Date(cambio.fecha).toLocaleString('es-VE')}
                           </p>
@@ -961,7 +798,7 @@ const TabGestionClientes = ({ pedidos, onActualizarPedido }) => {
                       </div>
                       <div className="text-sm space-y-1">
                         <p className="text-gray-600">
-                          <strong>Pedidos afectados:</strong> {cambio.pedidosAfectados.join(', ')}
+                          <strong>Nueva ubicación:</strong> {cambio.ubicacionNueva.lat.toFixed(6)}, {cambio.ubicacionNueva.lng.toFixed(6)}
                         </p>
                         {cambio.razon && (
                           <p className="text-gray-600">

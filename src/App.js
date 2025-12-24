@@ -242,6 +242,8 @@ const App = () => {
   const conductorProps = {
     user,
     camiones,
+    pedidos,
+    despachos,
     onStartTracking: (camionId) => {
       actualizarInfoVehiculo(camionId, { trackingActivo: true });
       actualizarEstadoCamion(camionId, 'En Ruta');
@@ -268,6 +270,13 @@ const App = () => {
 
       // También enviar al backend REST si está configurado
       return trackingClient.sendPosition(evt);
+    },
+    onGuardarRecibo: (recibo) => {
+      // Actualizar estado del pedido a Entregado
+      if (recibo.pedidoId) {
+        actualizarEstadoPedido(recibo.pedidoId, recibo.conforme ? 'Entregado' : 'Entrega Parcial');
+      }
+      console.log('Recibo guardado:', recibo);
     }
   };
 
@@ -277,11 +286,7 @@ const App = () => {
     onActualizarPedido: actualizarPedido
   };
 
-  // Props para Clientes
-  const clientesProps = {
-    pedidos,
-    onActualizarPedido: actualizarPedido
-  };
+  // TabGestionClientes ya no necesita props - usa useClientesCSV internamente
 
   // Renderizar contenido de tab activo
   const renderActiveTab = () => {
@@ -301,7 +306,7 @@ const App = () => {
       case 'ubicaciones':
         return <TabGestionUbicaciones {...ubicacionesProps} />;
       case 'clientes':
-        return <TabGestionClientes {...clientesProps} />;
+        return <TabGestionClientes />;
       default:
         return <TabPedidos {...pedidosProps} />;
     }
