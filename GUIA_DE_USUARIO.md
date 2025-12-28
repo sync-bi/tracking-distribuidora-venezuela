@@ -6,7 +6,9 @@
 3. [Optimizar Rutas](#3-optimizar-rutas)
 4. [Ver Despachos en el Mapa](#4-ver-despachos-en-el-mapa)
 5. [Modo Conductor (GPS)](#5-modo-conductor-gps)
+   - 5.1 [Formulario Recibido Conforme](#51-formulario-recibido-conforme)
 6. [Importar Pedidos desde Excel](#6-importar-pedidos-desde-excel)
+7. [Gestión de Clientes](#7-gestión-de-clientes)
 
 ---
 
@@ -295,6 +297,56 @@ Una vez iniciado, el sistema:
 
 ---
 
+## 5.1. ✍️ Formulario Recibido Conforme
+
+### Para confirmar entregas con firma del cliente:
+
+#### **Paso 1: Abrir Formulario de Entrega**
+- Cuando llegues al punto de entrega, haz clic en **"Registrar Entrega"**
+- Se abre el formulario de Recibido Conforme
+
+#### **Paso 2: Seleccionar Estado de Entrega**
+
+**Opción A - Entrega Conforme:**
+1. Selecciona **"✓ Conforme"**
+2. El cliente firma digitalmente en el área de firma
+3. Escribe el nombre del receptor
+4. Haz clic en **"Guardar Recibo"**
+
+**Opción B - Entrega No Conforme:**
+1. Selecciona **"✗ No Conforme"**
+2. Se muestra la lista de items del pedido
+3. Marca los items con problemas haciendo clic en ellos
+4. Para cada item marcado, selecciona la **causa**:
+   - Mal estado
+   - Faltante
+   - Dañado
+   - Producto incorrecto
+   - Vencido
+   - Cantidad incorrecta
+   - Otro (con campo de texto)
+5. El cliente firma digitalmente
+6. Haz clic en **"Guardar Recibo"**
+
+#### **Paso 3: Firma Digital**
+- El área de firma es un canvas táctil
+- El cliente firma con el dedo o stylus
+- Botón **"Limpiar"** para borrar y volver a firmar
+- La firma se guarda como imagen en el recibo
+
+#### **Causas Disponibles para Items No Conformes:**
+| Causa | Descripción |
+|-------|-------------|
+| Mal estado | Producto en malas condiciones |
+| Faltante | Producto no incluido en entrega |
+| Dañado | Producto con daño físico |
+| Producto incorrecto | Se entregó producto diferente |
+| Vencido | Producto pasado de fecha |
+| Cantidad incorrecta | Cantidad diferente a lo pedido |
+| Otro | Especificar en campo de texto |
+
+---
+
 ## 6. 📥 Importar Pedidos desde Excel
 
 ### Carga Masiva de Pedidos:
@@ -389,5 +441,54 @@ Para ayuda adicional:
 
 ---
 
-**Versión:** 1.0
-**Última actualización:** 2025-10-10
+## 7. 👥 Gestión de Clientes
+
+### Corrección de ubicaciones desde CSV:
+
+El módulo de Clientes carga datos desde `public/clientes.csv` de forma **independiente de pedidos**.
+
+#### **Paso 1: Acceder al Módulo**
+- Haz clic en la pestaña **"Clientes"** en la navegación
+- Se cargan automáticamente los clientes desde el CSV
+
+#### **Paso 2: Filtrar Clientes**
+- **Buscador**: Busca por nombre, código, dirección o ciudad
+- **Filtro por ciudad**: Selecciona una ciudad específica
+- **Estadísticas**: Verás total de clientes y % con coordenadas válidas
+
+#### **Paso 3: Corregir Ubicación**
+1. Selecciona un cliente de la lista
+2. Haz clic en **"Corregir Ubicación"**
+3. El marcador cambia a **amarillo** (editable)
+4. **Arrastra** el marcador a la ubicación correcta
+5. O edita manualmente las coordenadas
+6. Haz clic en **"Guardar Cambios"**
+
+#### **Características:**
+- ✅ Detección automática de coordenadas invertidas (lat/lng)
+- ✅ Solo un marcador amarillo al editar (sin confusión)
+- ✅ Historial de cambios
+- ✅ Exportación de clientes actualizados
+
+**Documentación detallada:** Ver `MODULO_GESTION_CLIENTES.md`
+
+---
+
+## 🆘 Preguntas Frecuentes
+
+### ¿Cómo funciona el formulario de Recibido Conforme?
+- El conductor abre el formulario al llegar al destino
+- Selecciona si la entrega fue conforme o no
+- Si no conforme, marca los items con problemas y la causa
+- El cliente firma digitalmente en el dispositivo
+- Se guarda el recibo con toda la información
+
+### ¿Los clientes se cargan de los pedidos?
+- **No**, los clientes se cargan desde `public/clientes.csv`
+- Es independiente del archivo de pedidos
+- Permite corregir ubicaciones antes de tener pedidos
+
+---
+
+**Versión:** 2.0
+**Última actualización:** 28 Diciembre 2025

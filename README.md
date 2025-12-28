@@ -109,6 +109,27 @@ Con esto, el móvil del conductor enviará los puntos a tu endpoint en Vercel si
   - `REACT_APP_AUTOLOAD_PEDIDOS=true` (default) para activar la autocarga.
   - `REACT_APP_ALLOW_MANUAL_IMPORT=false` (default) para ocultar el botón de importación manual.
 
+## Gestión de Clientes (Independiente)
+
+La pestaña **Clientes** carga datos desde `public/clientes.csv` de forma independiente de pedidos:
+- Permite corregir ubicaciones de clientes antes de tener pedidos
+- Detección inteligente de coordenadas lat/lng invertidas
+- Filtro por ciudad y búsqueda
+- Exportación de clientes corregidos
+
+Formato del CSV:
+```csv
+co_cli;cliente;ciudad;direccion_principal;direccion_temporal;latitud;longuitud
+```
+
+## Formulario Recibido Conforme (Conductor)
+
+En la pestaña **Conductor**, al entregar un pedido:
+- Formulario de confirmación con firma digital del cliente
+- Opción **Conforme** o **No Conforme**
+- Si no conforme: selección de items con problemas y causas
+- Causas disponibles: Mal estado, Faltante, Dañado, Producto incorrecto, Vencido, Cantidad incorrecta, Otro
+
 
 ### Advanced Configuration
 

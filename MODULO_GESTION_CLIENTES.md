@@ -2,16 +2,17 @@
 
 ## 🎯 Objetivo
 
-Este módulo permite a los **vendedores** corregir las ubicaciones de **TODOS los clientes** (no solo pedidos pendientes), facilitando la primera fase de corrección de datos geográficos por parte del equipo de ventas.
+Este módulo permite a los **vendedores** corregir las ubicaciones de **TODOS los clientes** desde un archivo CSV independiente (`clientes.csv`), facilitando la corrección de datos geográficos de manera centralizada y sin depender de los pedidos.
 
 ---
 
 ## ✨ Características Principales
 
-### 1. **Vista Completa de Clientes**
-- Extrae automáticamente clientes únicos desde los pedidos
-- Muestra información consolidada por cliente
-- Incluye estadísticas de pedidos por cliente
+### 1. **Carga Independiente desde CSV**
+- Carga clientes desde `public/clientes.csv` automáticamente
+- **Independiente de pedidos** - no requiere tener pedidos en el sistema
+- Detección inteligente de coordenadas lat/lng invertidas
+- Soporte para coordenadas de Venezuela (lat 0-15°N, lng -60° a -75°W)
 
 ### 2. **Filtros Avanzados**
 - 🔍 **Búsqueda**: Por nombre, código, dirección o ciudad
@@ -106,26 +107,23 @@ Permisos: ['despachos', 'seguimiento', 'camiones', 'mapa', 'ubicaciones', 'clien
 
 ## 📦 Estructura de Datos
 
-### Modelo de Cliente (Derivado de Pedidos)
+### Modelo de Cliente (Cargado desde CSV)
 ```javascript
 {
-  nombre: 'Distribuidora El Sol C.A.',
+  id: 'CLI001',                    // Código del cliente (co_cli del CSV)
   codigoCliente: 'CLI001',
-  direccion: 'Av. Francisco de Miranda, Los Palos Grandes',
+  nombre: 'Distribuidora El Sol C.A.',
   ciudad: 'Caracas',
+  direccion: 'Av. Francisco de Miranda, Los Palos Grandes',
+  direccionTemporal: '',           // direccion_temporal del CSV
   coordenadas: {
     lat: 10.4975,
     lng: -66.8535,
     corregida: true  // Indica si fue corregida manualmente
   },
-  vendedorAsignado: 'Juan Pérez',
-  telefono: '0212-9876543',
-  // Metadata
-  totalPedidos: 5,
-  pedidosIds: ['PED001', 'PED002', 'PED003', ...],
-  ultimoPedido: 'PED003',
-  primeraFecha: '2025-01-15',
-  ultimaFecha: '2025-01-20'
+  // Para compatibilidad con UI
+  vendedorAsignado: 'Sin asignar',
+  totalPedidos: 0
 }
 ```
 
@@ -208,41 +206,36 @@ Usuario (Despachador)
 ## 🛠️ Archivos Creados/Modificados
 
 ### Nuevos Archivos
-1. **`src/hooks/useClientes.js`** (120 líneas)
-   - Hook personalizado para gestión de clientes
-   - Extrae clientes únicos desde pedidos
-   - Funciones de búsqueda y filtrado
+1. **`src/hooks/useClientesCSV.js`** (290 líneas)
+   - Hook personalizado para cargar clientes desde CSV
+   - **Independiente de pedidos** - carga desde `public/clientes.csv`
+   - Detección inteligente de coordenadas invertidas (lat/lng)
+   - Funciones de búsqueda y filtrado por ciudad
    - Gestión de historial de cambios
+   - Exportación de clientes actualizados a CSV
 
-2. **`src/components/Clientes/TabGestionClientes.js`** (650 líneas)
+2. **`public/clientes.csv`**
+   - Archivo CSV con datos de clientes
+   - Columnas: co_cli, cliente, ciudad, direccion_principal, direccion_temporal, latitud, longitud
+
+3. **`src/components/Clientes/TabGestionClientes.js`** (700+ líneas)
    - Componente principal del módulo
+   - Usa `useClientesCSV` internamente (sin props)
    - Mapa interactivo con Mapbox
-   - Panel de lista de clientes
-   - Panel de edición con formulario
+   - Panel de lista de clientes con filtro por ciudad
+   - Panel de edición con formulario y marcador único amarillo
    - Modal de historial de cambios
 
-3. **`MODULO_GESTION_CLIENTES.md`** (este documento)
+4. **`MODULO_GESTION_CLIENTES.md`** (este documento)
    - Documentación completa del módulo
 
 ### Archivos Modificados
 1. **`src/App.js`**
-   - Agregado import de `TabGestionClientes`
-   - Agregado permiso `clientes` a roles
-   - Agregado nuevo rol `vendedor`
-   - Agregado case `clientes` en renderActiveTab
+   - Import de `TabGestionClientes` sin props
+   - El componente es autónomo con su propio hook
 
 2. **`src/components/Layout/Navigation.js`**
-   - Agregado tab "Clientes" con ícono `Building2`
-
-3. **`src/data/mockData.js`**
-   - Agregado campo `codigoCliente` a pedidos
-   - Agregado campo `vendedorAsignado` a pedidos
-   - Asignados vendedores de prueba
-
-4. **`src/utils/importers.js`**
-   - Agregada detección de columna `vendedor`
-   - Agregado campo `vendedorAsignado` al mapeo
-   - Soporte para múltiples nombres de columna
+   - Tab "Clientes" con ícono `Building2`
 
 ---
 
@@ -420,15 +413,15 @@ Usuario (Despachador)
 
 ## ✅ Checklist de Implementación
 
-- [x] Crear hook `useClientes`
+- [x] Crear hook `useClientesCSV` (carga desde CSV independiente)
 - [x] Crear componente `TabGestionClientes`
-- [x] Integrar en `App.js`
+- [x] Integrar en `App.js` (componente autónomo sin props)
 - [x] Agregar pestaña en navegación
 - [x] Actualizar permisos de roles
 - [x] Crear rol `vendedor`
-- [x] Agregar campo `vendedorAsignado` a pedidos
-- [x] Actualizar importador de Excel
-- [x] Agregar datos de prueba con vendedores
+- [x] Detección inteligente de coordenadas invertidas
+- [x] Marcador único amarillo al editar (sin confusión)
+- [x] Exportación de clientes actualizados
 - [x] Documentar módulo
 - [ ] Pruebas con usuarios reales
 - [ ] Desplegar a producción
@@ -436,6 +429,23 @@ Usuario (Despachador)
 
 ---
 
-**Última actualización**: 26 Enero 2025
-**Versión**: 1.0
-**Estado**: ✅ Implementado y listo para pruebas
+## 📄 Formato del Archivo CSV
+
+### Columnas del archivo `public/clientes.csv`:
+```csv
+co_cli;cliente;ciudad;direccion_principal;direccion_temporal;latitud;longuitud
+CLI001;Distribuidora El Sol;Caracas;Av. Miranda 123;NULL;10.4975;-66.8535
+```
+
+**Notas:**
+- Separador: punto y coma (`;`)
+- La columna `longuitud` puede tener errores tipográficos - el sistema lo detecta
+- El sistema detecta automáticamente si lat/lng están invertidas basándose en:
+  - Latitud Venezuela: 0° a 15° Norte (valores pequeños positivos)
+  - Longitud Venezuela: -60° a -75° Oeste (valores negativos grandes)
+
+---
+
+**Última actualización**: 28 Diciembre 2025
+**Versión**: 2.0
+**Estado**: ✅ Implementado - Carga independiente desde CSV
