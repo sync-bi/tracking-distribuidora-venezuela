@@ -8,14 +8,10 @@ import {
   X,
   Search,
   AlertTriangle,
-  CheckCircle,
   Users,
   MapPinned,
-  Filter,
   History,
   Building2,
-  ZoomIn,
-  ZoomOut,
   RotateCcw,
   Map as MapIcon,
   Globe,
@@ -23,9 +19,7 @@ import {
   Download,
   RefreshCw,
   Loader2,
-  User,
-  List,
-  ChevronLeft
+  List
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useClientesCSV } from '../../hooks/useClientesCSV';
@@ -267,199 +261,155 @@ const TabGestionClientes = () => {
       </div>
 
       {/* Panel izquierdo - Lista de clientes */}
-      <div className={`${vistaMobile === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-96 flex-col bg-white rounded-lg shadow-lg overflow-hidden`}>
-        {/* Header */}
-        <div className="p-4 border-b bg-gradient-to-r from-blue-500 to-blue-600">
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <Building2 size={24} />
-            Gestión de Clientes
-          </h2>
-          <p className="text-blue-100 text-sm mt-1">
-            Corrección de ubicaciones desde CSV
-          </p>
-        </div>
-
-        {/* Estadísticas */}
-        <div className="p-4 bg-blue-50 border-b">
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white p-2 rounded-lg shadow-sm text-center">
-              <div className="text-xl font-bold text-blue-600">{estadisticas.total}</div>
-              <div className="text-xs text-gray-600">Total</div>
-            </div>
-            <div className="bg-white p-2 rounded-lg shadow-sm text-center">
-              <div className="text-xl font-bold text-green-600">{estadisticas.conCoordenadas}</div>
-              <div className="text-xs text-gray-600">Con GPS</div>
-            </div>
-            <div className="bg-white p-2 rounded-lg shadow-sm text-center">
-              <div className="text-xl font-bold text-purple-600">{estadisticas.corregidas}</div>
-              <div className="text-xs text-gray-600">Corregidas</div>
+      <div className={`${vistaMobile === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-[420px] lg:w-[480px] flex-col bg-white rounded-lg shadow-lg overflow-hidden`}>
+        {/* Header compacto con estadísticas */}
+        <div className="p-3 border-b bg-gradient-to-r from-blue-500 to-blue-600">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Building2 size={20} />
+              Clientes
+            </h2>
+            {/* Estadísticas inline */}
+            <div className="flex items-center gap-3 text-xs">
+              <div className="text-center">
+                <div className="font-bold text-white">{estadisticas.total}</div>
+                <div className="text-blue-200">Total</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-green-300">{estadisticas.conCoordenadas}</div>
+                <div className="text-blue-200">GPS</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-purple-300">{estadisticas.corregidas}</div>
+                <div className="text-blue-200">Corr.</div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Filtros */}
-        <div className="p-4 space-y-3 border-b bg-gray-50">
+        {/* Filtros compactos */}
+        <div className="p-2 space-y-2 border-b bg-gray-50">
           {/* Búsqueda */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
             <input
               type="text"
-              placeholder="Buscar cliente..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Buscar cliente, código, ciudad..."
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
             />
           </div>
 
-          {/* Filtro por ciudad */}
-          <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+          {/* Filtros en grid */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Filtro por ciudad */}
             <select
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
               value={ciudadFiltro}
               onChange={(e) => setCiudadFiltro(e.target.value)}
             >
-              <option value="todos">Todas las ciudades</option>
+              <option value="todos">Todas ciudades</option>
               {ciudades.map(ciudad => (
                 <option key={ciudad} value={ciudad}>
                   {ciudad}
                 </option>
               ))}
             </select>
-          </div>
 
-          {/* Filtro por vendedor */}
-          <div className="relative">
-            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            {/* Filtro por vendedor */}
             <select
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
               value={vendedorFiltro}
               onChange={(e) => setVendedorFiltro(e.target.value)}
             >
-              <option value="todos">Todos los vendedores</option>
+              <option value="todos">Todos vendedores</option>
               {vendedores.map(vendedor => (
                 <option key={vendedor} value={vendedor}>
                   {vendedor}
                 </option>
               ))}
             </select>
-          </div>
 
-          {/* Filtro por estado */}
-          <div className="relative">
-            <MapPinned className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            {/* Filtro por estado */}
             <select
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
               value={filtroEstado}
               onChange={(e) => setFiltroEstado(e.target.value)}
             >
-              <option value="todos">Todos los estados</option>
-              <option value="conCoordenadas">Con coordenadas</option>
-              <option value="sinCoordenadas">Sin coordenadas</option>
+              <option value="todos">Todos estados</option>
+              <option value="conCoordenadas">Con GPS</option>
+              <option value="sinCoordenadas">Sin GPS</option>
               <option value="corregidas">Corregidas</option>
               <option value="sinCorregir">Sin corregir</option>
             </select>
           </div>
 
-          {/* Botones de control */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Acciones compactas en línea */}
+          <div className="flex items-center gap-1.5">
             <button
               onClick={recargarClientes}
-              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200"
+              className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200"
+              title="Recargar CSV"
             >
-              <RefreshCw size={14} />
-              Recargar CSV
+              <RefreshCw size={12} />
             </button>
             <button
               onClick={exportarClientesCSV}
-              className="flex items-center justify-center gap-1 px-2 py-1.5 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200"
+              className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded text-xs hover:bg-green-200"
+              title="Exportar CSV"
             >
-              <Download size={14} />
-              Exportar
+              <Download size={12} />
             </button>
-          </div>
-
-          <button
-            className="flex items-center justify-center gap-1 px-2 py-1.5 bg-gray-500 text-white rounded text-xs hover:bg-gray-600 w-full"
-            onClick={() => {
-              setFiltroEstado('todos');
-              setCiudadFiltro('todos');
-              setVendedorFiltro('todos');
-              setBusqueda('');
-            }}
-          >
-            <RotateCcw size={14} />
-            Limpiar Filtros
-          </button>
-
-          {/* Controles de Zoom */}
-          <div className="flex items-center justify-center gap-3 pt-1">
-            <span className="text-xs text-gray-600">Zoom:</span>
             <button
-              className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-              onClick={() => setViewport(prev => ({ ...prev, zoom: Math.max(prev.zoom - 1, 3) }))}
+              className="flex items-center gap-1 px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs hover:bg-gray-300"
+              onClick={() => {
+                setFiltroEstado('todos');
+                setCiudadFiltro('todos');
+                setVendedorFiltro('todos');
+                setBusqueda('');
+              }}
+              title="Limpiar filtros"
             >
-              <ZoomOut size={14} />
+              <RotateCcw size={12} />
             </button>
-            <span className="text-xs font-mono text-gray-700">{Math.round(viewport.zoom)}</span>
-            <button
-              className="p-1 bg-gray-200 rounded hover:bg-gray-300"
-              onClick={() => setViewport(prev => ({ ...prev, zoom: Math.min(prev.zoom + 1, 18) }))}
-            >
-              <ZoomIn size={14} />
-            </button>
-          </div>
-
-          {/* Estilos de Mapa */}
-          <div className="border-t pt-2">
-            <span className="text-xs text-gray-600 block mb-2 text-center">Estilo de Mapa:</span>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="flex-1" />
+            {/* Estilo de mapa mini */}
+            <div className="flex gap-0.5 bg-gray-100 rounded p-0.5">
               <button
-                className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
-                  estiloMapa === 'streets'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`p-1 rounded ${estiloMapa === 'streets' ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
                 onClick={() => setEstiloMapa('streets')}
+                title="Vista calles"
               >
-                <MapIcon size={16} />
-                <span className="mt-1">Calles</span>
+                <MapIcon size={12} />
               </button>
               <button
-                className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
-                  estiloMapa === 'satellite'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`p-1 rounded ${estiloMapa === 'satellite' ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
                 onClick={() => setEstiloMapa('satellite')}
+                title="Vista satélite"
               >
-                <Globe size={16} />
-                <span className="mt-1">Satélite</span>
+                <Globe size={12} />
               </button>
               <button
-                className={`flex flex-col items-center justify-center p-2 rounded text-xs transition-colors ${
-                  estiloMapa === 'navigation'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                className={`p-1 rounded ${estiloMapa === 'navigation' ? 'bg-blue-500 text-white' : 'text-gray-600 hover:bg-gray-200'}`}
                 onClick={() => setEstiloMapa('navigation')}
+                title="Vista navegación"
               >
-                <Compass size={16} />
-                <span className="mt-1">Nav</span>
+                <Compass size={12} />
               </button>
             </div>
           </div>
 
-          {/* Contador */}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">
+          {/* Contador y acciones */}
+          <div className="flex items-center justify-between text-xs pt-1 border-t">
+            <span className="text-gray-600 font-medium">
               {clientesFiltrados.length} cliente{clientesFiltrados.length !== 1 ? 's' : ''}
             </span>
             <button
               onClick={() => setMostrarHistorial(!mostrarHistorial)}
               className="flex items-center gap-1 text-blue-600 hover:text-blue-700"
             >
-              <History size={16} />
+              <History size={14} />
               Historial
             </button>
           </div>
@@ -477,79 +427,86 @@ const TabGestionClientes = () => {
               </p>
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-gray-100">
               {clientesFiltrados.map((cliente) => {
                 const esEditando = clienteEditando === cliente.id;
+                const esSeleccionado = clienteSeleccionado?.id === cliente.id;
                 const tieneUbicacion = cliente.coordenadas?.lat && cliente.coordenadas?.lng &&
                   cliente.coordenadas.lat !== 0 && cliente.coordenadas.lng !== 0;
 
                 return (
                   <div
                     key={cliente.id}
-                    className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${
-                      clienteSeleccionado?.id === cliente.id ? 'bg-blue-50' : ''
-                    } ${esEditando ? 'bg-yellow-50' : ''}`}
+                    className={`p-2.5 hover:bg-gray-50 transition-colors cursor-pointer border-l-4 ${
+                      esSeleccionado ? 'bg-blue-50 border-l-blue-500' :
+                      esEditando ? 'bg-yellow-50 border-l-yellow-500' :
+                      'border-l-transparent'
+                    }`}
                     onClick={() => handleZoomCliente(cliente)}
                   >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {cliente.nombre}
-                        </h3>
-                        {cliente.codigoCliente && (
-                          <p className="text-xs text-gray-500">
-                            Código: {cliente.codigoCliente}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        {cliente.coordenadas?.corregida && (
-                          <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">
-                            Corregida
-                          </span>
-                        )}
+                    {/* Fila principal: Nombre + Iconos de estado + Botón editar */}
+                    <div className="flex items-center gap-2">
+                      {/* Indicador de ubicación */}
+                      <div className="flex-shrink-0">
                         {tieneUbicacion ? (
-                          <CheckCircle className="text-green-500 flex-shrink-0" size={20} />
+                          <div className={`w-2.5 h-2.5 rounded-full ${cliente.coordenadas?.corregida ? 'bg-green-500' : 'bg-blue-500'}`} />
                         ) : (
-                          <AlertTriangle className="text-orange-500 flex-shrink-0" size={20} />
+                          <div className="w-2.5 h-2.5 rounded-full bg-orange-400" />
                         )}
                       </div>
+
+                      {/* Info del cliente */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-gray-900 text-sm truncate">
+                            {cliente.nombre}
+                          </h3>
+                          {cliente.coordenadas?.corregida && (
+                            <span className="px-1 py-0.5 bg-green-100 text-green-700 text-[10px] rounded flex-shrink-0">
+                              ✓
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                          {cliente.codigoCliente && (
+                            <span className="font-mono">{cliente.codigoCliente}</span>
+                          )}
+                          {cliente.ciudad && (
+                            <>
+                              <span className="text-gray-300">•</span>
+                              <span className="text-blue-600">{cliente.ciudad}</span>
+                            </>
+                          )}
+                          {cliente.vendedorAsignado && cliente.vendedorAsignado !== 'Sin asignar' && (
+                            <>
+                              <span className="text-gray-300">•</span>
+                              <span className="text-purple-600 truncate max-w-[80px]">{cliente.vendedorAsignado}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Botón editar compacto */}
+                      {!esEditando && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleIniciarEdicion(cliente);
+                          }}
+                          className="flex-shrink-0 p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="Corregir ubicación"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                      )}
                     </div>
 
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <p className="flex items-center gap-1">
-                        <MapPin size={14} className="flex-shrink-0" />
-                        <span className="truncate">{cliente.direccion || 'Sin dirección'}</span>
-                      </p>
-                      {cliente.ciudad && (
-                        <p className="text-xs text-blue-600 ml-5">
-                          {cliente.ciudad}
-                        </p>
-                      )}
-                      {cliente.vendedorAsignado && cliente.vendedorAsignado !== 'Sin asignar' && (
-                        <p className="flex items-center gap-1 text-xs text-purple-600 ml-5">
-                          <User size={12} className="flex-shrink-0" />
-                          {cliente.vendedorAsignado}
-                        </p>
-                      )}
-                      {tieneUbicacion && (
-                        <p className="text-xs text-gray-400 ml-5">
-                          {cliente.coordenadas.lat.toFixed(6)}, {cliente.coordenadas.lng.toFixed(6)}
-                        </p>
-                      )}
-                    </div>
-
-                    {!esEditando && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleIniciarEdicion(cliente);
-                        }}
-                        className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        <Edit2 size={14} />
-                        Corregir Ubicación
-                      </button>
+                    {/* Dirección (solo si está seleccionado o expandido) */}
+                    {(esSeleccionado || esEditando) && cliente.direccion && (
+                      <div className="mt-1.5 pl-5 text-xs text-gray-500 flex items-start gap-1">
+                        <MapPin size={12} className="flex-shrink-0 mt-0.5" />
+                        <span className="line-clamp-2">{cliente.direccion}</span>
+                      </div>
                     )}
                   </div>
                 );
