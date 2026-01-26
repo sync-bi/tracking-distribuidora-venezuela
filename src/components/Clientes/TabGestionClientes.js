@@ -625,38 +625,49 @@ const TabGestionClientes = () => {
             )}
           </Map>
 
-          {/* Tarjeta flotante del cliente editando (solo en móvil) */}
+          {/* Tarjeta flotante del cliente editando - ABAJO del mapa (solo en móvil) */}
           {clienteEditando && clienteSeleccionado && (
-            <div className="md:hidden absolute top-2 left-2 right-2 bg-yellow-50 border-2 border-yellow-400 rounded-lg shadow-lg p-3 z-10">
-              <div className="flex items-start justify-between gap-2">
+            <div className="md:hidden absolute bottom-2 left-2 right-2 bg-yellow-50 border-2 border-yellow-400 rounded-lg shadow-xl p-3 z-20">
+              <div className="flex items-start justify-between gap-2 mb-2">
                 <div className="flex-1 min-w-0">
-                  <div className="font-bold text-yellow-800 text-sm truncate">
+                  <div className="font-bold text-yellow-900 text-sm truncate">
                     {clienteSeleccionado.nombre}
                   </div>
                   <div className="text-xs text-yellow-700 mt-0.5">
                     {clienteSeleccionado.codigoCliente} • {clienteSeleccionado.ciudad}
                   </div>
                   {clienteSeleccionado.direccion && (
-                    <div className="text-xs text-yellow-600 mt-1 line-clamp-2">
+                    <div className="text-xs text-yellow-600 mt-1 line-clamp-1">
                       {clienteSeleccionado.direccion}
                     </div>
                   )}
                 </div>
+              </div>
+              <div className="text-xs text-yellow-700 flex items-center gap-1 mb-3">
+                <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                Arrastra el marcador amarillo para corregir
+              </div>
+              {/* Botones de acción */}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleGuardarCambios}
+                  className="flex-1 flex items-center justify-center gap-1 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700"
+                >
+                  <Save size={16} />
+                  Guardar
+                </button>
                 <button
                   onClick={handleCancelarEdicion}
-                  className="flex-shrink-0 p-1 bg-yellow-200 hover:bg-yellow-300 rounded text-yellow-800"
+                  className="flex-1 flex items-center justify-center gap-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-300"
                 >
                   <X size={16} />
+                  Cancelar
                 </button>
-              </div>
-              <div className="mt-2 text-xs text-yellow-700 flex items-center gap-1">
-                <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-                Arrastra el marcador amarillo para corregir ubicación
               </div>
             </div>
           )}
 
-          {/* Leyenda */}
+          {/* Leyenda - solo en desktop */}
           <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg text-xs hidden md:block">
             <h4 className="font-semibold mb-2 text-gray-700">Leyenda</h4>
             <div className="space-y-1">
@@ -686,13 +697,10 @@ const TabGestionClientes = () => {
         </div>
       </div>
 
-      {/* Panel derecho - Edición (modal en móvil, panel en desktop) */}
+      {/* Panel derecho - Edición (solo en desktop, en móvil la tarjeta está sobre el mapa) */}
       {clienteEditando && clienteSeleccionado && (
         <>
-          {/* Overlay para móvil */}
-          <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={handleCancelarEdicion} />
-
-          <div className="fixed md:relative inset-x-2 bottom-2 top-auto md:inset-auto md:w-80 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col z-50 max-h-[80vh] md:max-h-none">
+          <div className="hidden md:flex md:w-80 bg-white rounded-lg shadow-lg overflow-hidden flex-col">
             {/* Header */}
             <div className="p-3 md:p-4 bg-yellow-500 text-white">
               <div className="flex items-center justify-between mb-1 md:mb-2">
