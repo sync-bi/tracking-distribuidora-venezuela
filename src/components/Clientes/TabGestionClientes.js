@@ -442,7 +442,13 @@ const TabGestionClientes = () => {
                       esEditando ? 'bg-yellow-50 border-l-yellow-500' :
                       'border-l-transparent'
                     }`}
-                    onClick={() => handleZoomCliente(cliente)}
+                    onClick={() => {
+                      handleZoomCliente(cliente);
+                      // En móvil, cambiar a vista mapa para ver el zoom
+                      if (window.innerWidth < 768) {
+                        setVistaMobile('mapa');
+                      }
+                    }}
                   >
                     {/* Fila principal: Nombre + Iconos de estado + Botón editar */}
                     <div className="flex items-center gap-2">
@@ -619,8 +625,39 @@ const TabGestionClientes = () => {
             )}
           </Map>
 
+          {/* Tarjeta flotante del cliente editando (solo en móvil) */}
+          {clienteEditando && clienteSeleccionado && (
+            <div className="md:hidden absolute top-2 left-2 right-2 bg-yellow-50 border-2 border-yellow-400 rounded-lg shadow-lg p-3 z-10">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="font-bold text-yellow-800 text-sm truncate">
+                    {clienteSeleccionado.nombre}
+                  </div>
+                  <div className="text-xs text-yellow-700 mt-0.5">
+                    {clienteSeleccionado.codigoCliente} • {clienteSeleccionado.ciudad}
+                  </div>
+                  {clienteSeleccionado.direccion && (
+                    <div className="text-xs text-yellow-600 mt-1 line-clamp-2">
+                      {clienteSeleccionado.direccion}
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={handleCancelarEdicion}
+                  className="flex-shrink-0 p-1 bg-yellow-200 hover:bg-yellow-300 rounded text-yellow-800"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="mt-2 text-xs text-yellow-700 flex items-center gap-1">
+                <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
+                Arrastra el marcador amarillo para corregir ubicación
+              </div>
+            </div>
+          )}
+
           {/* Leyenda */}
-          <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg text-xs">
+          <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg text-xs hidden md:block">
             <h4 className="font-semibold mb-2 text-gray-700">Leyenda</h4>
             <div className="space-y-1">
               <div className="flex items-center gap-2">

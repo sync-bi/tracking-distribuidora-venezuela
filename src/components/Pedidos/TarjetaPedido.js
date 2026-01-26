@@ -77,42 +77,40 @@ const TarjetaPedido = ({
   };
 
   return (
-    <div className={`border rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow ${
+    <div className={`border rounded-lg p-3 md:p-4 bg-white shadow-sm hover:shadow-md transition-shadow ${
       esUrgente() ? 'border-l-4 border-l-red-500' : ''
     }`}>
-      {/* Header */}
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-bold text-lg text-gray-900">{pedido.cliente || '(Sin nombre)'}</h3>
-            {esUrgente() && <AlertCircle size={18} className="text-red-500" />}
-          </div>
-          <div className="text-sm text-gray-600 mb-1">N° Pedido: {pedido.id}</div>
-          {(() => { const v = obtenerEstadoVencimiento(); return v ? (
-            <div className="text-xs flex items-center gap-2 mb-1">
-              <span className={`px-2 py-0.5 rounded-full ${v.color}`}>{v.label}</span>
-              <span className="text-gray-600">Venc: {pedido.fechaVencimiento}</span>
-            </div>
-          ) : null; })()}
-          {pedido.almacen && (
-            <div className="text-xs text-gray-600 mb-1">Desde almacen: {pedido.almacen}</div>
-          )}
-          <div className="flex items-center gap-2 text-gray-600">
-            <MapPin size={14} />
-            <span className="text-sm">{pedido.direccion}</span>
-          </div>
-        </div>
-        
-        <div className="flex flex-col items-end gap-2">
+      {/* Header - responsive */}
+      <div className="mb-3">
+        {/* Badges de estado en fila superior en móvil */}
+        <div className="flex items-center gap-2 mb-2">
           <div className="flex items-center gap-1">
             {obtenerIconoEstado(pedido.estado)}
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${obtenerColorEstado(pedido.estado)}`}>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${obtenerColorEstado(pedido.estado)}`}>
               {pedido.estado}
             </span>
           </div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${obtenerColorPrioridad(pedido.prioridad)}`}>
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${obtenerColorPrioridad(pedido.prioridad)}`}>
             {pedido.prioridad}
           </span>
+          {esUrgente() && <AlertCircle size={16} className="text-red-500 ml-auto" />}
+        </div>
+
+        {/* Info del cliente */}
+        <h3 className="font-bold text-base md:text-lg text-gray-900 break-words">{pedido.cliente || '(Sin nombre)'}</h3>
+        <div className="text-sm text-gray-600 mb-1">N° Pedido: {pedido.id}</div>
+        {(() => { const v = obtenerEstadoVencimiento(); return v ? (
+          <div className="text-xs flex flex-wrap items-center gap-2 mb-1">
+            <span className={`px-2 py-0.5 rounded-full ${v.color}`}>{v.label}</span>
+            <span className="text-gray-600">Venc: {pedido.fechaVencimiento}</span>
+          </div>
+        ) : null; })()}
+        {pedido.almacen && (
+          <div className="text-xs text-gray-600 mb-1">Desde almacen: {pedido.almacen}</div>
+        )}
+        <div className="flex items-start gap-2 text-gray-600">
+          <MapPin size={14} className="flex-shrink-0 mt-0.5" />
+          <span className="text-sm break-words">{pedido.direccion}</span>
         </div>
       </div>
 
@@ -140,31 +138,31 @@ const TarjetaPedido = ({
       </div>
 
       {/* Información adicional */}
-      <div className="grid grid-cols-2 gap-4 mb-4 text-sm text-gray-600">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4 mb-4 text-xs md:text-sm text-gray-600">
         <div>
           <span className="font-medium">Fecha:</span> {pedido.fechaCreacion}
         </div>
         {pedido.fechaVencimiento && (
           <div>
-            <span className="font-medium">Fecha vencimiento:</span> {pedido.fechaVencimiento}
+            <span className="font-medium">Vencimiento:</span> {pedido.fechaVencimiento}
           </div>
         )}
         <div>
           <span className="font-medium">Hora estimada:</span> {pedido.horaEstimada}
         </div>
         {pedido.almacen && (
-          <div className="col-span-2">
-            <span className="font-medium">Desde almacen:</span> {pedido.almacen}
+          <div className="col-span-1 sm:col-span-2">
+            <span className="font-medium">Almacen:</span> {pedido.almacen}
           </div>
         )}
         {pedido.zona && (
-          <div className="col-span-2">
-            <span className="font-medium">RUTA (Cuadrante/Zona):</span> {pedido.zona}
+          <div className="col-span-1 sm:col-span-2">
+            <span className="font-medium">Ruta:</span> {pedido.zona}
           </div>
         )}
         {pedido.coordenadas && (
-          <div className="col-span-2">
-            <span className="font-medium">Coordenadas:</span> {pedido.coordenadas.lat.toFixed(4)}, {pedido.coordenadas.lng.toFixed(4)}
+          <div className="col-span-1 sm:col-span-2">
+            <span className="font-medium">Coord:</span> {pedido.coordenadas.lat.toFixed(4)}, {pedido.coordenadas.lng.toFixed(4)}
           </div>
         )}
       </div>
@@ -179,13 +177,14 @@ const TarjetaPedido = ({
         </div>
       )}
 
-      {/* Acciones */}
-      <div className="flex flex-wrap gap-2 justify-between items-center pt-3 border-t">
-        <div className="flex gap-2">
+      {/* Acciones - responsive */}
+      <div className="pt-3 border-t space-y-2">
+        {/* Fila de selectores */}
+        <div className="flex flex-wrap gap-2">
           {/* Asignar camión */}
           {!pedido.camionAsignado && camiones.length > 0 && (
             <select
-              className="text-sm p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              className="text-xs md:text-sm p-1.5 md:p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 flex-1 min-w-[120px]"
               onChange={(e) => e.target.value && onAsignarCamion(pedido.id, e.target.value)}
               defaultValue=""
             >
@@ -201,7 +200,7 @@ const TarjetaPedido = ({
           {/* Cambiar estado */}
           {pedido.estado !== 'Entregado' && (
             <select
-              className="text-sm p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+              className="text-xs md:text-sm p-1.5 md:p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 flex-1 min-w-[100px]"
               value={pedido.estado}
               onChange={(e) => onActualizarEstado(pedido.id, e.target.value)}
             >
@@ -214,22 +213,23 @@ const TarjetaPedido = ({
           )}
         </div>
 
+        {/* Fila de botones */}
         <div className="flex gap-2">
           {/* Ver detalles */}
           <button
             onClick={() => onVerDetalles(pedido)}
-            className="flex items-center gap-1 px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600 transition-colors"
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-500 text-white rounded text-xs md:text-sm hover:bg-blue-600 transition-colors"
             title="Ver detalles"
           >
             <Eye size={14} />
-            Detalles
+            <span>Detalles</span>
           </button>
 
           {/* Eliminar (solo si está pendiente) */}
           {pedido.estado === 'Pendiente' && (
             <button
               onClick={() => onEliminar(pedido.id)}
-              className="px-3 py-1 bg-red-500 text-white rounded text-sm hover:bg-red-600 transition-colors"
+              className="flex-1 px-2 py-1.5 bg-red-500 text-white rounded text-xs md:text-sm hover:bg-red-600 transition-colors"
               title="Eliminar pedido"
             >
               Eliminar
