@@ -597,6 +597,15 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
                 ? marcadorTemporal
                 : pedido.coordenadas;
 
+              // Determinar color del marker
+              const colorMarker = esEditando || arrastrando
+                ? '#eab308'  // Amarillo cuando edita
+                : esSeleccionado
+                  ? '#8b5cf6'  // Púrpura cuando seleccionado
+                  : pedido.coordenadas?.corregida
+                    ? '#10b981'  // Verde si fue corregido
+                    : '#3b82f6'; // Azul por defecto
+
               return (
                 <Marker
                   key={pedido.id}
@@ -624,13 +633,18 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
                         viewBox="0 0 24 24"
                         fill="none"
                         xmlns="http://www.w3.org/2000/svg"
+                        style={{
+                          filter: esSeleccionado || esEditando
+                            ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))'
+                            : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'
+                        }}
                       >
                         {/* Punta precisa del marcador GPS */}
                         <path
                           d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
-                          fill={esEditando || arrastrando ? '#eab308' : '#3b82f6'}
+                          fill={colorMarker}
                           stroke="white"
-                          strokeWidth="1.5"
+                          strokeWidth={esSeleccionado ? "2" : "1.5"}
                         />
                         {/* Punto central para precisión */}
                         <circle cx="12" cy="9" r="2.5" fill="white" />
@@ -667,6 +681,41 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
               <p className="text-sm font-medium">Arrastrando... Suelta para guardar la nueva ubicación</p>
             </div>
           )}
+
+          {/* Leyenda del mapa */}
+          <div className="absolute bottom-4 left-4 bg-white p-3 rounded-lg shadow-lg text-xs z-10">
+            <h4 className="font-semibold mb-2 text-gray-700">Leyenda</h4>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Ubicación original</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#10b981" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Ubicación corregida</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#8b5cf6" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Seleccionado</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#eab308" stroke="white" strokeWidth="1.5"/>
+                  <circle cx="12" cy="9" r="2.5" fill="white"/>
+                </svg>
+                <span>Editando (arrástralo)</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Panel Derecho - Formulario de Edición (modal en móvil) */}

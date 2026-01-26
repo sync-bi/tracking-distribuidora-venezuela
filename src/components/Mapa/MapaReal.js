@@ -83,48 +83,80 @@ const MapaReal = ({
         mapStyle="mapbox://styles/mapbox/streets-v12"
         attributionControl={false}
       >
-        {/* Marcadores de Camiones */}
-        {camionesValidos.map((camion) => (
-          <Marker
-            key={camion.id}
-            longitude={camion.ubicacionActual.lng}
-            latitude={camion.ubicacionActual.lat}
-            anchor="center"
-          >
-            <button
-              className="bg-white rounded-full p-2 shadow-lg border-2 hover:scale-110 transition-transform"
-              style={{ borderColor: obtenerColorEstadoCamion(camion.estado) }}
-              onClick={() => onSelectCamion(camion)}
+        {/* Marcadores de Camiones - SVG pins puntiagudos */}
+        {camionesValidos.map((camion) => {
+          const color = obtenerColorEstadoCamion(camion.estado);
+          const esSeleccionado = popupInfo?.type === 'camion' && popupInfo?.data?.id === camion.id;
+          return (
+            <Marker
+              key={camion.id}
+              longitude={camion.ubicacionActual.lng}
+              latitude={camion.ubicacionActual.lat}
+              anchor="bottom"
             >
-              <Truck
-                size={20}
-                style={{ color: obtenerColorEstadoCamion(camion.estado) }}
-              />
-            </button>
-          </Marker>
-        ))}
+              <div
+                className="cursor-pointer hover:scale-110 transition-transform"
+                onClick={() => onSelectCamion(camion)}
+                title={`${camion.id} - ${camion.conductor || 'Sin conductor'}`}
+              >
+                <svg
+                  width={esSeleccionado ? 40 : 34}
+                  height={esSeleccionado ? 40 : 34}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ filter: esSeleccionado ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
+                >
+                  <path
+                    d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                    fill={color}
+                    stroke="white"
+                    strokeWidth="1.5"
+                  />
+                  <circle cx="12" cy="9" r="3" fill="white" />
+                  {/* Icono de camión dentro */}
+                  <path d="M9 8h4l1 2h1v2h-7v-3z" fill={color} />
+                  <circle cx="10" cy="12" r="0.8" fill={color} />
+                  <circle cx="13" cy="12" r="0.8" fill={color} />
+                </svg>
+              </div>
+            </Marker>
+          );
+        })}
 
-        {/* Marcadores de Pedidos */}
+        {/* Marcadores de Pedidos - SVG pins puntiagudos */}
         {pedidosValidos.map((pedido) => {
+          const color = obtenerColorEstadoPedido(pedido.estado);
           const tieneAdvertencia = pedido.coordenadasAdvertencia && !pedido.coordenadasAdvertencia.valido;
+          const esSeleccionado = popupInfo?.type === 'pedido' && popupInfo?.data?.id === pedido.id;
           return (
             <Marker
               key={pedido.id}
               longitude={pedido.coordenadas.lng}
               latitude={pedido.coordenadas.lat}
-              anchor="center"
+              anchor="bottom"
             >
-              <div className="relative">
-                <button
-                  className="bg-white rounded-full p-2 shadow-lg border-2 hover:scale-110 transition-transform"
-                  style={{ borderColor: obtenerColorEstadoPedido(pedido.estado) }}
-                  onClick={() => onSelectPedido(pedido)}
+              <div
+                className="relative cursor-pointer hover:scale-110 transition-transform"
+                onClick={() => onSelectPedido(pedido)}
+                title={`${pedido.id} - ${pedido.cliente}`}
+              >
+                <svg
+                  width={esSeleccionado ? 38 : 32}
+                  height={esSeleccionado ? 38 : 32}
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={{ filter: esSeleccionado ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.3))' : 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
                 >
-                  <Package
-                    size={18}
-                    style={{ color: obtenerColorEstadoPedido(pedido.estado) }}
+                  <path
+                    d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+                    fill={color}
+                    stroke="white"
+                    strokeWidth="1.5"
                   />
-                </button>
+                  <circle cx="12" cy="9" r="2.5" fill="white" />
+                </svg>
                 {tieneAdvertencia && (
                   <div className="absolute -top-1 -right-1 bg-yellow-500 rounded-full p-0.5" title="Coordenadas verificadas automáticamente">
                     <AlertTriangle size={12} className="text-white" />
