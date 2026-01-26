@@ -22,7 +22,8 @@ import {
   Compass,
   Download,
   RefreshCw,
-  Loader2
+  Loader2,
+  User
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useClientesCSV } from '../../hooks/useClientesCSV';
@@ -33,11 +34,12 @@ const TabGestionClientes = () => {
   const {
     clientes,
     ciudades,
+    vendedores,
     historialCambios,
     cargando,
     error,
     actualizarUbicacionCliente,
-    obtenerClientesPorCiudad,
+    obtenerClientesFiltrados,
     buscarClientes,
     estadisticas,
     recargarClientes,
@@ -59,15 +61,16 @@ const TabGestionClientes = () => {
   });
   const [busqueda, setBusqueda] = useState('');
   const [ciudadFiltro, setCiudadFiltro] = useState('todos');
+  const [vendedorFiltro, setVendedorFiltro] = useState('todos');
   const [clienteSeleccionado, setClienteSeleccionado] = useState(null);
   const [arrastrando, setArrastrando] = useState(false);
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [estiloMapa, setEstiloMapa] = useState('streets');
 
-  // Filtrar clientes por ciudad, estado y búsqueda
+  // Filtrar clientes por ciudad, vendedor, estado y búsqueda
   const clientesFiltrados = useMemo(() => {
-    let resultado = obtenerClientesPorCiudad(ciudadFiltro);
+    let resultado = obtenerClientesFiltrados(ciudadFiltro, vendedorFiltro);
 
     // Aplicar filtro por estado de coordenadas
     switch (filtroEstado) {
@@ -100,12 +103,13 @@ const TabGestionClientes = () => {
         c.nombre?.toLowerCase().includes(terminoLower) ||
         c.codigoCliente?.toLowerCase().includes(terminoLower) ||
         c.direccion?.toLowerCase().includes(terminoLower) ||
-        c.ciudad?.toLowerCase().includes(terminoLower)
+        c.ciudad?.toLowerCase().includes(terminoLower) ||
+        c.vendedorAsignado?.toLowerCase().includes(terminoLower)
       );
     }
 
     return resultado;
-  }, [clientes, busqueda, ciudadFiltro, filtroEstado, obtenerClientesPorCiudad]);
+  }, [clientes, busqueda, ciudadFiltro, vendedorFiltro, filtroEstado, obtenerClientesFiltrados]);
 
   // Iniciar edición de cliente
   const handleIniciarEdicion = useCallback((cliente) => {
@@ -299,6 +303,23 @@ const TabGestionClientes = () => {
             </select>
           </div>
 
+          {/* Filtro por vendedor */}
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            <select
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+              value={vendedorFiltro}
+              onChange={(e) => setVendedorFiltro(e.target.value)}
+            >
+              <option value="todos">Todos los vendedores</option>
+              {vendedores.map(vendedor => (
+                <option key={vendedor} value={vendedor}>
+                  {vendedor}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Filtro por estado */}
           <div className="relative">
             <MapPinned className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
@@ -338,6 +359,7 @@ const TabGestionClientes = () => {
             onClick={() => {
               setFiltroEstado('todos');
               setCiudadFiltro('todos');
+              setVendedorFiltro('todos');
               setBusqueda('');
             }}
           >
@@ -477,6 +499,12 @@ const TabGestionClientes = () => {
                       {cliente.ciudad && (
                         <p className="text-xs text-blue-600 ml-5">
                           {cliente.ciudad}
+                        </p>
+                      )}
+                      {cliente.vendedorAsignado && cliente.vendedorAsignado !== 'Sin asignar' && (
+                        <p className="flex items-center gap-1 text-xs text-purple-600 ml-5">
+                          <User size={12} className="flex-shrink-0" />
+                          {cliente.vendedorAsignado}
                         </p>
                       )}
                       {tieneUbicacion && (
