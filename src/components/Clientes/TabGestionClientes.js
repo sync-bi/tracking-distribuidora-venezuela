@@ -552,13 +552,10 @@ const TabGestionClientes = () => {
           >
             <NavigationControl position="top-right" />
 
-            {/* Marcadores de clientes (no mostrar el que se está editando) */}
-            {clientesFiltrados.map((cliente) => {
+            {/* Marcadores de clientes - EN MÓVIL: ocultar todos cuando se edita */}
+            {!clienteEditando && clientesFiltrados.map((cliente) => {
               if (!cliente.coordenadas?.lat || !cliente.coordenadas?.lng ||
                   cliente.coordenadas.lat === 0 || cliente.coordenadas.lng === 0) return null;
-
-              // Si este cliente se está editando, no mostrar su marcador aquí
-              if (clienteEditando === cliente.id) return null;
 
               const esSeleccionado = clienteSeleccionado?.id === cliente.id;
 
@@ -630,40 +627,36 @@ const TabGestionClientes = () => {
 
           {/* Tarjeta flotante del cliente editando - ABAJO del mapa (solo en móvil) */}
           {clienteEditando && clienteSeleccionado && (
-            <div className="md:hidden absolute bottom-2 left-2 right-2 bg-yellow-50 border-2 border-yellow-400 rounded-lg shadow-xl p-3 z-20">
-              <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="md:hidden absolute bottom-2 left-2 right-2 bg-yellow-400 rounded-lg shadow-xl p-2 z-20">
+              {/* Info compacta en una línea */}
+              <div className="flex items-center gap-2 mb-2">
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-yellow-900 text-sm truncate">
                     {clienteSeleccionado.nombre}
                   </div>
-                  <div className="text-xs text-yellow-700 mt-0.5">
+                  <div className="text-[10px] text-yellow-800">
                     {clienteSeleccionado.codigoCliente} • {clienteSeleccionado.ciudad}
                   </div>
-                  {clienteSeleccionado.direccion && (
-                    <div className="text-xs text-yellow-600 mt-1 line-clamp-1">
-                      {clienteSeleccionado.direccion}
-                    </div>
-                  )}
+                </div>
+                <div className="flex-shrink-0 text-[10px] text-yellow-800 flex items-center gap-1">
+                  <span className="w-2 h-2 bg-yellow-600 rounded-full animate-pulse"></span>
+                  Arrastra el pin
                 </div>
               </div>
-              <div className="text-xs text-yellow-700 flex items-center gap-1 mb-3">
-                <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></span>
-                Arrastra el marcador amarillo para corregir
-              </div>
-              {/* Botones de acción */}
+              {/* Botones compactos */}
               <div className="flex gap-2">
                 <button
                   onClick={handleGuardarCambios}
-                  className="flex-1 flex items-center justify-center gap-1 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700"
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-green-600 text-white rounded font-semibold text-xs"
                 >
-                  <Save size={16} />
+                  <Save size={14} />
                   Guardar
                 </button>
                 <button
                   onClick={handleCancelarEdicion}
-                  className="flex-1 flex items-center justify-center gap-1 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-300"
+                  className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-white text-gray-700 rounded font-medium text-xs"
                 >
-                  <X size={16} />
+                  <X size={14} />
                   Cancelar
                 </button>
               </div>
