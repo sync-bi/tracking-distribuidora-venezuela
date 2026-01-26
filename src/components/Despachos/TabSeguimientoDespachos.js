@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Truck, MapPin, Clock, Fuel, Route, Navigation, Zap,
   ChevronUp, ChevronDown, Play, Pause, CheckCircle,
-  AlertCircle, Package, Radio, RotateCcw
+  AlertCircle, Package, Radio, RotateCcw, List, Map as MapIcon, ChevronLeft
 } from 'lucide-react';
 import MapaDespachos from './MapaDespachos';
 import { escucharPosicionVehiculo, isFirebaseAvailable } from '../../services/firebase';
@@ -30,6 +30,7 @@ const TabSeguimientoDespachos = ({
   const [seguimientoActivo, setSeguimientoActivo] = useState({});
   const [metricas, setMetricas] = useState(null);
   const [firebaseDisponible, setFirebaseDisponible] = useState(false);
+  const [vistaMobile, setVistaMobile] = useState('lista'); // 'lista' | 'mapa'
 
   // Check Firebase availability on mount
   useEffect(() => {
@@ -207,15 +208,21 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
     return `Hace ${diffHr}h`;
   };
 
+  // Handle despacho selection on mobile
+  const handleSelectDespachoMobile = (id) => {
+    setDespachoSeleccionado(id);
+    setVistaMobile('mapa');
+  };
+
   // Render left sidebar with despacho list
   const renderSidebar = () => (
-    <div className="w-80 bg-white border-r overflow-y-auto">
-      <div className="p-4 border-b bg-gray-50">
-        <h3 className="font-bold text-lg flex items-center gap-2">
-          <Navigation className="text-blue-600" size={20} />
+    <div className={`${vistaMobile === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-80 bg-white md:border-r overflow-y-auto flex-col`}>
+      <div className="p-3 md:p-4 border-b bg-gray-50">
+        <h3 className="font-bold text-base md:text-lg flex items-center gap-2">
+          <Navigation className="text-blue-600" size={18} />
           Despachos Activos
         </h3>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-xs md:text-sm text-gray-600 mt-1">
           {despachosActivos.length} en seguimiento
         </p>
       </div>
@@ -235,8 +242,14 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
             return (
               <div
                 key={d.id}
-                onClick={() => setDespachoSeleccionado(d.id)}
-                className={`p-4 cursor-pointer transition-colors ${
+                onClick={() => {
+                  setDespachoSeleccionado(d.id);
+                  // En móvil, cambiar a vista mapa al seleccionar
+                  if (window.innerWidth < 768) {
+                    setVistaMobile('mapa');
+                  }
+                }}
+                className={`p-3 md:p-4 cursor-pointer transition-colors ${
                   isSelected
                     ? 'bg-blue-50 border-l-4 border-l-blue-500'
                     : 'hover:bg-gray-50'
@@ -335,15 +348,22 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
   const renderMainContent = () => {
     if (!despacho) {
       return (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
-          <div className="text-center">
-            <Navigation size={64} className="mx-auto mb-4 text-gray-300" />
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">
+        <div className={`${vistaMobile === 'mapa' ? 'flex' : 'hidden'} md:flex flex-1 items-center justify-center bg-gray-50`}>
+          <div className="text-center p-4">
+            <Navigation size={48} className="mx-auto mb-4 text-gray-300" />
+            <h3 className="text-lg md:text-xl font-semibold text-gray-600 mb-2">
               Selecciona un despacho
             </h3>
-            <p className="text-gray-500">
-              Elige un despacho del panel izquierdo para ver el seguimiento en tiempo real
+            <p className="text-gray-500 text-sm md:text-base">
+              Elige un despacho para ver el seguimiento
             </p>
+            <button
+              onClick={() => setVistaMobile('lista')}
+              className="md:hidden mt-4 flex items-center gap-2 mx-auto px-4 py-2 bg-blue-600 text-white rounded-lg"
+            >
+              <ChevronLeft size={18} />
+              Ver lista
+            </button>
           </div>
         </div>
       );
@@ -353,19 +373,28 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
     const trackingActivo = seguimientoActivo[despacho.id];
 
     return (
-      <div className="flex-1 overflow-y-auto bg-gray-50">
-        <div className="p-6">
+      <div className={`${vistaMobile === 'mapa' ? 'flex' : 'hidden'} md:flex flex-1 flex-col overflow-y-auto bg-gray-50`}>
+        <div className="p-3 md:p-6">
+          {/* Botón volver en móvil */}
+          <button
+            onClick={() => setVistaMobile('lista')}
+            className="md:hidden flex items-center gap-2 mb-3 text-blue-600 font-medium"
+          >
+            <ChevronLeft size={20} />
+            Volver a lista
+          </button>
+
           {/* Header with truck info */}
-          <div className="bg-white rounded-lg border shadow-sm p-6 mb-4">
-            <div className="flex items-center justify-between mb-4">
+          <div className="bg-white rounded-lg border shadow-sm p-4 md:p-6 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Truck size={24} className="text-blue-600" />
+                <div className="p-2 md:p-3 bg-blue-100 rounded-lg">
+                  <Truck size={20} className="text-blue-600" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold">{despacho.camionId}</h2>
-                  <p className="text-gray-600">
-                    Conductor: {camion?.conductor || 'N/A'} • {rutaActual.length} paradas
+                  <h2 className="text-xl md:text-2xl font-bold">{despacho.camionId}</h2>
+                  <p className="text-gray-600 text-sm md:text-base">
+                    {camion?.conductor || 'N/A'} • {rutaActual.length} paradas
                   </p>
                 </div>
               </div>
@@ -374,7 +403,7 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
               <button
                 onClick={() => toggleSeguimiento(despacho.id)}
                 disabled={!firebaseDisponible}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                className={`flex items-center justify-center gap-2 px-3 md:px-4 py-2 rounded-lg transition-colors text-sm md:text-base ${
                   trackingActivo
                     ? 'bg-green-500 text-white hover:bg-green-600'
                     : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
@@ -382,7 +411,8 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
                 title={!firebaseDisponible ? 'Firebase no disponible' : ''}
               >
                 {trackingActivo ? <Pause size={16} /> : <Play size={16} />}
-                Seguimiento en Vivo
+                <span className="hidden sm:inline">Seguimiento en Vivo</span>
+                <span className="sm:hidden">En Vivo</span>
               </button>
             </div>
 
@@ -589,7 +619,29 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
   };
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50">
+      {/* Toggle vista móvil */}
+      <div className="md:hidden flex gap-2 p-2 bg-white border-b">
+        <button
+          onClick={() => setVistaMobile('lista')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${
+            vistaMobile === 'lista' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <List size={18} />
+          Lista
+        </button>
+        <button
+          onClick={() => setVistaMobile('mapa')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${
+            vistaMobile === 'mapa' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <MapIcon size={18} />
+          Mapa
+        </button>
+      </div>
+
       {renderSidebar()}
       {renderMainContent()}
     </div>

@@ -12,7 +12,9 @@ import {
   MapPin,
   Plus,
   X,
-  AlertCircle
+  AlertCircle,
+  List,
+  ClipboardList
 } from 'lucide-react';
 
 const TabDespachoSimplificado = ({
@@ -26,6 +28,7 @@ const TabDespachoSimplificado = ({
   const [conductorSeleccionado, setConductorSeleccionado] = useState('');
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
   const [zonaExpandida, setZonaExpandida] = useState(null);
+  const [vistaMobile, setVistaMobile] = useState('pedidos'); // 'pedidos' | 'resumen'
 
   // Filtrar pedidos disponibles (sin asignar)
   const pedidosDisponibles = useMemo(() => {
@@ -172,13 +175,40 @@ const TabDespachoSimplificado = ({
   const conductoresDisponibles = conductores.filter(c => c.estado === 'Disponible');
 
   return (
-    <div className="fixed inset-0 top-[168px] flex gap-4 p-6">
+    <div className="fixed inset-0 top-[116px] md:top-[168px] flex flex-col md:flex-row gap-2 md:gap-4 p-2 md:p-6">
+      {/* Toggle vista móvil */}
+      <div className="md:hidden flex gap-2 mb-2">
+        <button
+          onClick={() => setVistaMobile('pedidos')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${
+            vistaMobile === 'pedidos' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <List size={18} />
+          Pedidos
+        </button>
+        <button
+          onClick={() => setVistaMobile('resumen')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors relative ${
+            vistaMobile === 'resumen' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <ClipboardList size={18} />
+          Resumen
+          {pedidosSeleccionados.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+              {pedidosSeleccionados.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Panel izquierdo - Lista de pedidos */}
-      <div id="despachos-pedidos-list" className="flex-1 flex flex-col bg-white rounded-lg shadow-lg min-w-0">
+      <div id="despachos-pedidos-list" className={`${vistaMobile === 'pedidos' ? 'flex' : 'hidden'} md:flex flex-1 flex-col bg-white rounded-lg shadow-lg min-w-0`}>
         {/* Header */}
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-            <Package className="text-blue-600" size={24} />
+        <div className="p-3 md:p-4 border-b">
+          <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 mb-3 md:mb-4">
+            <Package className="text-blue-600" size={20} />
             Pedidos Disponibles
           </h2>
 
@@ -187,16 +217,16 @@ const TabDespachoSimplificado = ({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Buscar por cliente, pedido o dirección..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Buscar cliente, pedido..."
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm md:text-base"
               value={terminoBusqueda}
               onChange={(e) => setTerminoBusqueda(e.target.value)}
             />
           </div>
 
           {/* Contador */}
-          <div className="mt-3 text-sm text-gray-600">
-            {Object.keys(pedidosFiltrados).length} zonas • {pedidosDisponibles.length} pedidos disponibles
+          <div className="mt-2 md:mt-3 text-xs md:text-sm text-gray-600">
+            {Object.keys(pedidosFiltrados).length} zonas • {pedidosDisponibles.length} pedidos
           </div>
         </div>
 
@@ -311,40 +341,40 @@ const TabDespachoSimplificado = ({
       </div>
 
       {/* Panel derecho fijo - Resumen y acciones */}
-      <div id="despachos-resumen" className="w-96 flex flex-col gap-4 flex-shrink-0 overflow-y-auto">
+      <div id="despachos-resumen" className={`${vistaMobile === 'resumen' ? 'flex' : 'hidden'} md:flex w-full md:w-96 flex-col gap-3 md:gap-4 flex-shrink-0 overflow-y-auto`}>
         {/* Card de resumen */}
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+        <div className="bg-white rounded-lg shadow-lg p-4 md:p-6">
+          <h3 className="text-base md:text-lg font-bold mb-3 md:mb-4 flex items-center gap-2">
             <Box className="text-green-600" size={20} />
             Resumen de Despacho
           </h3>
 
           {/* Totales */}
-          <div className="space-y-3 mb-6">
+          <div className="space-y-2 md:space-y-3 mb-4 md:mb-6">
             <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-gray-600">Pedidos seleccionados:</span>
-              <span className="font-bold text-xl text-blue-600">{totales.cantidad}</span>
+              <span className="text-gray-600 text-sm md:text-base">Pedidos seleccionados:</span>
+              <span className="font-bold text-lg md:text-xl text-blue-600">{totales.cantidad}</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-gray-600 flex items-center gap-1">
-                <Weight size={16} />
-                Peso total estimado:
+              <span className="text-gray-600 flex items-center gap-1 text-sm md:text-base">
+                <Weight size={14} />
+                Peso total:
               </span>
-              <span className="font-semibold">{totales.peso} kg</span>
+              <span className="font-semibold text-sm md:text-base">{totales.peso} kg</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-gray-600 flex items-center gap-1">
-                <Box size={16} />
-                Volumen total estimado:
+              <span className="text-gray-600 flex items-center gap-1 text-sm md:text-base">
+                <Box size={14} />
+                Volumen total:
               </span>
-              <span className="font-semibold">{totales.volumen} m³</span>
+              <span className="font-semibold text-sm md:text-base">{totales.volumen} m³</span>
             </div>
             <div className="flex justify-between items-center py-2">
-              <span className="text-gray-600 flex items-center gap-1">
-                <Package size={16} />
+              <span className="text-gray-600 flex items-center gap-1 text-sm md:text-base">
+                <Package size={14} />
                 Total productos:
               </span>
-              <span className="font-semibold">{totales.productos}</span>
+              <span className="font-semibold text-sm md:text-base">{totales.productos}</span>
             </div>
           </div>
 

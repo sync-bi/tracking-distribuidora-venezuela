@@ -23,7 +23,9 @@ import {
   Download,
   RefreshCw,
   Loader2,
-  User
+  User,
+  List,
+  ChevronLeft
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useClientesCSV } from '../../hooks/useClientesCSV';
@@ -67,6 +69,7 @@ const TabGestionClientes = () => {
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [estiloMapa, setEstiloMapa] = useState('streets');
+  const [vistaMobile, setVistaMobile] = useState('lista'); // 'lista' | 'mapa'
 
   // Filtrar clientes por ciudad, vendedor, estado y búsqueda
   const clientesFiltrados = useMemo(() => {
@@ -240,9 +243,31 @@ const TabGestionClientes = () => {
   }
 
   return (
-    <div className="fixed inset-0 top-[168px] flex gap-4 p-6">
+    <div className="fixed inset-0 top-[116px] md:top-[168px] flex flex-col md:flex-row gap-2 md:gap-4 p-2 md:p-6">
+      {/* Toggle vista móvil */}
+      <div className="md:hidden flex gap-2 mb-2">
+        <button
+          onClick={() => setVistaMobile('lista')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${
+            vistaMobile === 'lista' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <List size={18} />
+          Lista
+        </button>
+        <button
+          onClick={() => setVistaMobile('mapa')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${
+            vistaMobile === 'mapa' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <MapIcon size={18} />
+          Mapa
+        </button>
+      </div>
+
       {/* Panel izquierdo - Lista de clientes */}
-      <div className="w-96 flex flex-col bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className={`${vistaMobile === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-96 flex-col bg-white rounded-lg shadow-lg overflow-hidden`}>
         {/* Header */}
         <div className="p-4 border-b bg-gradient-to-r from-blue-500 to-blue-600">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
@@ -535,14 +560,15 @@ const TabGestionClientes = () => {
       </div>
 
       {/* Panel central - Mapa */}
-      <div className="flex-1 flex flex-col bg-white rounded-lg shadow-lg overflow-hidden">
+      <div className={`${vistaMobile === 'mapa' ? 'flex' : 'hidden'} md:flex flex-1 flex-col bg-white rounded-lg shadow-lg overflow-hidden`}>
         {/* Header del mapa */}
-        <div className="p-4 border-b bg-gray-50">
-          <h3 className="font-semibold text-gray-700 flex items-center gap-2">
-            <MapPinned size={20} className="text-blue-600" />
-            Mapa de Ubicaciones
+        <div className="p-2 md:p-4 border-b bg-gray-50">
+          <h3 className="font-semibold text-gray-700 flex items-center gap-2 text-sm md:text-base">
+            <MapPinned size={18} className="text-blue-600" />
+            <span className="hidden sm:inline">Mapa de Ubicaciones</span>
+            <span className="sm:hidden">Mapa</span>
             {clienteSeleccionado && (
-              <span className="text-sm font-normal text-gray-500 ml-2">
+              <span className="text-xs md:text-sm font-normal text-gray-500 ml-2 truncate max-w-[150px] md:max-w-none">
                 → {clienteSeleccionado.nombre}
               </span>
             )}
@@ -666,27 +692,31 @@ const TabGestionClientes = () => {
         </div>
       </div>
 
-      {/* Panel derecho - Edición */}
+      {/* Panel derecho - Edición (modal en móvil, panel en desktop) */}
       {clienteEditando && clienteSeleccionado && (
-        <div className="w-80 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col">
-          {/* Header */}
-          <div className="p-4 bg-yellow-500 text-white">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="font-bold flex items-center gap-2">
-                <Edit2 size={20} />
-                Editando Cliente
-              </h3>
-              <button
-                onClick={handleCancelarEdicion}
-                className="p-1 hover:bg-yellow-600 rounded transition-colors"
-              >
-                <X size={20} />
-              </button>
+        <>
+          {/* Overlay para móvil */}
+          <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={handleCancelarEdicion} />
+
+          <div className="fixed md:relative inset-x-2 bottom-2 top-auto md:inset-auto md:w-80 bg-white rounded-lg shadow-lg overflow-hidden flex flex-col z-50 max-h-[80vh] md:max-h-none">
+            {/* Header */}
+            <div className="p-3 md:p-4 bg-yellow-500 text-white">
+              <div className="flex items-center justify-between mb-1 md:mb-2">
+                <h3 className="font-bold flex items-center gap-2 text-sm md:text-base">
+                  <Edit2 size={18} />
+                  Editando Cliente
+                </h3>
+                <button
+                  onClick={handleCancelarEdicion}
+                  className="p-1 hover:bg-yellow-600 rounded transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <p className="text-xs md:text-sm text-yellow-100 truncate">
+                {clienteSeleccionado.nombre}
+              </p>
             </div>
-            <p className="text-sm text-yellow-100">
-              {clienteSeleccionado.nombre}
-            </p>
-          </div>
 
           {/* Formulario */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -764,23 +794,24 @@ const TabGestionClientes = () => {
           </div>
 
           {/* Botones de acción */}
-          <div className="p-4 border-t bg-gray-50 space-y-2">
+          <div className="p-3 md:p-4 border-t bg-gray-50 space-y-2">
             <button
               onClick={handleGuardarCambios}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 md:py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold text-sm md:text-base"
             >
-              <Save size={20} />
+              <Save size={18} />
               Guardar Cambios
             </button>
             <button
               onClick={handleCancelarEdicion}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm md:text-base"
             >
-              <X size={18} />
+              <X size={16} />
               Cancelar
             </button>
           </div>
         </div>
+        </>
       )}
 
       {/* Modal de historial */}

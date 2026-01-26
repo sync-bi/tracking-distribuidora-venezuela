@@ -1,7 +1,7 @@
 // src/components/Ubicaciones/TabGestionUbicaciones.js
 import React, { useState, useMemo } from 'react';
 import Map, { Marker, NavigationControl } from 'react-map-gl';
-import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation, Eye, RotateCcw, Filter, Layers, ZoomIn, ZoomOut, Map as MapIcon, Globe, Compass, Users } from 'lucide-react';
+import { MapPin, Edit2, Save, X, Search, AlertTriangle, CheckCircle, Navigation, Eye, RotateCcw, Filter, Layers, ZoomIn, ZoomOut, Map as MapIcon, Globe, Compass, Users, List, ChevronLeft } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
@@ -26,6 +26,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
   const [mostrarCapas, setMostrarCapas] = useState(true);
   const [estiloMapa, setEstiloMapa] = useState('streets'); // streets, satellite, navigation
   const [agruparPorCliente, setAgruparPorCliente] = useState(false);
+  const [vistaMobile, setVistaMobile] = useState('lista'); // 'lista' | 'mapa'
 
   // Filtrar pedidos por estado y búsqueda
   const pedidosFiltrados = useMemo(() => {
@@ -302,10 +303,32 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
         </div>
       </div>
 
+      {/* Toggle vista móvil */}
+      <div className="md:hidden flex gap-2 p-2 bg-white border-b">
+        <button
+          onClick={() => setVistaMobile('lista')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${
+            vistaMobile === 'lista' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <List size={18} />
+          Lista
+        </button>
+        <button
+          onClick={() => setVistaMobile('mapa')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${
+            vistaMobile === 'mapa' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <MapIcon size={18} />
+          Mapa
+        </button>
+      </div>
+
       {/* Contenedor Principal */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Panel Izquierdo - Lista de Clientes */}
-        <div className="w-96 bg-white border-r border-gray-200 flex flex-col">
+        <div className={`${vistaMobile === 'lista' ? 'flex' : 'hidden'} md:flex w-full md:w-96 bg-white md:border-r border-gray-200 flex-col`}>
           {/* Buscador */}
           <div className="p-4 border-b border-gray-200">
             <div className="relative">
@@ -551,7 +574,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
         </div>
 
         {/* Panel Central - Mapa */}
-        <div className="flex-1 relative">
+        <div className={`${vistaMobile === 'mapa' ? 'flex' : 'hidden'} md:flex flex-1 relative flex-col`}>
           <Map
             {...viewport}
             onMove={evt => setViewport(evt.viewState)}
@@ -646,18 +669,22 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
           )}
         </div>
 
-        {/* Panel Derecho - Formulario de Edición */}
+        {/* Panel Derecho - Formulario de Edición (modal en móvil) */}
         {pedidoEditando && (
-          <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-gray-900">Editar Ubicación</h3>
-              <button
-                onClick={handleCancelarEdicion}
-                className="p-1 hover:bg-gray-100 rounded text-gray-500"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+          <>
+            {/* Overlay para móvil */}
+            <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={handleCancelarEdicion} />
+
+            <div className="fixed md:relative inset-x-2 bottom-2 top-auto md:inset-auto md:w-80 bg-white md:border-l border-gray-200 p-4 overflow-y-auto rounded-lg md:rounded-none shadow-lg md:shadow-none z-50 max-h-[80vh] md:max-h-none">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base md:text-lg font-bold text-gray-900">Editar Ubicación</h3>
+                <button
+                  onClick={handleCancelarEdicion}
+                  className="p-1 hover:bg-gray-100 rounded text-gray-500"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
             <div className="space-y-4">
               {/* Cliente (solo lectura) */}
@@ -772,6 +799,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
               </div>
             </div>
           </div>
+          </>
         )}
       </div>
     </div>
