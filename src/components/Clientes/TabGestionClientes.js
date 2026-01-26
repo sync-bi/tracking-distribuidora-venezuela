@@ -443,10 +443,13 @@ const TabGestionClientes = () => {
                       'border-l-transparent'
                     }`}
                     onClick={() => {
-                      handleZoomCliente(cliente);
-                      // En móvil, cambiar a vista mapa para ver el zoom
+                      // En móvil: iniciar edición directamente y cambiar a mapa
                       if (window.innerWidth < 768) {
+                        handleIniciarEdicion(cliente);
                         setVistaMobile('mapa');
+                      } else {
+                        // En desktop: solo seleccionar y hacer zoom
+                        handleZoomCliente(cliente);
                       }
                     }}
                   >

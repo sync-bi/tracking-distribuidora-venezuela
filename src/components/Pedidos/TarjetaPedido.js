@@ -34,17 +34,17 @@ const TarjetaPedido = ({
   const obtenerIconoEstado = (estado) => {
     switch (estado) {
       case 'Pendiente':
-        return <Clock size={16} className="text-yellow-600" />;
+        return <Clock size={14} className="text-yellow-600" />;
       case 'Asignado':
-        return <Truck size={16} className="text-blue-600" />;
+        return <Truck size={14} className="text-blue-600" />;
       case 'En Ruta':
-        return <MapPin size={16} className="text-green-600" />;
+        return <MapPin size={14} className="text-green-600" />;
       case 'Entregado':
-        return <Package size={16} className="text-gray-600" />;
+        return <Package size={14} className="text-gray-600" />;
       case 'Cancelado':
-        return <AlertCircle size={16} className="text-red-600" />;
+        return <AlertCircle size={14} className="text-red-600" />;
       default:
-        return <Clock size={16} className="text-gray-600" />;
+        return <Clock size={14} className="text-gray-600" />;
     }
   };
 
@@ -68,169 +68,124 @@ const TarjetaPedido = ({
         return { color: 'bg-red-100 text-red-800', label: 'Vencido' };
       }
       if (diffDays <= 2) {
-        return { color: 'bg-yellow-100 text-yellow-800', label: 'Prox. venc.' };
+        return { color: 'bg-yellow-100 text-yellow-800', label: 'Próx.' };
       }
-      return { color: 'bg-green-100 text-green-800', label: 'Vigente' };
+      return { color: 'bg-green-100 text-green-800', label: 'OK' };
     } catch (_) {
       return null;
     }
   };
 
   return (
-    <div className={`border rounded-lg p-3 md:p-4 bg-white shadow-sm hover:shadow-md transition-shadow ${
+    <div className={`border rounded-lg p-3 bg-white shadow-sm overflow-hidden w-full ${
       esUrgente() ? 'border-l-4 border-l-red-500' : ''
     }`}>
-      {/* Header - responsive */}
-      <div className="mb-3">
-        {/* Badges de estado en fila superior en móvil */}
-        <div className="flex items-center gap-2 mb-2">
+      {/* Header compacto */}
+      <div className="mb-2">
+        {/* Badges de estado */}
+        <div className="flex flex-wrap items-center gap-1 mb-1">
           <div className="flex items-center gap-1">
             {obtenerIconoEstado(pedido.estado)}
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${obtenerColorEstado(pedido.estado)}`}>
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${obtenerColorEstado(pedido.estado)}`}>
               {pedido.estado}
             </span>
           </div>
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${obtenerColorPrioridad(pedido.prioridad)}`}>
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${obtenerColorPrioridad(pedido.prioridad)}`}>
             {pedido.prioridad}
           </span>
-          {esUrgente() && <AlertCircle size={16} className="text-red-500 ml-auto" />}
+          {(() => { const v = obtenerEstadoVencimiento(); return v ? (
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${v.color}`}>{v.label}</span>
+          ) : null; })()}
         </div>
 
-        {/* Info del cliente */}
-        <h3 className="font-bold text-base md:text-lg text-gray-900 break-words">{pedido.cliente || '(Sin nombre)'}</h3>
-        <div className="text-sm text-gray-600 mb-1">N° Pedido: {pedido.id}</div>
-        {(() => { const v = obtenerEstadoVencimiento(); return v ? (
-          <div className="text-xs flex flex-wrap items-center gap-2 mb-1">
-            <span className={`px-2 py-0.5 rounded-full ${v.color}`}>{v.label}</span>
-            <span className="text-gray-600">Venc: {pedido.fechaVencimiento}</span>
-          </div>
-        ) : null; })()}
-        {pedido.almacen && (
-          <div className="text-xs text-gray-600 mb-1">Desde almacen: {pedido.almacen}</div>
-        )}
-        <div className="flex items-start gap-2 text-gray-600">
-          <MapPin size={14} className="flex-shrink-0 mt-0.5" />
-          <span className="text-sm break-words">{pedido.direccion}</span>
+        {/* Cliente */}
+        <h3 className="font-bold text-sm text-gray-900 leading-tight">{pedido.cliente || '(Sin nombre)'}</h3>
+        <div className="text-xs text-gray-500">#{pedido.id}</div>
+
+        {/* Dirección */}
+        <div className="flex items-start gap-1 text-gray-600 mt-1">
+          <MapPin size={12} className="flex-shrink-0 mt-0.5" />
+          <span className="text-xs leading-tight">{pedido.direccion}</span>
         </div>
       </div>
 
-      {/* Productos */}
-      <div className="mb-4">
-        <h5 className="font-medium text-gray-700 mb-2">
-          Productos ({calcularTotalProductos()} items):
-        </h5>
-        <div className="space-y-1">
-          {pedido.productos.map((producto, index) => (
-            <div key={index} className="text-sm bg-gray-50 p-2 rounded flex justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-medium truncate">{producto.descripcion || producto.modelo || producto.tipo || 'Producto'}</div>
-                <div className="text-xs text-gray-600 truncate">{producto.modelo ? `Código: ${producto.modelo}` : ''}</div>
-              </div>
-              <div className="text-right whitespace-nowrap">
-                <div className="text-gray-600">x{producto.cantidad}</div>
-                {typeof producto.precioUnitario === 'number' && (
-                  <div className="text-gray-700">{Math.trunc(producto.subtotal ?? (producto.precioUnitario * producto.cantidad))}</div>
-                )}
-              </div>
-            </div>
-          ))}
+      {/* Productos - compacto */}
+      <div className="mb-2 p-2 bg-gray-50 rounded text-xs">
+        <div className="font-medium text-gray-700 mb-1">
+          {calcularTotalProductos()} productos
         </div>
+        {pedido.productos.slice(0, 2).map((producto, index) => (
+          <div key={index} className="flex justify-between text-gray-600">
+            <span className="truncate flex-1 mr-2">{producto.descripcion || producto.modelo || 'Producto'}</span>
+            <span className="flex-shrink-0">x{producto.cantidad}</span>
+          </div>
+        ))}
+        {pedido.productos.length > 2 && (
+          <div className="text-gray-400 text-[10px]">+{pedido.productos.length - 2} más...</div>
+        )}
       </div>
 
-      {/* Información adicional */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 md:gap-4 mb-4 text-xs md:text-sm text-gray-600">
-        <div>
-          <span className="font-medium">Fecha:</span> {pedido.fechaCreacion}
-        </div>
-        {pedido.fechaVencimiento && (
-          <div>
-            <span className="font-medium">Vencimiento:</span> {pedido.fechaVencimiento}
-          </div>
-        )}
-        <div>
-          <span className="font-medium">Hora estimada:</span> {pedido.horaEstimada}
-        </div>
-        {pedido.almacen && (
-          <div className="col-span-1 sm:col-span-2">
-            <span className="font-medium">Almacen:</span> {pedido.almacen}
-          </div>
-        )}
-        {pedido.zona && (
-          <div className="col-span-1 sm:col-span-2">
-            <span className="font-medium">Ruta:</span> {pedido.zona}
-          </div>
-        )}
-        {pedido.coordenadas && (
-          <div className="col-span-1 sm:col-span-2">
-            <span className="font-medium">Coord:</span> {pedido.coordenadas.lat.toFixed(4)}, {pedido.coordenadas.lng.toFixed(4)}
-          </div>
-        )}
+      {/* Info adicional - una línea */}
+      <div className="text-[10px] text-gray-500 mb-2">
+        {pedido.fechaCreacion} • {pedido.horaEstimada || 'Sin hora'}
+        {pedido.coordenadas && ` • ${pedido.coordenadas.lat.toFixed(2)},${pedido.coordenadas.lng.toFixed(2)}`}
       </div>
 
       {/* Camión asignado */}
       {pedido.camionAsignado && (
-        <div className="mb-4 p-2 bg-green-50 border border-green-200 rounded">
-          <div className="flex items-center gap-2 text-green-700">
-            <Truck size={16} />
-            <span className="font-medium">Camión asignado: {pedido.camionAsignado}</span>
+        <div className="mb-2 p-1.5 bg-green-50 border border-green-200 rounded text-xs">
+          <div className="flex items-center gap-1 text-green-700">
+            <Truck size={12} />
+            <span className="font-medium">{pedido.camionAsignado}</span>
           </div>
         </div>
       )}
 
-      {/* Acciones - responsive */}
-      <div className="pt-3 border-t space-y-2">
-        {/* Fila de selectores */}
-        <div className="flex flex-wrap gap-2">
-          {/* Asignar camión */}
-          {!pedido.camionAsignado && camiones.length > 0 && (
-            <select
-              className="text-xs md:text-sm p-1.5 md:p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 flex-1 min-w-[120px]"
-              onChange={(e) => e.target.value && onAsignarCamion(pedido.id, e.target.value)}
-              defaultValue=""
-            >
-              <option value="">Asignar Camión</option>
-              {camiones.map(camion => (
-                <option key={camion.id} value={camion.id}>
-                  {camion.id} - {camion.conductor}
-                </option>
-              ))}
-            </select>
-          )}
+      {/* Acciones */}
+      <div className="pt-2 border-t space-y-1.5">
+        {/* Selectores en stack vertical */}
+        {!pedido.camionAsignado && camiones.length > 0 && (
+          <select
+            className="w-full text-xs p-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+            onChange={(e) => e.target.value && onAsignarCamion(pedido.id, e.target.value)}
+            defaultValue=""
+          >
+            <option value="">Asignar Camión...</option>
+            {camiones.map(camion => (
+              <option key={camion.id} value={camion.id}>
+                {camion.id} - {camion.conductor}
+              </option>
+            ))}
+          </select>
+        )}
 
-          {/* Cambiar estado */}
-          {pedido.estado !== 'Entregado' && (
-            <select
-              className="text-xs md:text-sm p-1.5 md:p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 flex-1 min-w-[100px]"
-              value={pedido.estado}
-              onChange={(e) => onActualizarEstado(pedido.id, e.target.value)}
-            >
-              <option value="Pendiente">Pendiente</option>
-              <option value="Asignado">Asignado</option>
-              <option value="En Ruta">En Ruta</option>
-              <option value="Entregado">Entregado</option>
-              <option value="Cancelado">Cancelado</option>
-            </select>
-          )}
-        </div>
+        {pedido.estado !== 'Entregado' && (
+          <select
+            className="w-full text-xs p-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
+            value={pedido.estado}
+            onChange={(e) => onActualizarEstado(pedido.id, e.target.value)}
+          >
+            <option value="Pendiente">Pendiente</option>
+            <option value="Asignado">Asignado</option>
+            <option value="En Ruta">En Ruta</option>
+            <option value="Entregado">Entregado</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+        )}
 
-        {/* Fila de botones */}
-        <div className="flex gap-2">
-          {/* Ver detalles */}
+        {/* Botones */}
+        <div className="flex gap-1.5">
           <button
             onClick={() => onVerDetalles(pedido)}
-            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 bg-blue-500 text-white rounded text-xs md:text-sm hover:bg-blue-600 transition-colors"
-            title="Ver detalles"
+            className="flex-1 flex items-center justify-center gap-1 py-1.5 bg-blue-500 text-white rounded text-xs hover:bg-blue-600"
           >
-            <Eye size={14} />
-            <span>Detalles</span>
+            <Eye size={12} />
+            Ver
           </button>
-
-          {/* Eliminar (solo si está pendiente) */}
           {pedido.estado === 'Pendiente' && (
             <button
               onClick={() => onEliminar(pedido.id)}
-              className="flex-1 px-2 py-1.5 bg-red-500 text-white rounded text-xs md:text-sm hover:bg-red-600 transition-colors"
-              title="Eliminar pedido"
+              className="flex-1 py-1.5 bg-red-500 text-white rounded text-xs hover:bg-red-600"
             >
               Eliminar
             </button>
@@ -238,12 +193,12 @@ const TarjetaPedido = ({
         </div>
       </div>
 
-      {/* Indicador de urgencia */}
+      {/* Indicador urgente */}
       {esUrgente() && (
-        <div className="mt-3 flex items-center gap-2 text-red-600 text-sm">
-          <AlertCircle size={14} />
+        <div className="mt-2 flex items-center gap-1 text-red-600 text-[10px]">
+          <AlertCircle size={10} />
           <span className="font-medium">
-            {pedido.prioridad === 'Urgente' ? 'Pedido urgente - Requiere atención inmediata' : 'Pedido de alta prioridad'}
+            {pedido.prioridad === 'Urgente' ? 'URGENTE' : 'Alta prioridad'}
           </span>
         </div>
       )}
