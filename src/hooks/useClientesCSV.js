@@ -1,21 +1,37 @@
 // src/hooks/useClientesCSV.js
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import * as XLSX from 'xlsx';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import {
+  isFirestoreAvailable,
+  guardarCorreccionCliente,
+  obtenerCorreccionesClientes,
+  escucharCorreccionesClientes
+} from '../services/firestoreService';
 
 /**
- * Hook para gestión de clientes desde archivo CSV
- * Carga clientes desde clientes.csv (coordenadas) y clientes con vendedor.csv (vendedores)
- * Hace merge de ambos archivos por código de cliente
+ * Hook para gestión de clientes desde archivo CSV + Firestore
+ * - CSV: fuente base (lista de clientes + vendedores + coordenadas originales)
+ * - Firestore: capa de correcciones persistentes (overlay)
+ * - Al cargar: merge CSV + correcciones Firestore
  */
 export const useClientesCSV = () => {
-  const [clientes, setClientes] = useState([]);
+  const [clientesBase, setClientesBase] = useState([]);
+  const [correcciones, setCorrecciones] = useState({});
   const [historialCambios, setHistorialCambios] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
+  const [guardando, setGuardando] = useState(false);
+  const [firestoreActivo, setFirestoreActivo] = useState(false);
+  const unsubscribeRef = useRef(null);
 
-  // Cargar clientes desde CSV al iniciar
+  // Cargar clientes desde CSV + Firestore al iniciar
   useEffect(() => {
-    cargarClientesDesdeCSV();
+    cargarTodo();
+
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
   }, []);
 
   // Función para normalizar código de cliente (quitar espacios y ceros a la izquierda)
@@ -43,8 +59,8 @@ export const useClientesCSV = () => {
         cliente[header] = valores[idx] || '';
       });
 
-      // Parsear coordenadas
-      const val1 = parseFloat(cliente.longuitud) || 0;
+      // Parsear coordenadas - longitud (ya corregido el typo)
+      const val1 = parseFloat(cliente.longitud) || 0;
       const val2 = parseFloat(cliente.latitud) || 0;
 
       let lat, lng;
@@ -79,13 +95,15 @@ export const useClientesCSV = () => {
 
       const codigoNorm = normalizarCodigo(cliente.co_cli);
       if (codigoNorm) {
+        const esCorregida = (cliente.corregida || '').toUpperCase() === 'SI';
         mapaClientes[codigoNorm] = {
           nombre: cliente.cliente || '',
           ciudad: cliente.ciudad || '',
           direccion: cliente.direccion_principal || '',
           direccionTemporal: cliente.direccion_temporal !== 'NULL' ? cliente.direccion_temporal : '',
           lat,
-          lng
+          lng,
+          corregidaCSV: esCorregida
         };
       }
     }
@@ -130,134 +148,210 @@ export const useClientesCSV = () => {
     return clientesParsed;
   };
 
-  // Cargar desde archivos CSV y hacer merge
-  const cargarClientesDesdeCSV = async () => {
+  // Cargar CSV + Firestore
+  const cargarTodo = async () => {
     setCargando(true);
     setError(null);
 
     try {
-      // Cargar ambos archivos en paralelo
-      const [respCoordenadas, respVendedores] = await Promise.all([
-        fetch('/clientes.csv').catch(() => null),
-        fetch('/clientes con vendedor.csv').catch(() => null)
-      ]);
+      // 1. Cargar CSV base
+      const clientesCSV = await cargarClientesDesdeCSV();
 
-      let mapaCoordenadas = {};
-      let clientesVendedores = [];
+      // 2. Cargar correcciones de Firestore
+      let correccionesFS = {};
+      if (isFirestoreAvailable()) {
+        try {
+          correccionesFS = await obtenerCorreccionesClientes();
+          setFirestoreActivo(true);
+          console.log(`☁️ ${Object.keys(correccionesFS).length} correcciones cargadas de Firestore`);
 
-      // Parsear CSV de coordenadas
-      if (respCoordenadas && respCoordenadas.ok) {
-        const textoCoordenadas = await respCoordenadas.text();
-        mapaCoordenadas = parsearCSVCoordenadas(textoCoordenadas);
-        console.log(`📍 Cargadas coordenadas de ${Object.keys(mapaCoordenadas).length} clientes`);
+          // Iniciar listener en tiempo real
+          if (unsubscribeRef.current) unsubscribeRef.current();
+          unsubscribeRef.current = escucharCorreccionesClientes((nuevasCorrecciones) => {
+            setCorrecciones(nuevasCorrecciones);
+          });
+        } catch (err) {
+          console.warn('⚠️ Firestore no disponible, usando solo CSV:', err.message);
+          setFirestoreActivo(false);
+        }
       }
 
-      // Parsear CSV de vendedores
-      if (respVendedores && respVendedores.ok) {
-        const textoVendedores = await respVendedores.text();
-        clientesVendedores = parsearCSVVendedores(textoVendedores);
-        console.log(`👤 Cargados ${clientesVendedores.length} clientes con vendedor`);
-      }
-
-      // Hacer merge: base es clientesVendedores, agregar coordenadas de mapaCoordenadas
-      let clientesMerge = [];
-
-      if (clientesVendedores.length > 0) {
-        // Usar clientes con vendedor como base
-        clientesMerge = clientesVendedores.map((cv, idx) => {
-          const coords = mapaCoordenadas[cv.codigoNormalizado] || {};
-          return {
-            id: cv.codigoCliente || `cli-${idx}`,
-            codigoCliente: cv.codigoCliente,
-            nombre: cv.nombre,
-            ciudad: coords.ciudad || '',
-            direccion: coords.direccion || '',
-            direccionTemporal: coords.direccionTemporal || '',
-            coordenadas: {
-              lat: coords.lat || 0,
-              lng: coords.lng || 0,
-              corregida: false
-            },
-            vendedorAsignado: cv.vendedorAsignado,
-            tipoCliente: cv.tipoCliente,
-            totalPedidos: 0
-          };
-        });
-      } else if (Object.keys(mapaCoordenadas).length > 0) {
-        // Fallback: usar solo coordenadas si no hay vendedores
-        clientesMerge = Object.entries(mapaCoordenadas).map(([codigo, datos], idx) => ({
-          id: codigo || `cli-${idx}`,
-          codigoCliente: codigo,
-          nombre: datos.nombre,
-          ciudad: datos.ciudad || '',
-          direccion: datos.direccion || '',
-          direccionTemporal: datos.direccionTemporal || '',
-          coordenadas: {
-            lat: datos.lat || 0,
-            lng: datos.lng || 0,
-            corregida: false
-          },
-          vendedorAsignado: 'Sin asignar',
-          tipoCliente: '',
-          totalPedidos: 0
-        }));
-      }
-
-      if (clientesMerge.length > 0) {
-        setClientes(clientesMerge);
-        console.log(`✅ Total: ${clientesMerge.length} clientes cargados`);
-      } else {
-        setError('No se encontraron archivos CSV de clientes');
-        setClientes([]);
-      }
+      setCorrecciones(correccionesFS);
+      setClientesBase(clientesCSV);
     } catch (err) {
       console.error('Error cargando clientes:', err);
       setError(err.message);
-      setClientes([]);
+      setClientesBase([]);
     } finally {
       setCargando(false);
     }
   };
 
-  // Actualizar ubicación de un cliente
-  const actualizarUbicacionCliente = useCallback((codigoCliente, nuevaUbicacion, metodo = 'manual', razon = '') => {
-    setClientes(prev => {
-      const clienteIndex = prev.findIndex(c => c.codigoCliente === codigoCliente || c.id === codigoCliente);
-      if (clienteIndex === -1) return prev;
+  // Cargar desde archivos CSV y hacer merge
+  const cargarClientesDesdeCSV = async () => {
+    const [respCoordenadas, respVendedores] = await Promise.all([
+      fetch('/clientes.csv').catch(() => null),
+      fetch('/clientes con vendedor.csv').catch(() => null)
+    ]);
 
-      const clienteAnterior = prev[clienteIndex];
-      const clienteActualizado = {
-        ...clienteAnterior,
-        direccion: nuevaUbicacion.direccion || clienteAnterior.direccion,
-        ciudad: nuevaUbicacion.ciudad || clienteAnterior.ciudad,
+    let mapaCoordenadas = {};
+    let clientesVendedores = [];
+
+    if (respCoordenadas && respCoordenadas.ok) {
+      const textoCoordenadas = await respCoordenadas.text();
+      mapaCoordenadas = parsearCSVCoordenadas(textoCoordenadas);
+      console.log(`📍 Cargadas coordenadas de ${Object.keys(mapaCoordenadas).length} clientes`);
+    }
+
+    if (respVendedores && respVendedores.ok) {
+      const textoVendedores = await respVendedores.text();
+      clientesVendedores = parsearCSVVendedores(textoVendedores);
+      console.log(`👤 Cargados ${clientesVendedores.length} clientes con vendedor`);
+    }
+
+    let clientesMerge = [];
+
+    if (clientesVendedores.length > 0) {
+      clientesMerge = clientesVendedores.map((cv, idx) => {
+        const coords = mapaCoordenadas[cv.codigoNormalizado] || {};
+        return {
+          id: cv.codigoCliente || `cli-${idx}`,
+          codigoCliente: cv.codigoCliente,
+          codigoNormalizado: cv.codigoNormalizado,
+          nombre: cv.nombre,
+          ciudad: coords.ciudad || '',
+          direccion: coords.direccion || '',
+          direccionTemporal: coords.direccionTemporal || '',
+          coordenadas: {
+            lat: coords.lat || 0,
+            lng: coords.lng || 0,
+            corregida: coords.corregidaCSV || false
+          },
+          vendedorAsignado: cv.vendedorAsignado,
+          tipoCliente: cv.tipoCliente,
+          totalPedidos: 0
+        };
+      });
+    } else if (Object.keys(mapaCoordenadas).length > 0) {
+      clientesMerge = Object.entries(mapaCoordenadas).map(([codigo, datos], idx) => ({
+        id: codigo || `cli-${idx}`,
+        codigoCliente: codigo,
+        codigoNormalizado: codigo,
+        nombre: datos.nombre,
+        ciudad: datos.ciudad || '',
+        direccion: datos.direccion || '',
+        direccionTemporal: datos.direccionTemporal || '',
+        coordenadas: {
+          lat: datos.lat || 0,
+          lng: datos.lng || 0,
+          corregida: datos.corregidaCSV || false
+        },
+        vendedorAsignado: 'Sin asignar',
+        tipoCliente: '',
+        totalPedidos: 0
+      }));
+    }
+
+    if (clientesMerge.length === 0) {
+      throw new Error('No se encontraron archivos CSV de clientes');
+    }
+
+    console.log(`✅ Total: ${clientesMerge.length} clientes cargados desde CSV`);
+    return clientesMerge;
+  };
+
+  // Clientes finales = CSV base + correcciones Firestore aplicadas
+  const clientes = useMemo(() => {
+    if (clientesBase.length === 0) return [];
+
+    return clientesBase.map(cliente => {
+      const codigoNorm = normalizarCodigo(cliente.codigoCliente);
+      const correccion = correcciones[codigoNorm];
+
+      if (correccion && correccion.coordenadas) {
+        return {
+          ...cliente,
+          coordenadas: {
+            lat: correccion.coordenadas.lat,
+            lng: correccion.coordenadas.lng,
+            corregida: true
+          },
+          ...(correccion.direccion && { direccion: correccion.direccion }),
+          ...(correccion.ciudad && { ciudad: correccion.ciudad })
+        };
+      }
+
+      return cliente;
+    });
+  }, [clientesBase, correcciones]);
+
+  // Actualizar ubicación de un cliente (guarda en Firestore + actualiza local)
+  const actualizarUbicacionCliente = useCallback(async (codigoCliente, nuevaUbicacion, metodo = 'manual', razon = '') => {
+    const clienteIndex = clientes.findIndex(c => c.codigoCliente === codigoCliente || c.id === codigoCliente);
+    if (clienteIndex === -1) return;
+
+    const clienteAnterior = clientes[clienteIndex];
+
+    // Registrar en historial local
+    const cambio = {
+      cliente: clienteAnterior.nombre,
+      codigoCliente: clienteAnterior.codigoCliente,
+      fecha: new Date().toISOString(),
+      ubicacionAnterior: {
+        direccion: clienteAnterior.direccion,
+        ciudad: clienteAnterior.ciudad,
+        coordenadas: clienteAnterior.coordenadas
+      },
+      ubicacionNueva: nuevaUbicacion,
+      metodo,
+      razon
+    };
+    setHistorialCambios(prevHist => [cambio, ...prevHist]);
+
+    // Guardar en Firestore (persistente)
+    if (isFirestoreAvailable()) {
+      setGuardando(true);
+      try {
+        const codigoNorm = normalizarCodigo(clienteAnterior.codigoCliente);
+        await guardarCorreccionCliente(codigoNorm, {
+          codigoCliente: clienteAnterior.codigoCliente,
+          nombre: clienteAnterior.nombre,
+          lat: nuevaUbicacion.lat,
+          lng: nuevaUbicacion.lng,
+          direccion: nuevaUbicacion.direccion || clienteAnterior.direccion,
+          ciudad: nuevaUbicacion.ciudad || clienteAnterior.ciudad,
+          metodo,
+          razon
+        });
+        console.log(`☁️ Corrección guardada en Firestore: ${clienteAnterior.nombre}`);
+      } catch (err) {
+        console.error('Error guardando en Firestore:', err);
+        // Fallback: guardar solo en memoria
+        aplicarCorreccionLocal(clienteAnterior, nuevaUbicacion);
+      } finally {
+        setGuardando(false);
+      }
+    } else {
+      // Sin Firestore: guardar solo en memoria
+      aplicarCorreccionLocal(clienteAnterior, nuevaUbicacion);
+    }
+  }, [clientes]);
+
+  // Aplicar corrección solo en memoria (fallback sin Firestore)
+  const aplicarCorreccionLocal = useCallback((clienteAnterior, nuevaUbicacion) => {
+    const codigoNorm = normalizarCodigo(clienteAnterior.codigoCliente);
+    setCorrecciones(prev => ({
+      ...prev,
+      [codigoNorm]: {
         coordenadas: {
           lat: nuevaUbicacion.lat,
           lng: nuevaUbicacion.lng,
           corregida: true
-        }
-      };
-
-      // Registrar en historial
-      const cambio = {
-        cliente: clienteAnterior.nombre,
-        codigoCliente: clienteAnterior.codigoCliente,
-        fecha: new Date().toISOString(),
-        ubicacionAnterior: {
-          direccion: clienteAnterior.direccion,
-          ciudad: clienteAnterior.ciudad,
-          coordenadas: clienteAnterior.coordenadas
         },
-        ubicacionNueva: nuevaUbicacion,
-        metodo,
-        razon
-      };
-
-      setHistorialCambios(prevHist => [cambio, ...prevHist]);
-
-      const nuevoArray = [...prev];
-      nuevoArray[clienteIndex] = clienteActualizado;
-      return nuevoArray;
-    });
+        ...(nuevaUbicacion.direccion && { direccion: nuevaUbicacion.direccion }),
+        ...(nuevaUbicacion.ciudad && { ciudad: nuevaUbicacion.ciudad })
+      }
+    }));
   }, []);
 
   // Obtener ciudades únicas
@@ -280,18 +374,6 @@ export const useClientesCSV = () => {
       }
     });
     return Array.from(vendedoresSet).sort();
-  }, [clientes]);
-
-  // Filtrar clientes por ciudad
-  const obtenerClientesPorCiudad = useCallback((ciudad) => {
-    if (!ciudad || ciudad === 'todos') return clientes;
-    return clientes.filter(c => c.ciudad === ciudad);
-  }, [clientes]);
-
-  // Filtrar clientes por vendedor
-  const obtenerClientesPorVendedor = useCallback((vendedor) => {
-    if (!vendedor || vendedor === 'todos') return clientes;
-    return clientes.filter(c => c.vendedorAsignado === vendedor);
   }, [clientes]);
 
   // Filtrar clientes por ciudad y vendedor
@@ -354,25 +436,28 @@ export const useClientesCSV = () => {
     const lineas = [headers.join(';')];
 
     clientes.forEach(c => {
+      const lat = c.coordenadas?.lat || 0;
+      const lng = c.coordenadas?.lng || 0;
       const linea = [
         c.codigoCliente,
         c.nombre,
         c.ciudad,
         c.direccion,
         c.direccionTemporal || 'NULL',
-        c.coordenadas?.lat || '',
-        c.coordenadas?.lng || '',
+        lat !== 0 ? lat.toFixed(8) : '',
+        lng !== 0 ? lng.toFixed(8) : '',
         c.coordenadas?.corregida ? 'SI' : 'NO'
       ].join(';');
       lineas.push(linea);
     });
 
     const contenido = lineas.join('\n');
-    const blob = new Blob([contenido], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + contenido], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `clientes_actualizados_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
+    URL.revokeObjectURL(link.href);
   }, [clientes]);
 
   return {
@@ -382,13 +467,13 @@ export const useClientesCSV = () => {
     historialCambios,
     cargando,
     error,
+    guardando,
+    firestoreActivo,
     actualizarUbicacionCliente,
-    obtenerClientesPorCiudad,
-    obtenerClientesPorVendedor,
     obtenerClientesFiltrados,
     buscarClientes,
     estadisticas,
-    recargarClientes: cargarClientesDesdeCSV,
+    recargarClientes: cargarTodo,
     exportarClientesCSV
   };
 };

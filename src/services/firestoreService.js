@@ -629,6 +629,142 @@ export const inicializarConductores = async (conductores) => {
   console.log('✅ Conductores inicializados en Firestore');
 };
 
+// ==========================================
+// CLIENTES - CORRECCIONES DE UBICACIÓN
+// ==========================================
+
+/**
+ * Guardar o actualizar corrección de ubicación de un cliente.
+ * Usa codigoCliente normalizado como ID del documento.
+ */
+export const guardarCorreccionCliente = async (codigoCliente, datos, userId = 'sistema') => {
+  if (!db) {
+    console.warn('Firestore no disponible, corrección guardada solo en memoria');
+    return null;
+  }
+
+  try {
+    const docId = codigoCliente.toString().trim().replace(/^0+/, '') || codigoCliente;
+    const clienteRef = doc(db, 'clientes_correcciones', docId);
+
+    // Verificar si ya existe para auditoría
+    const existente = await getDoc(clienteRef);
+    const datosAnteriores = existente.exists() ? existente.data() : null;
+
+    const correccion = {
+      codigoCliente: datos.codigoCliente || codigoCliente,
+      nombre: datos.nombre || '',
+      coordenadas: {
+        lat: datos.lat,
+        lng: datos.lng,
+        corregida: true
+      },
+      ...(datos.direccion && { direccion: datos.direccion }),
+      ...(datos.ciudad && { ciudad: datos.ciudad }),
+      metodo: datos.metodo || 'manual',
+      fechaActualizacion: serverTimestamp(),
+      actualizadoPor: userId
+    };
+
+    await setDoc(clienteRef, correccion, { merge: true });
+
+    // Registrar en historial (subcolección)
+    const historialRef = collection(db, 'clientes_correcciones', docId, 'historialUbicaciones');
+    await addDoc(historialRef, {
+      latAnterior: datosAnteriores?.coordenadas?.lat || null,
+      lngAnterior: datosAnteriores?.coordenadas?.lng || null,
+      latNueva: datos.lat,
+      lngNueva: datos.lng,
+      direccionAnterior: datosAnteriores?.direccion || '',
+      direccionNueva: datos.direccion || '',
+      fecha: serverTimestamp(),
+      usuario: userId,
+      metodo: datos.metodo || 'manual',
+      razon: datos.razon || 'Corrección de ubicación'
+    });
+
+    // Auditoría general
+    await registrarAuditoria(
+      datosAnteriores ? 'actualizar' : 'crear',
+      'cliente_correccion',
+      docId,
+      userId,
+      datosAnteriores,
+      correccion
+    );
+
+    console.log('✅ Corrección de cliente guardada:', docId);
+    return correccion;
+  } catch (error) {
+    console.error('❌ Error al guardar corrección de cliente:', error);
+    throw error;
+  }
+};
+
+/**
+ * Obtener todas las correcciones de clientes
+ */
+export const obtenerCorreccionesClientes = async () => {
+  if (!db) return {};
+
+  try {
+    const correccionesRef = collection(db, 'clientes_correcciones');
+    const snapshot = await getDocs(correccionesRef);
+    const correcciones = {};
+
+    snapshot.docs.forEach(doc => {
+      correcciones[doc.id] = { id: doc.id, ...doc.data() };
+    });
+
+    console.log(`✅ Obtenidas ${Object.keys(correcciones).length} correcciones de clientes`);
+    return correcciones;
+  } catch (error) {
+    console.error('❌ Error al obtener correcciones:', error);
+    return {};
+  }
+};
+
+/**
+ * Escuchar cambios en correcciones de clientes en tiempo real
+ */
+export const escucharCorreccionesClientes = (callback) => {
+  if (!db) return () => {};
+
+  const correccionesRef = collection(db, 'clientes_correcciones');
+
+  return onSnapshot(correccionesRef, (snapshot) => {
+    const correcciones = {};
+    snapshot.docs.forEach(doc => {
+      correcciones[doc.id] = { id: doc.id, ...doc.data() };
+    });
+    callback(correcciones);
+  }, (error) => {
+    console.error('❌ Error en listener de correcciones:', error);
+  });
+};
+
+/**
+ * Obtener historial de ubicaciones de un cliente
+ */
+export const obtenerHistorialCliente = async (codigoCliente) => {
+  if (!db) return [];
+
+  try {
+    const docId = codigoCliente.toString().trim().replace(/^0+/, '') || codigoCliente;
+    const historialRef = collection(db, 'clientes_correcciones', docId, 'historialUbicaciones');
+    const q = query(historialRef, orderBy('fecha', 'desc'));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('❌ Error al obtener historial de cliente:', error);
+    return [];
+  }
+};
+
 // Exportar todo
 export default {
   isFirestoreAvailable,
@@ -652,6 +788,11 @@ export default {
   // Conductores
   obtenerConductores,
   escucharConductores,
+  // Clientes - Correcciones
+  guardarCorreccionCliente,
+  obtenerCorreccionesClientes,
+  escucharCorreccionesClientes,
+  obtenerHistorialCliente,
   // Auditoría
   registrarAuditoria,
   obtenerAuditoria,
