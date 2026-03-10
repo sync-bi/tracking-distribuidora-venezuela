@@ -40,6 +40,16 @@ export const useClientesCSV = () => {
     return codigo.toString().trim().replace(/^0+/, '');
   };
 
+  // Validar que las coordenadas estén dentro de Venezuela
+  // Límites aproximados: lat 0.6°N - 12.5°N, lng -73.4°W - -59.8°W
+  // Clientes con lat < 5 son datos truncados (ej: 1.04 debería ser 10.4)
+  const esCoordenadasVenezuela = (lat, lng) => {
+    if (!lat || !lng || lat === 0 || lng === 0) return false;
+    const latValida = lat >= 5 && lat <= 12.5;
+    const lngValida = lng >= -73.5 && lng <= -59.5;
+    return latValida && lngValida;
+  };
+
   // Función para parsear el CSV de coordenadas (clientes.csv)
   const parsearCSVCoordenadas = (texto) => {
     const lineas = texto.split('\n');
@@ -96,14 +106,15 @@ export const useClientesCSV = () => {
       const codigoNorm = normalizarCodigo(cliente.co_cli);
       if (codigoNorm) {
         const esCorregida = (cliente.corregida || '').toUpperCase() === 'SI';
+        const coordValidas = esCoordenadasVenezuela(lat, lng);
         mapaClientes[codigoNorm] = {
           nombre: cliente.cliente || '',
           ciudad: cliente.ciudad || '',
           direccion: cliente.direccion_principal || '',
           direccionTemporal: cliente.direccion_temporal !== 'NULL' ? cliente.direccion_temporal : '',
-          lat,
-          lng,
-          corregidaCSV: esCorregida
+          lat: coordValidas ? lat : 0,
+          lng: coordValidas ? lng : 0,
+          corregidaCSV: coordValidas ? esCorregida : false
         };
       }
     }
@@ -269,16 +280,16 @@ export const useClientesCSV = () => {
       const correccion = correcciones[codigoNorm];
 
       if (correccion && correccion.coordenadas) {
-        return {
-          ...cliente,
-          coordenadas: {
-            lat: correccion.coordenadas.lat,
-            lng: correccion.coordenadas.lng,
-            corregida: true
-          },
-          ...(correccion.direccion && { direccion: correccion.direccion }),
-          ...(correccion.ciudad && { ciudad: correccion.ciudad })
-        };
+        const lat = correccion.coordenadas.lat;
+        const lng = correccion.coordenadas.lng;
+        if (esCoordenadasVenezuela(lat, lng)) {
+          return {
+            ...cliente,
+            coordenadas: { lat, lng, corregida: true },
+            ...(correccion.direccion && { direccion: correccion.direccion }),
+            ...(correccion.ciudad && { ciudad: correccion.ciudad })
+          };
+        }
       }
 
       return cliente;
@@ -289,6 +300,10 @@ export const useClientesCSV = () => {
   const actualizarUbicacionCliente = useCallback(async (codigoCliente, nuevaUbicacion, metodo = 'manual', razon = '') => {
     const clienteIndex = clientes.findIndex(c => c.codigoCliente === codigoCliente || c.id === codigoCliente);
     if (clienteIndex === -1) return;
+
+    if (!esCoordenadasVenezuela(nuevaUbicacion.lat, nuevaUbicacion.lng)) {
+      throw new Error('Las coordenadas están fuera de Venezuela. Verifica la ubicación en el mapa.');
+    }
 
     const clienteAnterior = clientes[clienteIndex];
 

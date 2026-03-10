@@ -151,6 +151,7 @@ const TabGestionClientes = () => {
       handleCancelarEdicion();
     } catch (err) {
       console.error('Error al guardar:', err);
+      alert(err.message || 'Error al guardar la ubicación');
     }
   }, [clienteSeleccionado, formulario, actualizarUbicacionCliente, handleCancelarEdicion]);
 
