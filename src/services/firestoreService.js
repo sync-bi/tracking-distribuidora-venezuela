@@ -313,6 +313,66 @@ export const obtenerHistorialUbicaciones = async (pedidoId) => {
   }
 };
 
+/**
+ * Escuchar un pedido individual en tiempo real (para tracking público)
+ */
+export const escucharPedido = (pedidoId, callback) => {
+  if (!db) return () => {};
+
+  const pedidoRef = doc(db, 'pedidos', pedidoId);
+
+  return onSnapshot(pedidoRef, (snapshot) => {
+    if (snapshot.exists()) {
+      callback({ id: snapshot.id, ...snapshot.data() });
+    } else {
+      callback(null);
+    }
+  }, (error) => {
+    console.error('❌ Error al escuchar pedido:', error);
+    callback(null);
+  });
+};
+
+/**
+ * Obtener historial de estados de un pedido
+ */
+export const obtenerHistorialEstados = async (pedidoId) => {
+  if (!db) return [];
+
+  try {
+    const historialRef = collection(db, 'pedidos', pedidoId, 'historialEstados');
+    const q = query(historialRef, orderBy('fecha', 'asc'));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  } catch (error) {
+    console.error('❌ Error al obtener historial de estados:', error);
+    return [];
+  }
+};
+
+/**
+ * Obtener recibo de entrega de un pedido
+ */
+export const obtenerReciboPedido = async (pedidoId) => {
+  if (!db) return null;
+
+  try {
+    const recibosRef = collection(db, 'recibos_entrega');
+    const q = query(recibosRef, where('pedidoId', '==', pedidoId), limit(1));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) return null;
+    return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
+  } catch (error) {
+    console.error('❌ Error al obtener recibo:', error);
+    return null;
+  }
+};
+
 // ==========================================
 // DESPACHOS
 // ==========================================
@@ -765,6 +825,41 @@ export const obtenerHistorialCliente = async (codigoCliente) => {
   }
 };
 
+// ==========================================
+// RECIBOS DE ENTREGA
+// ==========================================
+
+/**
+ * Guardar recibo de entrega en Firestore
+ */
+export const guardarReciboEntrega = async (recibo, userId = 'sistema') => {
+  if (!db) {
+    console.warn('Firestore no disponible, recibo guardado solo en memoria');
+    return null;
+  }
+
+  try {
+    const reciboRef = doc(collection(db, 'recibos_entrega'));
+    const reciboData = {
+      ...recibo,
+      id: reciboRef.id,
+      fechaRegistro: serverTimestamp(),
+      registradoPor: userId
+    };
+
+    await setDoc(reciboRef, reciboData);
+
+    // Registrar en auditoría
+    await registrarAuditoria('crear', 'recibo_entrega', reciboRef.id, userId, null, reciboData);
+
+    console.log('✅ Recibo de entrega guardado:', reciboRef.id);
+    return { ...reciboData, id: reciboRef.id };
+  } catch (error) {
+    console.error('❌ Error al guardar recibo de entrega:', error);
+    throw error;
+  }
+};
+
 // Exportar todo
 export default {
   isFirestoreAvailable,
@@ -776,6 +871,9 @@ export default {
   actualizarUbicacionPedido,
   actualizarEstadoPedido,
   eliminarPedido,
+  escucharPedido,
+  obtenerHistorialEstados,
+  obtenerReciboPedido,
   obtenerHistorialUbicaciones,
   // Despachos
   crearDespacho,
@@ -793,6 +891,8 @@ export default {
   obtenerCorreccionesClientes,
   escucharCorreccionesClientes,
   obtenerHistorialCliente,
+  // Recibos de entrega
+  guardarReciboEntrega,
   // Auditoría
   registrarAuditoria,
   obtenerAuditoria,

@@ -4,7 +4,7 @@ import { useAuth } from './context/AuthContext';
 import Login from './components/Auth/Login';
 
 // Hooks personalizados
-import { usePedidos } from './hooks/usePedidos';
+import { usePedidosFirestore } from './hooks/usePedidosFirestore';
 import { useCamiones } from './hooks/useCamiones';
 import { useRutas } from './hooks/useRutas';
 import { useDespachos } from './hooks/useDespachos';
@@ -28,6 +28,7 @@ import TabMapa from './components/Mapa/TabMapa';
 import Tracker from './components/Conductor/Tracker';
 import { trackingClient } from './services/trackingClient';
 import { actualizarPosicionVehiculo } from './services/firebase';
+import { guardarReciboEntrega } from './services/firestoreService';
 
 // Componentes de Ubicaciones
 import TabGestionUbicaciones from './components/Ubicaciones/TabGestionUbicaciones';
@@ -84,7 +85,7 @@ const App = () => {
     obtenerPedidosPorPrioridad,
     buscarPedidos,
     estadisticas: estadisticasPedidos
-  } = usePedidos();
+  } = usePedidosFirestore();
 
   const {
     camiones,
@@ -271,12 +272,23 @@ const App = () => {
       // También enviar al backend REST si está configurado
       return trackingClient.sendPosition(evt);
     },
-    onGuardarRecibo: (recibo) => {
-      // Actualizar estado del pedido a Entregado
-      if (recibo.pedidoId) {
-        actualizarEstadoPedido(recibo.pedidoId, recibo.conforme ? 'Entregado' : 'Entrega Parcial');
+    onGuardarRecibo: async (recibo) => {
+      try {
+        // Guardar recibo en Firestore
+        await guardarReciboEntrega(recibo, user?.uid || user?.email || 'conductor');
+
+        // Actualizar estado del pedido a Entregado
+        if (recibo.pedidoId) {
+          const nuevoEstado = recibo.conforme ? 'Entregado' : 'Entrega Parcial';
+          const observaciones = recibo.conforme
+            ? `Entregado conforme. Recibido por: ${recibo.receptor?.nombre || 'N/A'}`
+            : `Entrega parcial - ${recibo.itemsProblemas?.length || 0} item(s) con problemas. Recibido por: ${recibo.receptor?.nombre || 'N/A'}`;
+          await actualizarEstadoPedido(recibo.pedidoId, nuevoEstado, observaciones);
+        }
+        console.log('✅ Recibo guardado en Firestore:', recibo.pedidoId);
+      } catch (err) {
+        console.error('❌ Error al guardar recibo:', err);
       }
-      console.log('Recibo guardado:', recibo);
     }
   };
 

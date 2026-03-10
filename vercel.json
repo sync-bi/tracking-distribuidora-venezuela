@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/tracking/:path*", "destination": "/index.html" },
+    { "source": "/((?!api|static|.*\\..*).*)", "destination": "/index.html" }
+  ]
+}

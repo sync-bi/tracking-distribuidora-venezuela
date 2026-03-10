@@ -2,20 +2,35 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
+import SeguimientoPedido from './components/Tracking/SeguimientoPedido';
 import reportWebVitals from './reportWebVitals';
 import { AuthProvider } from './context/AuthContext';
 import './utils/inicializarFirebase'; // Importar para que window.inicializarFirebase esté disponible
 import './utils/testFirestorePermisos'; // Herramienta de diagnóstico de permisos
 import './utils/verificarAuth'; // Verificar estado de autenticación
 
+// Detectar si es ruta pública de tracking
+const isTrackingPage = window.location.pathname.startsWith('/tracking');
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  </React.StrictMode>
-);
+
+if (isTrackingPage) {
+  // Página pública de seguimiento (sin autenticación)
+  root.render(
+    <React.StrictMode>
+      <SeguimientoPedido />
+    </React.StrictMode>
+  );
+} else {
+  // App principal con autenticación
+  root.render(
+    <React.StrictMode>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </React.StrictMode>
+  );
+}
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

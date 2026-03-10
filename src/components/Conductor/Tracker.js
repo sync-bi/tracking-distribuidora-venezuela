@@ -502,6 +502,7 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [recibosGuardados, setRecibosGuardados] = useState([]);
   const [expandirRecibos, setExpandirRecibos] = useState(false);
+  const [mensajeExito, setMensajeExito] = useState(null);
 
   useEffect(() => {
     if (!vehiculoId && camiones.length) setVehiculoId(camiones[0].id);
@@ -525,14 +526,16 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
 
   const vehiculoSeleccionado = useMemo(() => camiones.find(c => c.id === vehiculoId), [camiones, vehiculoId]);
 
-  // Obtener pedidos asignados al camión seleccionado
+  // Obtener pedidos asignados al camión seleccionado (excluir entregados)
   const pedidosDelCamion = useMemo(() => {
     if (!vehiculoId) return [];
+    const idsEntregados = new Set(recibosGuardados.map(r => r.pedidoId));
     return pedidos.filter(p =>
       p.camionAsignado === vehiculoId &&
-      (p.estado === 'Asignado' || p.estado === 'En Ruta')
+      (p.estado === 'Asignado' || p.estado === 'En Ruta') &&
+      !idsEntregados.has(p.id)
     );
-  }, [pedidos, vehiculoId]);
+  }, [pedidos, vehiculoId, recibosGuardados]);
 
   const handleStart = async () => {
     if (!vehiculoId) return;
@@ -550,16 +553,35 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
     setMostrarFormulario(true);
   };
 
-  const handleGuardarRecibo = (recibo) => {
-    // Agregar a la lista local de recibos
-    setRecibosGuardados(prev => [...prev, recibo]);
+  const handleGuardarRecibo = async (recibo) => {
+    // Agregar ubicación GPS de la entrega si hay tracking activo
+    const reciboConUbicacion = {
+      ...recibo,
+      ubicacionEntrega: lastFix ? {
+        lat: lastFix.coord.lat,
+        lng: lastFix.coord.lng,
+        timestamp: lastFix.ts
+      } : null
+    };
 
-    // Llamar callback externo si existe
-    onGuardarRecibo?.(recibo);
+    try {
+      // Llamar callback externo (guarda en Firestore)
+      await onGuardarRecibo?.(reciboConUbicacion);
 
-    // Cerrar formulario
-    setMostrarFormulario(false);
-    setPedidoSeleccionado(null);
+      // Agregar a la lista local de recibos
+      setRecibosGuardados(prev => [...prev, reciboConUbicacion]);
+
+      // Cerrar formulario
+      setMostrarFormulario(false);
+      setPedidoSeleccionado(null);
+
+      // Confirmación visual
+      setMensajeExito(reciboConUbicacion.conforme ? 'Entrega registrada correctamente' : 'Entrega parcial registrada');
+      setTimeout(() => setMensajeExito(null), 3000);
+    } catch (err) {
+      console.error('Error al guardar recibo:', err);
+      alert('Error al guardar el recibo. Intente de nuevo.');
+    }
   };
 
   return (
@@ -744,6 +766,14 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Mensaje de éxito */}
+      {mensajeExito && (
+        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-bounce">
+          <CheckCircle size={20} />
+          <span className="font-medium">{mensajeExito}</span>
         </div>
       )}
 
