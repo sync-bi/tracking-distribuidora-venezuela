@@ -316,22 +316,48 @@ export const obtenerHistorialUbicaciones = async (pedidoId) => {
 
 /**
  * Escuchar un pedido individual en tiempo real (para tracking público)
+ * Busca primero por document ID, luego por campo 'id' dentro del documento
  */
 export const escucharPedido = (pedidoId, callback) => {
   if (!db) return () => {};
 
+  // Primero intentar por document ID directo
   const pedidoRef = doc(db, 'pedidos', pedidoId);
 
-  return onSnapshot(pedidoRef, (snapshot) => {
+  let unsubscribePrimario = null;
+  let unsubscribeSecundario = null;
+
+  unsubscribePrimario = onSnapshot(pedidoRef, async (snapshot) => {
     if (snapshot.exists()) {
       callback({ id: snapshot.id, ...snapshot.data() });
     } else {
-      callback(null);
+      // No encontrado por document ID, buscar por campo 'id'
+      if (unsubscribeSecundario) return; // Ya estamos buscando
+
+      const pedidosRef = collection(db, 'pedidos');
+      const q = query(pedidosRef, where('id', '==', pedidoId), limit(1));
+
+      unsubscribeSecundario = onSnapshot(q, (querySnapshot) => {
+        if (!querySnapshot.empty) {
+          const doc = querySnapshot.docs[0];
+          callback({ id: doc.id, ...doc.data() });
+        } else {
+          callback(null);
+        }
+      }, (error) => {
+        console.error('❌ Error en búsqueda secundaria:', error);
+        callback(null);
+      });
     }
   }, (error) => {
     console.error('❌ Error al escuchar pedido:', error);
     callback(null);
   });
+
+  return () => {
+    if (unsubscribePrimario) unsubscribePrimario();
+    if (unsubscribeSecundario) unsubscribeSecundario();
+  };
 };
 
 /**

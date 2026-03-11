@@ -306,13 +306,16 @@ const SeguimientoPedido = () => {
       if (data) {
         setPedido(data);
 
+        // Usar el document ID real para buscar historial y recibos
+        const docId = data.id;
+
         // Cargar historial y recibo en paralelo sin bloquear
-        obtenerHistorialEstados(pedidoId).then(hist => {
+        obtenerHistorialEstados(docId).then(hist => {
           if (!cancelado) setHistorial(hist);
         });
 
         if (data.estado === 'Entregado' || data.estado === 'Entrega Parcial') {
-          obtenerReciboPedido(pedidoId).then(rec => {
+          obtenerReciboPedido(docId).then(rec => {
             if (!cancelado) setRecibo(rec);
           });
         }
