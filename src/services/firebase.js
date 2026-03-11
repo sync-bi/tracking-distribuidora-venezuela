@@ -1,7 +1,7 @@
 // src/services/firebase.js
 // Servicio de Firebase para sincronización en tiempo real
 
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getDatabase, ref, set, onValue, off, serverTimestamp } from 'firebase/database';
 
 // Configuración de Firebase desde variables de entorno
@@ -30,7 +30,7 @@ let database = null;
 
 if (isConfigured()) {
   try {
-    app = initializeApp(firebaseConfig);
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     database = getDatabase(app);
     console.log('✅ Firebase inicializado correctamente');
   } catch (error) {

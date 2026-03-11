@@ -319,44 +319,50 @@ export const obtenerHistorialUbicaciones = async (pedidoId) => {
  * Busca primero por document ID, luego por campo 'id' dentro del documento
  */
 export const escucharPedido = (pedidoId, callback) => {
-  if (!db) return () => {};
+  if (!db) {
+    console.warn('⚠️ escucharPedido: Firestore no disponible');
+    callback(null);
+    return () => {};
+  }
 
-  // Primero intentar por document ID directo
+  const listeners = [];
+
+  // Paso 1: buscar por document ID directo
   const pedidoRef = doc(db, 'pedidos', pedidoId);
 
-  let unsubscribePrimario = null;
-  let unsubscribeSecundario = null;
-
-  unsubscribePrimario = onSnapshot(pedidoRef, async (snapshot) => {
+  getDoc(pedidoRef).then((snapshot) => {
     if (snapshot.exists()) {
-      callback({ id: snapshot.id, ...snapshot.data() });
-    } else {
-      // No encontrado por document ID, buscar por campo 'id'
-      if (unsubscribeSecundario) return; // Ya estamos buscando
-
-      const pedidosRef = collection(db, 'pedidos');
-      const q = query(pedidosRef, where('id', '==', pedidoId), limit(1));
-
-      unsubscribeSecundario = onSnapshot(q, (querySnapshot) => {
-        if (!querySnapshot.empty) {
-          const doc = querySnapshot.docs[0];
-          callback({ id: doc.id, ...doc.data() });
+      // Encontrado por document ID → escuchar en tiempo real
+      const unsub = onSnapshot(pedidoRef, (snap) => {
+        if (snap.exists()) {
+          callback({ id: snap.id, ...snap.data() });
         } else {
           callback(null);
         }
-      }, (error) => {
-        console.error('❌ Error en búsqueda secundaria:', error);
-        callback(null);
       });
+      listeners.push(unsub);
+    } else {
+      // No encontrado por document ID → buscar por campo 'id'
+      const pedidosRef = collection(db, 'pedidos');
+      const q = query(pedidosRef, where('id', '==', pedidoId), limit(1));
+
+      const unsub = onSnapshot(q, (querySnapshot) => {
+        if (!querySnapshot.empty) {
+          const d = querySnapshot.docs[0];
+          callback({ id: d.id, ...d.data() });
+        } else {
+          callback(null);
+        }
+      });
+      listeners.push(unsub);
     }
-  }, (error) => {
-    console.error('❌ Error al escuchar pedido:', error);
+  }).catch((error) => {
+    console.error('❌ Error al buscar pedido:', error);
     callback(null);
   });
 
   return () => {
-    if (unsubscribePrimario) unsubscribePrimario();
-    if (unsubscribeSecundario) unsubscribeSecundario();
+    listeners.forEach(unsub => unsub());
   };
 };
 

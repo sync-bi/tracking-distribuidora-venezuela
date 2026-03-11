@@ -138,30 +138,36 @@ const App = () => {
   };
 
   // Función para crear despacho completo
-  const handleCrearDespacho = (datosDespacho) => {
-    // Convertir IDs de pedidos a objetos completos de pedidos para la ruta
-    const rutaPedidos = datosDespacho.pedidosSeleccionados
-      .map(pedidoId => pedidos.find(p => p.id === pedidoId))
-      .filter(p => p); // Filtrar pedidos que existen
+  const handleCrearDespacho = async (datosDespacho) => {
+    try {
+      // Convertir IDs de pedidos a objetos completos de pedidos para la ruta
+      const rutaPedidos = datosDespacho.pedidosSeleccionados
+        .map(pedidoId => pedidos.find(p => p.id === pedidoId))
+        .filter(p => p); // Filtrar pedidos que existen
 
-    // Crear despacho con la ruta de pedidos
-    const nuevoDespacho = crearDespacho({
-      ...datosDespacho,
-      ruta: rutaPedidos
-    });
-
-    // Asignar pedidos al camión si se seleccionaron
-    if (datosDespacho.pedidosSeleccionados) {
-      datosDespacho.pedidosSeleccionados.forEach(pedidoId => {
-        asignarCamionAPedido(pedidoId, datosDespacho.camionId);
-        asignarPedidoACamion(datosDespacho.camionId, pedidoId);
+      // Crear despacho con la ruta de pedidos
+      const nuevoDespacho = await crearDespacho({
+        ...datosDespacho,
+        ruta: rutaPedidos
       });
+
+      // Asignar pedidos al camión si se seleccionaron
+      if (datosDespacho.pedidosSeleccionados) {
+        for (const pedidoId of datosDespacho.pedidosSeleccionados) {
+          await asignarCamionAPedido(pedidoId, datosDespacho.camionId);
+          asignarPedidoACamion(datosDespacho.camionId, pedidoId);
+        }
+      }
+
+      // Actualizar estado del camión
+      actualizarEstadoCamion(datosDespacho.camionId, 'Asignado');
+
+      console.log('✅ Despacho creado exitosamente:', nuevoDespacho?.id);
+      return nuevoDespacho;
+    } catch (error) {
+      console.error('❌ Error al crear despacho:', error);
+      alert('Error al crear el despacho. Por favor intente de nuevo.');
     }
-
-    // Actualizar estado del camión
-    actualizarEstadoCamion(datosDespacho.camionId, 'Asignado');
-
-    return nuevoDespacho;
   };
 
   // Función para modificar orden de ruta
