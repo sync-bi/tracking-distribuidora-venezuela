@@ -1,5 +1,5 @@
 // src/services/firestoreService.js
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   getFirestore,
   collection,
@@ -45,7 +45,8 @@ let db = null;
 
 if (isConfigured()) {
   try {
-    app = initializeApp(firebaseConfig);
+    // Reutilizar app existente si ya fue inicializada (ej: por firebase.js)
+    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
     db = getFirestore(app);
     console.log('✅ Firestore inicializado correctamente');
   } catch (error) {
