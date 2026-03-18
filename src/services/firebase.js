@@ -30,14 +30,19 @@ let database = null;
 
 if (isConfigured()) {
   try {
-    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    // Inicializar app si no existe, o reutilizar existente
+    if (getApps().length === 0) {
+      app = initializeApp(firebaseConfig);
+    } else {
+      app = getApp();
+    }
     database = getDatabase(app);
-    console.log('✅ Firebase inicializado correctamente');
+    console.log('✅ Firebase Realtime Database inicializado');
   } catch (error) {
-    console.warn('⚠️ Error al inicializar Firebase:', error.message);
+    console.warn('⚠️ Firebase Realtime Database no disponible:', error.message);
   }
 } else {
-  console.warn('⚠️ Firebase no configurado. El sistema funcionará sin sincronización en tiempo real.');
+  console.warn('⚠️ Firebase Realtime Database no configurado (falta databaseURL).');
 }
 
 /**
