@@ -95,7 +95,7 @@ const MapaClientes = ({
                   >
                     <path
                       d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
-                      fill={cliente.coordenadas?.corregida ? '#8b5cf6' : '#3b82f6'}
+                      fill="#3b82f6"
                       stroke="white"
                       strokeWidth="1.5"
                     />
@@ -200,14 +200,7 @@ const MapaClientes = ({
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#3b82f6" stroke="white" strokeWidth="1.5"/>
                   <circle cx="12" cy="9" r="2.5" fill="white"/>
                 </svg>
-                <span>Ubicación original</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="#8b5cf6" stroke="white" strokeWidth="1.5"/>
-                  <circle cx="12" cy="9" r="2.5" fill="white"/>
-                </svg>
-                <span>Ubicación corregida</span>
+                <span>Ubicación del cliente</span>
               </div>
               <div className="flex items-center gap-2">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
