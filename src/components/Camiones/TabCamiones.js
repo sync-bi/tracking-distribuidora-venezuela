@@ -21,16 +21,16 @@ const TabCamiones = ({
   const camionesFiltrados = camiones.filter(camion => {
     const cumpleFiltroEstado = filtroEstado === 'todos' || camion.estado === filtroEstado;
     const cumpleBusqueda = terminoBusqueda === '' || 
-      camion.conductor.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-      camion.id.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-      camion.placa.toLowerCase().includes(terminoBusqueda.toLowerCase());
+      (camion.conductor || '').toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+      (camion.id || '').toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+      (camion.placa || '').toLowerCase().includes(terminoBusqueda.toLowerCase());
 
     return cumpleFiltroEstado && cumpleBusqueda;
   });
 
   const obtenerPedidosPorCamion = (camionId) => {
     const camion = camiones.find(c => c.id === camionId);
-    return camion ? pedidos.filter(p => camion.pedidosAsignados.includes(p.id)) : [];
+    return camion ? pedidos.filter(p => (camion.pedidosAsignados || []).includes(p.id)) : [];
   };
 
   return (
@@ -108,7 +108,7 @@ const TabCamiones = ({
           <button
             onClick={() => {
               camiones.forEach(camion => {
-                if (camion.pedidosAsignados.length > 0) {
+                if ((camion.pedidosAsignados || []).length > 0) {
                   onOptimizarRuta(camion.id);
                 }
               });
@@ -179,12 +179,12 @@ const TabCamiones = ({
                 <h4 className="font-bold mb-3">Información del Vehículo</h4>
                 <div className="space-y-2 text-sm">
                   <div><strong>ID:</strong> {camionSeleccionado.id}</div>
-                  <div><strong>Conductor:</strong> {camionSeleccionado.conductor}</div>
-                  <div><strong>Placa:</strong> {camionSeleccionado.placa}</div>
-                  <div><strong>Capacidad:</strong> {camionSeleccionado.capacidad}</div>
-                  <div><strong>Estado:</strong> {camionSeleccionado.estado}</div>
-                  <div><strong>Velocidad:</strong> {camionSeleccionado.velocidad}</div>
-                  <div><strong>Combustible:</strong> {camionSeleccionado.combustible}</div>
+                  <div><strong>Conductor:</strong> {camionSeleccionado.conductor || 'Sin conductor'}</div>
+                  <div><strong>Placa:</strong> {camionSeleccionado.placa || 'N/A'}</div>
+                  <div><strong>Capacidad:</strong> {camionSeleccionado.capacidad || 'N/A'}</div>
+                  <div><strong>Estado:</strong> {camionSeleccionado.estado || 'Disponible'}</div>
+                  <div><strong>Velocidad:</strong> {camionSeleccionado.velocidad || '0 km/h'}</div>
+                  <div><strong>Combustible:</strong> {camionSeleccionado.combustible || '100%'}</div>
                 </div>
               </div>
 
@@ -192,17 +192,17 @@ const TabCamiones = ({
               <div>
                 <h4 className="font-bold mb-3">Ubicación Actual</h4>
                 <div className="space-y-2 text-sm">
-                  <div><strong>Dirección:</strong> {camionSeleccionado.direccionActual}</div>
-                  <div><strong>Latitud:</strong> {camionSeleccionado.ubicacionActual.lat.toFixed(6)}</div>
-                  <div><strong>Longitud:</strong> {camionSeleccionado.ubicacionActual.lng.toFixed(6)}</div>
+                  <div><strong>Dirección:</strong> {camionSeleccionado.direccionActual || 'Sin ubicación'}</div>
+                  <div><strong>Latitud:</strong> {camionSeleccionado.ubicacionActual?.lat?.toFixed(6) || 'N/A'}</div>
+                  <div><strong>Longitud:</strong> {camionSeleccionado.ubicacionActual?.lng?.toFixed(6) || 'N/A'}</div>
                   <div><strong>Última actualización:</strong> {new Date().toLocaleTimeString()}</div>
                 </div>
               </div>
 
               {/* Pedidos asignados */}
-              {camionSeleccionado.pedidosAsignados.length > 0 && (
+              {(camionSeleccionado.pedidosAsignados || []).length > 0 && (
                 <div className="md:col-span-2">
-                  <h4 className="font-bold mb-3">Pedidos Asignados ({camionSeleccionado.pedidosAsignados.length})</h4>
+                  <h4 className="font-bold mb-3">Pedidos Asignados ({(camionSeleccionado.pedidosAsignados || []).length})</h4>
                   <div className="space-y-2">
                     {obtenerPedidosPorCamion(camionSeleccionado.id).map(pedido => (
                       <div key={pedido.id} className="bg-gray-50 p-3 rounded">

@@ -40,7 +40,7 @@ const TarjetaCamion = ({
   };
 
   const obtenerNivelCombustible = () => {
-    const nivel = parseInt(camion.combustible.replace('%', ''));
+    const nivel = parseInt((camion.combustible || '100%').replace('%', ''));
     if (nivel > 70) return 'text-green-600';
     if (nivel > 30) return 'text-yellow-600';
     return 'text-red-600';
@@ -63,7 +63,7 @@ const TarjetaCamion = ({
   };
 
   const estaEnMovimiento = () => {
-    return camion.estado === 'En Ruta' && camion.velocidad !== '0 km/h';
+    return camion.estado === 'En Ruta' && (camion.velocidad || '0 km/h') !== '0 km/h';
   };
 
   return (
@@ -82,7 +82,7 @@ const TarjetaCamion = ({
           </div>
           <div>
             <h3 className="font-bold text-lg flex items-center gap-2">
-              {camion.id} - {camion.conductor}
+              {camion.id} - {camion.conductor || 'Sin conductor'}
               <span className="text-lg">{obtenerIconoEstado(camion.estado)}</span>
             </h3>
             <div className="text-sm text-gray-600">
@@ -103,10 +103,12 @@ const TarjetaCamion = ({
             <Navigation size={16} className="text-blue-600" />
             <span className="text-sm font-medium">Ubicación</span>
           </div>
-          <div className="text-sm text-gray-700">{camion.direccionActual}</div>
-          <div className="text-xs text-gray-500 mt-1">
-            {camion.ubicacionActual.lat.toFixed(4)}, {camion.ubicacionActual.lng.toFixed(4)}
-          </div>
+          <div className="text-sm text-gray-700">{camion.direccionActual || 'Sin ubicación'}</div>
+          {camion.ubicacionActual && (
+            <div className="text-xs text-gray-500 mt-1">
+              {camion.ubicacionActual.lat?.toFixed(4)}, {camion.ubicacionActual.lng?.toFixed(4)}
+            </div>
+          )}
         </div>
 
         <div className="bg-gray-50 p-3 rounded">
@@ -114,7 +116,7 @@ const TarjetaCamion = ({
             <Gauge size={16} className="text-green-600" />
             <span className="text-sm font-medium">Velocidad</span>
           </div>
-          <div className="text-lg font-bold text-gray-700">{camion.velocidad}</div>
+          <div className="text-lg font-bold text-gray-700">{camion.velocidad || '0 km/h'}</div>
           {estaEnMovimiento() && (
             <div className="text-xs text-green-600 font-medium">En movimiento</div>
           )}
@@ -126,9 +128,9 @@ const TarjetaCamion = ({
             <span className="text-sm font-medium">Combustible</span>
           </div>
           <div className={`text-lg font-bold ${obtenerNivelCombustible()}`}>
-            {camion.combustible}
+            {camion.combustible || '100%'}
           </div>
-          {parseInt(camion.combustible.replace('%', '')) < 30 && (
+          {parseInt((camion.combustible || '100%').replace('%', '')) < 30 && (
             <div className="text-xs text-red-600 font-medium">Nivel bajo</div>
           )}
         </div>
@@ -252,7 +254,7 @@ const TarjetaCamion = ({
       </div>
 
       {/* Alertas */}
-      {parseInt(camion.combustible.replace('%', '')) < 20 && (
+      {parseInt((camion.combustible || '100%').replace('%', '')) < 20 && (
         <div className="mt-3 flex items-center gap-2 text-red-600 text-sm bg-red-50 p-2 rounded">
           <Fuel size={14} />
           <span className="font-medium">¡Combustible crítico! - {camion.combustible}</span>
