@@ -300,6 +300,32 @@ const App = () => {
             : `Entrega parcial - ${recibo.itemsProblemas?.length || 0} item(s) con problemas. Recibido por: ${recibo.receptor?.nombre || 'N/A'}`;
           await actualizarEstadoPedido(recibo.pedidoId, nuevoEstado, observaciones);
         }
+        // Verificar si todos los pedidos del camión ya fueron entregados
+        const pedidoEntregado = pedidos.find(p => p.id === recibo.pedidoId);
+        if (pedidoEntregado?.camionAsignado) {
+          const camionId = pedidoEntregado.camionAsignado;
+          const pedidosDelCamion = pedidos.filter(p =>
+            p.camionAsignado === camionId &&
+            p.id !== recibo.pedidoId
+          );
+          const todosEntregados = pedidosDelCamion.every(p =>
+            p.estado === 'Entregado' || p.estado === 'Entrega Parcial'
+          );
+          if (todosEntregados) {
+            // Liberar camión y conductor
+            try {
+              await actualizarEstadoCamion(camionId, 'Disponible');
+              await actualizarInfoVehiculo(camionId, {
+                trackingActivo: false,
+                pedidosAsignados: []
+              });
+              console.log('✅ Camión liberado:', camionId);
+            } catch (e) {
+              console.error('Error al liberar camión:', e);
+            }
+          }
+        }
+
         console.log('✅ Recibo guardado en Firestore:', recibo.pedidoId);
       } catch (err) {
         console.error('❌ Error al guardar recibo:', err);
