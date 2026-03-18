@@ -13,6 +13,7 @@ import {
   Phone,
   XCircle
 } from 'lucide-react';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import {
   escucharPedido,
   obtenerHistorialEstados,
@@ -297,10 +298,20 @@ const SeguimientoPedido = () => {
     }
 
     let cancelado = false;
+    let unsubscribe = () => {};
     setCargando(true);
     setError(null);
 
-    const unsubscribe = escucharPedido(pedidoId, (data) => {
+    // Auth anónimo para que las reglas de Firestore permitan lectura
+    const auth = getAuth();
+    const iniciar = async () => {
+      try {
+        await signInAnonymously(auth);
+      } catch (e) {
+        console.warn('Auth anónimo falló, intentando sin auth:', e);
+      }
+
+      unsubscribe = escucharPedido(pedidoId, (data) => {
       if (cancelado) return;
 
       if (data) {
@@ -325,6 +336,9 @@ const SeguimientoPedido = () => {
       }
       setCargando(false);
     });
+    };
+
+    iniciar();
 
     return () => {
       cancelado = true;
