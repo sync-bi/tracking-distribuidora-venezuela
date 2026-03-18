@@ -31,49 +31,14 @@ export const usePedidosFirestore = () => {
         // Usar Firestore con sincronización en tiempo real
         console.log('📡 Conectando con Firestore...');
 
-        let yaSeediado = false;
-        unsubscribe = escucharPedidos(async (pedidosActualizados) => {
-          // Si Firestore está vacío, cargar pedidos iniciales una sola vez
-          if (pedidosActualizados.length === 0 && !yaSeediado) {
-            yaSeediado = true;
-            console.log('📦 Firestore vacío, cargando pedidos iniciales...');
-            const userId = user?.uid || user?.email || 'sistema';
-            for (const pedido of pedidosIniciales) {
-              try {
-                await crearPedidoFS(pedido, userId);
-              } catch (e) {
-                console.error('Error al crear pedido inicial:', e);
-              }
-            }
-            console.log('✅ Pedidos iniciales cargados en Firestore');
-            return; // El listener se disparará de nuevo con los datos
-          }
+        unsubscribe = escucharPedidos((pedidosActualizados) => {
           console.log(`✅ Pedidos sincronizados: ${pedidosActualizados.length}`);
           setPedidos(pedidosActualizados);
           setCargando(false);
         });
       } else {
-        // Fallback: cargar desde public o usar mockData
-        console.warn('⚠️ Firestore no disponible, usando modo local');
-
-        const shouldAuto = String(process.env.REACT_APP_AUTOLOAD_PEDIDOS || 'true').toLowerCase() === 'true';
-
-        if (shouldAuto) {
-          try {
-            const imported = await loadPedidosFromPublic();
-            if (imported.length > 0) {
-              setPedidos(imported);
-            } else {
-              setPedidos(pedidosIniciales);
-            }
-          } catch (err) {
-            console.error('Error al cargar pedidos:', err);
-            setPedidos(pedidosIniciales);
-          }
-        } else {
-          setPedidos(pedidosIniciales);
-        }
-
+        console.warn('⚠️ Firestore no disponible, sin pedidos en modo local');
+        setPedidos([]);
         setCargando(false);
       }
     };

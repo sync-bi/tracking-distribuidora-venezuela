@@ -1,144 +1,228 @@
-# Getting Started with Create React App
+# Tracking Distribuidora Sarego
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Sistema de gestión y seguimiento de entregas para distribuidoras en Venezuela.
 
-## Available Scripts
+![React](https://img.shields.io/badge/React-19.1.1-blue)
+![Firebase](https://img.shields.io/badge/Firebase-12.3.0-orange)
+![Mapbox](https://img.shields.io/badge/Mapbox_GL-3.14.0-green)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3.3.0-cyan)
 
-In the project directory, you can run:
+## Descripcion
 
-### `npm start`
+Sistema completo para la gestion de entregas que incluye:
+- Gestion de pedidos con importacion desde Excel/CSV
+- Seguimiento de camiones en tiempo real
+- Gestion de clientes con correccion de ubicaciones GPS
+- Despachos y asignacion de rutas
+- Panel para conductores con firma digital
+- Mapas interactivos con Mapbox
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+## Inicio Rapido
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Prerrequisitos
 
-### `npm test`
+- Node.js 18+
+- npm o yarn
+- Cuenta de Firebase (Firestore + Auth)
+- Token de Mapbox
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Instalacion
 
-### `npm run build`
+```bash
+# Clonar el repositorio
+git clone https://github.com/sync-bi/tracking-distribuidora-venezuela.git
+cd tracking-distribuidora-venezuela
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+# Instalar dependencias
+npm install
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# Configurar variables de entorno
+cp .env.example .env.local
+# Editar .env.local con tus credenciales
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-## Tracking del Conductor (Fase 1)
-
-Se añadió una pestaña "Conductor" para iniciar/detener el seguimiento desde el móvil/tablet. El mapa refleja el movimiento del camión en tiempo real.
-
-Variables de entorno (archivo `.env.local`):
-
-```
-# REST (recomendado en Fase 1)
-REACT_APP_TRACKING_MODE=rest
-REACT_APP_TRACKING_BASE_URL=https://tu-backend.example.com/api
-
-# Si tu backend requiere encabezado de autorización personalizado
-# REACT_APP_TRACKING_AUTH_HEADER=Authorization
-# REACT_APP_TRACKING_AUTH_VALUE=Bearer <tu_token>
+# Iniciar en desarrollo
+npm start
 ```
 
-Formato del endpoint esperado (REST):
-- POST {REACT_APP_TRACKING_BASE_URL}/tracking/{vehiculoId}
-- Body JSON: `{ driverId, vehiculoId, lat, lng, speedKmh?, heading?, accuracy?, ts, source }`
-- Respuesta: 200/201 (JSON opcional)
+### Variables de Entorno
 
-Si `REACT_APP_TRACKING_BASE_URL` no está configurado, los eventos se encolan localmente y se reintentan cuando el backend esté disponible.
+Crear archivo `.env.local`:
 
-### Backend en Vercel (sin servidor propio)
+```env
+# Firebase
+REACT_APP_FIREBASE_API_KEY=tu_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=tu_proyecto.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=tu_proyecto
+REACT_APP_FIREBASE_STORAGE_BUCKET=tu_proyecto.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=123456789
+REACT_APP_FIREBASE_APP_ID=1:123456789:web:abc123
 
-Este repo incluye una Function de Vercel para recibir posiciones:
+# Mapbox
+REACT_APP_MAPBOX_TOKEN=pk.tu_token_mapbox
 
-- Ruta: `api/tracking/[vehiculoId].js`
-- Endpoint: `POST https://<tu-proyecto>.vercel.app/api/tracking/<vehiculoId>`
-- CORS abierto por defecto (ajústalo si lo necesitas)
-- Auth opcional con token: configura `TRACKING_API_TOKEN` en Vercel y envía `Authorization: Bearer <TOKEN>` desde el cliente.
+# Opcionales
+REACT_APP_AUTOLOAD_PEDIDOS=true
+REACT_APP_ALLOW_MANUAL_IMPORT=false
+```
 
-Pasos:
-- Conecta este repo a Vercel y despliega.
-- En Vercel → Project → Settings → Environment Variables, agrega (opcional) `TRACKING_API_TOKEN`.
-- En `.env.local` del frontend añade:
-  - `REACT_APP_TRACKING_MODE=rest`
-  - `REACT_APP_TRACKING_BASE_URL=https://<tu-proyecto>.vercel.app/api`
-  - Si usas token: `REACT_APP_TRACKING_AUTH_HEADER=Authorization` y `REACT_APP_TRACKING_AUTH_VALUE=Bearer <TOKEN>`
+## Modulos del Sistema
 
-Con esto, el móvil del conductor enviará los puntos a tu endpoint en Vercel sin necesidad de un servidor aparte.
+### 1. Pedidos
+- Importacion automatica desde `public/pedidos.xlsx` o `public/pedidos.csv`
+- Creacion manual de pedidos
+- Estados: Pendiente, Asignado, En Ruta, Entregado, Cancelado
+- Prioridades: Baja, Media, Alta, Urgente
+- Asignacion a camiones
 
-## Carga Automática de Pedidos (Producción)
+### 2. Camiones
+- Registro de vehiculos y conductores
+- Estados: Disponible, Asignado, En Ruta, Mantenimiento
+- Seguimiento de ubicacion en tiempo real
+- Historial de entregas
 
-- La app carga automáticamente pedidos desde un archivo público si existe:
-  - Busca en este orden: `/pedidos.xlsx`, `/Pedidos.xlsx`, `/pedidos.csv`, `/Pedidos.csv` (carpeta `public/`).
-  - No requiere interacción del usuario.
-- Coloca tu Excel en `public/Pedidos.xlsx` (o `public/pedidos.xlsx`) antes de desplegar.
-- Variables opcionales:
-  - `REACT_APP_AUTOLOAD_PEDIDOS=true` (default) para activar la autocarga.
-  - `REACT_APP_ALLOW_MANUAL_IMPORT=false` (default) para ocultar el botón de importación manual.
+### 3. Clientes
+- Carga desde `public/clientes.csv`
+- Correccion de ubicaciones GPS en mapa
+- Filtro por ciudad y vendedor
+- Exportacion de datos corregidos
+- Soporte para multiples sedes
 
-## Gestión de Clientes (Independiente)
+### 4. Despachos
+- Creacion de hojas de despacho
+- Asignacion de pedidos a camiones
+- Seguimiento de entregas
+- Vista simplificada para operadores
 
-La pestaña **Clientes** carga datos desde `public/clientes.csv` de forma independiente de pedidos:
-- Permite corregir ubicaciones de clientes antes de tener pedidos
-- Detección inteligente de coordenadas lat/lng invertidas
-- Filtro por ciudad y búsqueda
-- Exportación de clientes corregidos
+### 5. Conductor (Movil)
+- Tracking GPS en tiempo real
+- Lista de entregas asignadas
+- Formulario de entrega con firma digital
+- Registro de conformidad/no conformidad
 
-Formato del CSV:
+### 6. Mapa
+- Visualizacion de camiones y pedidos
+- Marcadores con colores por estado
+- Zoom y navegacion
+- Multiples estilos de mapa
+
+## Roles de Usuario
+
+| Rol | Acceso |
+|-----|--------|
+| `admin` | Acceso completo a todos los modulos |
+| `operador` | Pedidos, Despachos, Camiones |
+| `despachador` | Despachos y seguimiento |
+| `visor` | Solo lectura |
+| `conductor` | App de conductor |
+| `vendedor` | Pedidos de sus clientes |
+
+## Estructura del Proyecto
+
+```
+src/
+├── components/
+│   ├── Auth/           # Login y autenticacion
+│   ├── Camiones/       # Gestion de vehiculos
+│   ├── Clientes/       # Gestion de clientes
+│   ├── Conductor/      # App del conductor
+│   ├── Despachos/      # Hojas de despacho
+│   ├── Layout/         # Header, Navigation
+│   ├── Mapa/           # Mapas interactivos
+│   ├── Pedidos/        # Gestion de pedidos
+│   ├── Ubicaciones/    # Puntos de entrega
+│   └── UI/             # Componentes reutilizables
+├── hooks/              # Custom hooks
+├── context/            # React Context (Auth)
+├── services/           # Firebase, APIs
+├── utils/              # Funciones utilitarias
+└── data/               # Datos mock
+```
+
+## Formatos de Archivos
+
+### Pedidos (Excel/CSV)
+
+```
+N_Pedido | Cliente | Direccion | Ciudad | Fecha_Vencimiento | ...
+```
+
+### Clientes (CSV)
+
 ```csv
 co_cli;cliente;ciudad;direccion_principal;direccion_temporal;latitud;longuitud
 ```
 
-## Formulario Recibido Conforme (Conductor)
+### Clientes con Vendedor (CSV)
 
-En la pestaña **Conductor**, al entregar un pedido:
-- Formulario de confirmación con firma digital del cliente
-- Opción **Conforme** o **No Conforme**
-- Si no conforme: selección de items con problemas y causas
-- Causas disponibles: Mal estado, Faltante, Dañado, Producto incorrecto, Vencido, Cantidad incorrecta, Otro
+```csv
+co_cli;tip_cli;cli_des;ven_des
+```
 
+## Despliegue
 
-### Advanced Configuration
+### Vercel (Recomendado)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+1. Conectar repositorio a Vercel
+2. Configurar variables de entorno en Settings
+3. Deploy automatico en cada push
 
-### Deployment
+### Build Manual
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+```bash
+npm run build
+# La carpeta build/ contiene los archivos estaticos
+```
 
-### `npm run build` fails to minify
+## API de Tracking (Opcional)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+El proyecto incluye una Function de Vercel para recibir posiciones:
+
+- Endpoint: `POST /api/tracking/{vehiculoId}`
+- Body: `{ driverId, lat, lng, speedKmh, ts }`
+- Auth: Bearer token (opcional)
+
+## Documentacion Adicional
+
+| Documento | Descripcion |
+|-----------|-------------|
+| [Guia de Usuario](./docs/GUIA_USUARIO.md) | Manual completo para usuarios |
+| [Arquitectura Firebase](./docs/ARQUITECTURA_FIREBASE.md) | Estructura de Firestore |
+| [Configuracion Firebase](./docs/FIREBASE_SETUP.md) | Setup inicial de Firebase |
+| [Modulo Clientes](./docs/MODULO_CLIENTES.md) | Detalle del modulo de clientes |
+
+## Scripts Disponibles
+
+```bash
+npm start       # Desarrollo en localhost:3000
+npm run build   # Build de produccion
+npm test        # Ejecutar tests
+```
+
+## Tecnologias
+
+- **Frontend**: React 19.1.1, Tailwind CSS 3.3.0
+- **Backend**: Firebase (Firestore, Auth, Realtime DB)
+- **Mapas**: Mapbox GL 3.14.0, React Map GL 7.1.9
+- **Iconos**: Lucide React
+- **Datos**: XLSX (Excel), PapaParse (CSV)
+
+## Contribuir
+
+1. Fork del repositorio
+2. Crear rama feature (`git checkout -b feature/nueva-funcion`)
+3. Commit cambios (`git commit -m 'Agregar nueva funcion'`)
+4. Push a la rama (`git push origin feature/nueva-funcion`)
+5. Crear Pull Request
+
+## Soporte
+
+Para reportar problemas o solicitar funciones:
+- GitHub Issues: [tracking-distribuidora-venezuela/issues](https://github.com/sync-bi/tracking-distribuidora-venezuela/issues)
+
+## Licencia
+
+Proyecto privado - SYNC BI / Sarego
+
+---
+
+Desarrollado por SYNC BI para Distribuidora Sarego, Venezuela.
