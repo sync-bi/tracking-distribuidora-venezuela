@@ -1,6 +1,6 @@
 // src/context/AuthContext.js
 import React, { createContext, useContext, useMemo, useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -35,7 +35,9 @@ let db = null;
 
 if (isFirebaseConfigured()) {
   try {
-    const app = initializeApp(firebaseConfig, 'auth-app');
+    // Usar la app default (misma que firestoreService.js) para compartir sesión
+    const defaultApp = getApps().find(a => a.name === '[DEFAULT]');
+    const app = defaultApp || initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
     console.log('✅ Firebase Auth inicializado correctamente');
@@ -123,28 +125,8 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async ({ email, password }) => {
-    // PRIORIDAD 1: Intentar con usuarios MOCK primero
-    const found = MOCK_USERS.find(u => u.email === email && u.password === password);
-    if (found) {
-      console.warn('⚠️ Usando autenticación MOCK');
-      await new Promise(r => setTimeout(r, 300));
-      const safeUser = {
-        uid: found.uid,
-        id: found.id,
-        name: found.name,
-        email: found.email,
-        role: found.role
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
-      setUser(safeUser);
-      return safeUser;
-    }
-
-    // PRIORIDAD 2: Si no está en MOCK y Firebase está configurado, intentar con Firebase
-    if (!auth) {
-      // Si no hay Firebase configurado y tampoco está en MOCK, error
-      throw new Error('Credenciales inválidas');
-    }
+    // PRIORIDAD 1: Intentar con Firebase Auth si está configurado
+    if (auth) {
 
     // Modo Firebase
     try {
@@ -197,8 +179,42 @@ export const AuthProvider = ({ children }) => {
         errorMessage = error.message;
       }
 
+      // FALLBACK: Si Firebase falla, intentar con usuarios MOCK
+      const found = MOCK_USERS.find(u => u.email === email && u.password === password);
+      if (found) {
+        console.warn('⚠️ Firebase Auth falló, usando autenticación MOCK');
+        const safeUser = {
+          uid: found.uid,
+          id: found.id,
+          name: found.name,
+          email: found.email,
+          role: found.role
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
+        setUser(safeUser);
+        return safeUser;
+      }
+
       throw new Error(errorMessage);
     }
+  } else {
+    // Sin Firebase Auth, solo MOCK
+    const found = MOCK_USERS.find(u => u.email === email && u.password === password);
+    if (found) {
+      console.warn('⚠️ Usando autenticación MOCK (Firebase no disponible)');
+      const safeUser = {
+        uid: found.uid,
+        id: found.id,
+        name: found.name,
+        email: found.email,
+        role: found.role
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
+      setUser(safeUser);
+      return safeUser;
+    }
+    throw new Error('Credenciales inválidas');
+  }
   };
 
   const logout = async () => {
