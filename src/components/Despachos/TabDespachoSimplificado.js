@@ -170,9 +170,9 @@ const TabDespachoSimplificado = ({
     return pedidosZona.length > 0 && pedidosZona.every(p => pedidosSeleccionados.includes(p.id));
   };
 
-  // Camiones y conductores disponibles
-  const camionesDisponibles = camiones.filter(c => c.estado === 'Disponible' || c.estado === 'Asignado');
-  const conductoresDisponibles = conductores.filter(c => c.estado === 'Disponible');
+  // Camiones y conductores disponibles (excluir solo los en mantenimiento)
+  const camionesDisponibles = camiones.filter(c => c.estado !== 'Fuera de Servicio' && c.estado !== 'Mantenimiento');
+  const conductoresDisponibles = conductores;
 
   return (
     <div className="fixed inset-0 top-[116px] md:top-[168px] flex flex-col md:flex-row gap-2 md:gap-4 p-2 md:p-6">

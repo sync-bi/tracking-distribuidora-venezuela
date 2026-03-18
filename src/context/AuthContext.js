@@ -107,7 +107,7 @@ export const AuthProvider = ({ children }) => {
             const rol = esAdmin ? 'admin' : 'visor';
 
             const perfil = {
-              nombre: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+              nombre: firebaseUser.displayName || (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'Usuario'),
               email: firebaseUser.email,
               rol,
               activo: true
