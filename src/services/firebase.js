@@ -30,12 +30,8 @@ let database = null;
 
 if (isConfigured()) {
   try {
-    // Inicializar app si no existe, o reutilizar existente
-    if (getApps().length === 0) {
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = getApp();
-    }
+    const defaultApp = getApps().find(a => a.name === '[DEFAULT]');
+    app = defaultApp || initializeApp(firebaseConfig);
     database = getDatabase(app);
     console.log('✅ Firebase Realtime Database inicializado');
   } catch (error) {

@@ -45,8 +45,9 @@ let db = null;
 
 if (isConfigured()) {
   try {
-    // Reutilizar app existente si ya fue inicializada (ej: por firebase.js)
-    app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+    // Buscar app default existente, o crear una nueva
+    const defaultApp = getApps().find(a => a.name === '[DEFAULT]');
+    app = defaultApp || initializeApp(firebaseConfig);
     db = getFirestore(app);
     console.log('✅ Firestore inicializado correctamente');
   } catch (error) {
