@@ -24,10 +24,8 @@ const FormularioDespacho = ({
   const [errors, setErrors] = useState({});
   const [paso, setPaso] = useState(1); // 1: Camión/Conductor, 2: Pedidos, 3: Detalles
 
-  // Camiones disponibles para crear despacho (excluir solo mantenimiento)
-  const camionesDisponibles = camiones.filter(c => c.estado !== 'Fuera de Servicio' && c.estado !== 'Mantenimiento');
-
-  // Conductores disponibles
+  // Todos los camiones y conductores
+  const camionesDisponibles = camiones;
   const conductoresDisponibles = conductores;
   
   // Pedidos disponibles: sin asignar o ya asignados al camión seleccionado

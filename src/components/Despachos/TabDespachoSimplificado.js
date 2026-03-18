@@ -170,8 +170,8 @@ const TabDespachoSimplificado = ({
     return pedidosZona.length > 0 && pedidosZona.every(p => pedidosSeleccionados.includes(p.id));
   };
 
-  // Camiones y conductores disponibles (excluir solo los en mantenimiento)
-  const camionesDisponibles = camiones.filter(c => c.estado !== 'Fuera de Servicio' && c.estado !== 'Mantenimiento');
+  // Todos los camiones y conductores
+  const camionesDisponibles = camiones;
   const conductoresDisponibles = conductores;
 
   return (
