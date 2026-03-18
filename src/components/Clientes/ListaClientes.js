@@ -68,10 +68,6 @@ const ListaClientes = ({
               <div className="font-bold text-orange-300">{estadisticas.sinCoordenadas}</div>
               <div className="text-blue-200">Sin GPS</div>
             </div>
-            <div className="text-center">
-              <div className="font-bold text-purple-300">{estadisticas.corregidas}</div>
-              <div className="text-blue-200">Corr.</div>
-            </div>
           </div>
         </div>
         {/* Barra de progreso */}
@@ -132,8 +128,6 @@ const ListaClientes = ({
             <option value="todos">Todos estados</option>
             <option value="conCoordenadas">Con GPS ({estadisticas.conCoordenadas})</option>
             <option value="sinCoordenadas">Sin GPS ({estadisticas.sinCoordenadas})</option>
-            <option value="corregidas">Corregidas ({estadisticas.corregidas})</option>
-            <option value="sinCorregir">Sin corregir</option>
           </select>
         </div>
 
@@ -269,7 +263,7 @@ const ListaClientes = ({
                     {/* Indicador de ubicación */}
                     <div className="flex-shrink-0">
                       {tieneUbicacion ? (
-                        <div className={`w-2.5 h-2.5 rounded-full ${cliente.coordenadas?.corregida ? 'bg-green-500' : 'bg-blue-500'}`} />
+                        <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
                       ) : (
                         <AlertTriangle size={14} className="text-orange-500" />
                       )}
@@ -281,7 +275,7 @@ const ListaClientes = ({
                         <h3 className="font-medium text-gray-900 text-sm truncate">
                           {cliente.nombre}
                         </h3>
-                        {cliente.coordenadas?.corregida && (
+                        {false && (
                           <span className="px-1 py-0.5 bg-green-100 text-green-700 text-[10px] rounded flex-shrink-0">
                             GPS
                           </span>

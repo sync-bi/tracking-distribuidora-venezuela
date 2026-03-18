@@ -13,8 +13,8 @@ const PanelEdicionCliente = ({
 }) => {
   const tieneUbicacionOriginal = clienteSeleccionado?.coordenadas?.lat &&
     clienteSeleccionado?.coordenadas?.lng &&
-    clienteSeleccionado.coordenadas.lat !== 0 &&
-    clienteSeleccionado.coordenadas.lng !== 0;
+    clienteSeleccionado?.coordenadas?.lat !== 0 &&
+    clienteSeleccionado?.coordenadas?.lng !== 0;
 
   return (
     <>

@@ -46,9 +46,9 @@ const App = () => {
   const { user, loading, logout } = useAuth();
 
   const PERMISSIONS = useMemo(() => ({
-    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'ubicaciones', 'clientes'],
-    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'ubicaciones', 'clientes'],
-    despachador: ['despachos', 'seguimiento', 'camiones', 'mapa', 'ubicaciones', 'clientes'],
+    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'clientes'],
+    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'clientes'],
+    despachador: ['despachos', 'seguimiento', 'camiones', 'mapa', 'clientes'],
     visor: ['mapa', 'pedidos', 'seguimiento'],
     conductor: ['conductor', 'mapa'],
     vendedor: ['clientes', 'pedidos', 'mapa']
