@@ -31,8 +31,8 @@ const TabDespachos = ({
   const camionesFiltrados = camiones.filter(camion => {
     const cumpleFiltro = filtroEstado === 'todos' || camion.estado === filtroEstado;
     const cumpleBusqueda = terminoBusqueda === '' || 
-      camion.conductor.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-      camion.id.toLowerCase().includes(terminoBusqueda.toLowerCase());
+      (camion.conductor || '').toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
+      (camion.id || '').toLowerCase().includes(terminoBusqueda.toLowerCase());
     return cumpleFiltro && cumpleBusqueda;
   });
 
@@ -249,9 +249,9 @@ const TarjetaDespacho = ({ camion, pedidos, ruta, depositoPreferido, onModificar
               <h3 className="text-lg font-bold">{camion.id}</h3>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Users size={14} />
-                <span>Conductor: {camion.conductor}</span>
+                <span>Conductor: {camion.conductor || 'Sin asignar'}</span>
               </div>
-            <div className="text-sm text-gray-500">Placa: {camion.placa}</div>
+            <div className="text-sm text-gray-500">Placa: {camion.placa || 'N/A'}</div>
             <div className="text-xs text-gray-500">Depósito: {labelDeposito()}</div>
             </div>
           </div>
