@@ -30,7 +30,8 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
 
   // Filtrar pedidos por estado y búsqueda
   const pedidosFiltrados = useMemo(() => {
-    let resultado = pedidos;
+    // Excluir entregados
+    let resultado = pedidos.filter(p => p.estado !== 'Entregado' && p.estado !== 'Entrega Parcial');
 
     // PRIMERO: Aplicar filtro de estado
     switch (filtroEstado) {
