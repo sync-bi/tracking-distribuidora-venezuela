@@ -148,7 +148,7 @@ const TarjetaPedido = ({
 
       {/* Info adicional - una línea */}
       <div className="text-[10px] text-gray-500 mb-2">
-        {pedido.fechaCreacion} • {pedido.horaEstimada || 'Sin hora'}
+        {pedido.fechaCreacion?.toDate ? pedido.fechaCreacion.toDate().toLocaleDateString('es-VE') : (pedido.fechaCreacion || '')} • {pedido.horaEstimada || 'Sin hora'}
         {pedido.coordenadas && ` • ${pedido.coordenadas.lat.toFixed(2)},${pedido.coordenadas.lng.toFixed(2)}`}
       </div>
 

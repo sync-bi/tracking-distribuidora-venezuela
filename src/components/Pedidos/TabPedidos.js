@@ -351,7 +351,7 @@ const TabPedidos = ({
               })()}
               <div><strong>Estado:</strong> {pedidoSeleccionado.estado}</div>
               <div><strong>Prioridad:</strong> {pedidoSeleccionado.prioridad}</div>
-              <div><strong>Fecha:</strong> {pedidoSeleccionado.fechaCreacion}</div>
+              <div><strong>Fecha:</strong> {pedidoSeleccionado.fechaCreacion?.toDate ? pedidoSeleccionado.fechaCreacion.toDate().toLocaleDateString('es-VE') : (pedidoSeleccionado.fechaCreacion || '')}</div>
               <div><strong>Hora estimada:</strong> {pedidoSeleccionado.horaEstimada}</div>
               
               <div>
