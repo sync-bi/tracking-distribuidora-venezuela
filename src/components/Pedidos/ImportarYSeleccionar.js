@@ -1,5 +1,5 @@
 // src/components/Pedidos/ImportarYSeleccionar.js
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Upload, Search, CheckSquare, Square, Package, Truck } from 'lucide-react';
 import Modal from '../UI/Modal';
 import { mapRowsToPedidos, parseCSV } from '../../utils/importers';
@@ -7,14 +7,66 @@ import { mapRowsToPedidos, parseCSV } from '../../utils/importers';
 const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) => {
   const [pedidosImportados, setPedidosImportados] = useState([]);
   const [seleccionados, setSeleccionados] = useState(new Set());
-  const [cargando, setCargando] = useState(false);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [agregando, setAgregando] = useState(false);
 
-  // IDs de pedidos que ya están en el sistema (Firestore)
+  // Cargar pedidos automáticamente al abrir
+  useEffect(() => {
+    const cargarPedidos = async () => {
+      setCargando(true);
+      setError(null);
+      try {
+        // Intentar cargar Excel o CSV del servidor
+        const candidates = ['/Pedidos.xlsx', '/pedidos.xlsx', '/Pedidos.csv', '/pedidos.csv'];
+        for (const path of candidates) {
+          try {
+            const res = await fetch(path, { cache: 'no-store' });
+            if (!res.ok) continue;
+            const lower = path.toLowerCase();
+            if (lower.endsWith('.csv')) {
+              const text = await res.text();
+              const rows = parseCSV(text);
+              const pedidos = mapRowsToPedidos(rows);
+              if (pedidos.length > 0) {
+                setPedidosImportados(pedidos);
+                setCargando(false);
+                return;
+              }
+            } else {
+              const buf = await res.arrayBuffer();
+              const XLSX = await import('xlsx');
+              const wb = XLSX.read(buf, { type: 'array' });
+              const ws = wb.Sheets[wb.SheetNames[0]];
+              const rows = XLSX.utils.sheet_to_json(ws, { header: 1 });
+              const pedidos = mapRowsToPedidos(rows);
+              if (pedidos.length > 0) {
+                setPedidosImportados(pedidos);
+                setCargando(false);
+                return;
+              }
+            }
+          } catch (_) { /* siguiente */ }
+        }
+        setError('No se encontraron pedidos. Puede cargar un archivo manualmente.');
+      } catch (e) {
+        setError(e.message || 'Error al cargar pedidos');
+      } finally {
+        setCargando(false);
+      }
+    };
+    cargarPedidos();
+  }, []);
+
+  // IDs de pedidos que ya están en el sistema (Firestore) - comparar por numeroPedido y id
   const idsExistentes = useMemo(() => {
-    return new Set(pedidosExistentes.map(p => p.id));
+    const ids = new Set();
+    pedidosExistentes.forEach(p => {
+      if (p.id) ids.add(p.id);
+      if (p.numeroPedido) ids.add(String(p.numeroPedido));
+    });
+    return ids;
   }, [pedidosExistentes]);
 
   // Filtrar pedidos importados por búsqueda
@@ -93,19 +145,24 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
     <Modal isOpen={true} onClose={onCerrar} title="Importar Pedidos" size="xl">
       <div className="p-6">
         {/* Zona de carga de archivo */}
-        {pedidosImportados.length === 0 ? (
+        {cargando ? (
+          <div className="text-center py-12">
+            <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-600 font-medium">Cargando pedidos del sistema...</p>
+          </div>
+        ) : pedidosImportados.length === 0 ? (
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center hover:border-blue-400 transition-colors">
-              <Upload size={48} className="mx-auto text-gray-400 mb-4" />
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
+              <Package size={48} className="mx-auto text-gray-400 mb-4" />
               <p className="text-lg font-medium text-gray-700 mb-2">
-                Cargar archivo de pedidos del ERP
+                No se encontraron pedidos
               </p>
               <p className="text-sm text-gray-500 mb-4">
-                Formatos aceptados: Excel (.xlsx) o CSV (.csv)
+                Puede cargar un archivo manualmente
               </p>
               <label className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600 transition-colors font-medium">
                 <Upload size={20} />
-                Seleccionar archivo
+                Cargar archivo
                 <input
                   type="file"
                   accept=".csv,.xlsx,.xls"
@@ -114,12 +171,6 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
                 />
               </label>
             </div>
-            {cargando && (
-              <div className="text-center py-4">
-                <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-sm text-gray-600">Procesando archivo...</p>
-              </div>
-            )}
             {error && (
               <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm">{error}</div>
             )}
