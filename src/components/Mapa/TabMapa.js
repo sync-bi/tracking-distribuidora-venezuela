@@ -414,7 +414,7 @@ const TabMapa = ({
             <div className="bg-purple-50 p-3 rounded">
               <div className="font-medium text-purple-700 mb-1">Cobertura</div>
               <div className="text-purple-600">
-                {new Set(pedidos.map(p => p.direccion.split(',').pop()?.trim())).size} ciudades
+                {new Set(pedidos.map(p => (p.direccion || '').split(',').pop()?.trim())).size} ciudades
               </div>
               <div className="text-xs text-purple-500">
                 Venezuela - Distribución nacional

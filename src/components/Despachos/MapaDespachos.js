@@ -621,9 +621,9 @@ const MapaDespachos = ({
                 {popupInfo.type === 'camion' ? (
                   <div>
                     <h4 className="font-bold text-green-600">{popupInfo.data.id}</h4>
-                    <p className="text-sm">Conductor: {popupInfo.data.conductor}</p>
-                    <p className="text-sm">Estado: {popupInfo.data.estado}</p>
-                    <p className="text-sm">Placa: {popupInfo.data.placa}</p>
+                    <p className="text-sm">Conductor: {popupInfo.data.conductor || 'Sin asignar'}</p>
+                    <p className="text-sm">Estado: {popupInfo.data.estado || 'N/A'}</p>
+                    <p className="text-sm">Placa: {popupInfo.data.placa || 'N/A'}</p>
                   </div>
                 ) : (
                   <div>

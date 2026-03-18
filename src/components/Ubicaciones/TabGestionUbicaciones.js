@@ -86,7 +86,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
 
       // Agregar ubicación única
       if (pedido.coordenadas) {
-        const ubicacionKey = `${pedido.coordenadas.lat.toFixed(4)},${pedido.coordenadas.lng.toFixed(4)}`;
+        const ubicacionKey = `${(pedido.coordenadas.lat || 0).toFixed(4)},${(pedido.coordenadas.lng || 0).toFixed(4)}`;
         grupos[nombreCliente].ubicaciones.add(ubicacionKey);
       }
     });
@@ -562,7 +562,7 @@ const TabGestionUbicaciones = ({ pedidos, onActualizarPedido }) => {
                       </div>
                       {pedido.coordenadas && (
                         <div className="ml-6 text-xs font-mono text-gray-400">
-                          {pedido.coordenadas.lat.toFixed(4)}, {pedido.coordenadas.lng.toFixed(4)}
+                          {(pedido.coordenadas.lat || 0).toFixed(4)}, {(pedido.coordenadas.lng || 0).toFixed(4)}
                         </div>
                       )}
                     </div>

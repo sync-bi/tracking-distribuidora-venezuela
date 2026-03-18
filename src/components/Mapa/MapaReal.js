@@ -186,11 +186,11 @@ const MapaReal = ({
                     <h3 className="font-bold">{popupInfo.data.id}</h3>
                   </div>
                   <div className="space-y-1 text-sm">
-                    <div><strong>Conductor:</strong> {popupInfo.data.conductor}</div>
-                    <div><strong>Estado:</strong> {popupInfo.data.estado}</div>
-                    <div><strong>Velocidad:</strong> {popupInfo.data.velocidad}</div>
-                    <div><strong>Combustible:</strong> {popupInfo.data.combustible}</div>
-                    <div><strong>Pedidos asignados:</strong> {popupInfo.data.pedidosAsignados.length}</div>
+                    <div><strong>Conductor:</strong> {popupInfo.data.conductor || 'Sin asignar'}</div>
+                    <div><strong>Estado:</strong> {popupInfo.data.estado || 'N/A'}</div>
+                    <div><strong>Velocidad:</strong> {popupInfo.data.velocidad || '0 km/h'}</div>
+                    <div><strong>Combustible:</strong> {popupInfo.data.combustible || '100%'}</div>
+                    <div><strong>Pedidos asignados:</strong> {(popupInfo.data.pedidosAsignados || []).length}</div>
                   </div>
                 </div>
               ) : (
@@ -204,7 +204,7 @@ const MapaReal = ({
                     <div><strong>Cliente:</strong> {popupInfo.data.cliente}</div>
                     <div><strong>Estado:</strong> {popupInfo.data.estado}</div>
                     <div><strong>Prioridad:</strong> {popupInfo.data.prioridad}</div>
-                    <div><strong>Productos:</strong> {popupInfo.data.productos.length} items</div>
+                    <div><strong>Productos:</strong> {(popupInfo.data.productos || []).length} items</div>
                     {popupInfo.data.camionAsignado && (
                       <div><strong>Camión:</strong> {popupInfo.data.camionAsignado}</div>
                     )}
