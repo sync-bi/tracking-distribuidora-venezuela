@@ -251,9 +251,18 @@ const App = () => {
     camiones,
     pedidos,
     despachos,
-    onStartTracking: (camionId) => {
+    onStartTracking: async (camionId) => {
       actualizarInfoVehiculo(camionId, { trackingActivo: true });
       actualizarEstadoCamion(camionId, 'En Ruta');
+      // Cambiar todos los pedidos asignados a este camión a "En Ruta"
+      const pedidosDelCamion = pedidos.filter(p => p.camionAsignado === camionId && p.estado === 'Asignado');
+      for (const p of pedidosDelCamion) {
+        try {
+          await actualizarEstadoPedido(p.id, 'En Ruta', 'Conductor inició ruta');
+        } catch (e) {
+          console.error('Error al actualizar pedido a En Ruta:', e);
+        }
+      }
     },
     onStopTracking: (camionId) => {
       actualizarInfoVehiculo(camionId, { trackingActivo: false });
