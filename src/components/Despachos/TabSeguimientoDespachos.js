@@ -37,10 +37,19 @@ const TabSeguimientoDespachos = ({
     setFirebaseDisponible(isFirebaseAvailable());
   }, []);
 
-  // Filter active despachos (not completed or canceled)
-  const despachosActivos = despachos.filter(
-    d => d.estado !== 'Completado' && d.estado !== 'Cancelado'
-  );
+  // Filter active despachos (not completed or canceled, and with pending pedidos)
+  const despachosActivos = despachos.filter(d => {
+    if (d.estado === 'Completado' || d.estado === 'Cancelado') return false;
+    // Also hide if all pedidos are delivered
+    if (d.pedidosIds?.length > 0) {
+      const todosEntregados = d.pedidosIds.every(pid => {
+        const p = pedidos.find(pe => pe.id === pid);
+        return p && (p.estado === 'Entregado' || p.estado === 'Entrega Parcial');
+      });
+      if (todosEntregados) return false;
+    }
+    return true;
+  });
 
   // Get selected despacho details
   const despacho = despachoSeleccionado
