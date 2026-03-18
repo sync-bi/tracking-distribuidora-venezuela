@@ -29,6 +29,7 @@ import Tracker from './components/Conductor/Tracker';
 import { trackingClient } from './services/trackingClient';
 import { actualizarPosicionVehiculo } from './services/firebase';
 import { guardarReciboEntrega } from './services/firestoreService';
+import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // Componentes de Ubicaciones
 import TabGestionUbicaciones from './components/Ubicaciones/TabGestionUbicaciones';
@@ -312,16 +313,33 @@ const App = () => {
             p.estado === 'Entregado' || p.estado === 'Entrega Parcial'
           );
           if (todosEntregados) {
-            // Liberar camión y conductor
             try {
+              // Liberar camión
               await actualizarEstadoCamion(camionId, 'Disponible');
               await actualizarInfoVehiculo(camionId, {
                 trackingActivo: false,
-                pedidosAsignados: []
+                pedidosAsignados: [],
+                velocidad: '0 km/h'
               });
-              console.log('✅ Camión liberado:', camionId);
+
+              // Liberar conductor y marcar despacho completado
+              const despachoActivo = despachos.find(d =>
+                d.camionId === camionId && d.estado !== 'Completado'
+              );
+              if (despachoActivo) {
+                await actualizarDespacho(despachoActivo.id, { estado: 'Completado' });
+                if (despachoActivo.conductorId) {
+                  const db = getFirestore();
+                  await updateDoc(doc(db, 'conductores', despachoActivo.conductorId), {
+                    estado: 'Disponible',
+                    camionAsignado: null,
+                    ultimaActualizacion: serverTimestamp()
+                  });
+                }
+              }
+              console.log('✅ Camión, conductor y despacho liberados');
             } catch (e) {
-              console.error('Error al liberar camión:', e);
+              console.error('Error al liberar camión/conductor:', e);
             }
           }
         }
