@@ -274,7 +274,7 @@ const MapaDespachos = ({
       const coordinates = [];
 
       // Solo usar la ubicación del camión, no posCamion que cambia constantemente
-      if (camion?.ubicacionActual) {
+      if (camion?.ubicacionActual && typeof camion.ubicacionActual.lat === 'number' && typeof camion.ubicacionActual.lng === 'number') {
         coordinates.push([camion.ubicacionActual.lng, camion.ubicacionActual.lat]);
       }
 
@@ -294,6 +294,8 @@ const MapaDespachos = ({
 
         const centerLng = (minLng + maxLng) / 2;
         const centerLat = (minLat + maxLat) / 2;
+
+        if (isNaN(centerLng) || isNaN(centerLat)) return;
 
         const lngDiff = maxLng - minLng;
         const latDiff = maxLat - minLat;
@@ -325,7 +327,7 @@ const MapaDespachos = ({
       try {
         const coordinates = [];
 
-        if (camion?.ubicacionActual) {
+        if (camion?.ubicacionActual && typeof camion.ubicacionActual.lat === 'number' && typeof camion.ubicacionActual.lng === 'number') {
           coordinates.push([camion.ubicacionActual.lng, camion.ubicacionActual.lat]);
         }
 
@@ -346,23 +348,25 @@ const MapaDespachos = ({
           const centerLng = (minLng + maxLng) / 2;
           const centerLat = (minLat + maxLat) / 2;
 
-          const lngDiff = maxLng - minLng;
-          const latDiff = maxLat - minLat;
-          const maxDiff = Math.max(lngDiff, latDiff);
+          if (!isNaN(centerLng) && !isNaN(centerLat)) {
+            const lngDiff = maxLng - minLng;
+            const latDiff = maxLat - minLat;
+            const maxDiff = Math.max(lngDiff, latDiff);
 
-          let zoom = 8;
-          if (maxDiff < 0.5) zoom = 10;
-          else if (maxDiff < 1) zoom = 9;
-          else if (maxDiff < 2) zoom = 8;
-          else zoom = 7;
+            let zoom = 8;
+            if (maxDiff < 0.5) zoom = 10;
+            else if (maxDiff < 1) zoom = 9;
+            else if (maxDiff < 2) zoom = 8;
+            else zoom = 7;
 
-          setViewState(prev => ({
-            ...prev,
-            longitude: centerLng,
-            latitude: centerLat,
-            zoom: zoom,
-            transitionDuration: 1000
-          }));
+            setViewState(prev => ({
+              ...prev,
+              longitude: centerLng,
+              latitude: centerLat,
+              zoom: zoom,
+              transitionDuration: 1000
+            }));
+          }
         }
       } catch (error) {
         console.error('Error al centrar el mapa:', error);
@@ -505,7 +509,12 @@ const MapaDespachos = ({
         <Map
           ref={mapRef}
           {...viewState}
-          onMove={evt => setViewState(evt.viewState)}
+          onMove={evt => {
+            const vs = evt.viewState;
+            if (typeof vs.longitude === 'number' && !isNaN(vs.longitude) && typeof vs.latitude === 'number' && !isNaN(vs.latitude)) {
+              setViewState(vs);
+            }
+          }}
           mapboxAccessToken={process.env.REACT_APP_MAPBOX_TOKEN}
           style={{ width: '100%', height: '100%' }}
           mapStyle={estiloMapa}
