@@ -80,6 +80,13 @@ const SignaturePad = ({ onSave, onClear }) => {
 
   const stopDrawing = () => {
     setIsDrawing(false);
+    // Auto-guardar firma cuando el usuario deja de dibujar
+    if (hasSignature || isDrawing) {
+      const canvas = canvasRef.current;
+      const dataUrl = canvas.toDataURL('image/png');
+      onSave?.(dataUrl);
+      setHasSignature(true);
+    }
   };
 
   const clearCanvas = () => {
