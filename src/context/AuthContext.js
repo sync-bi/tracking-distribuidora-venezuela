@@ -7,7 +7,7 @@ import {
   signOut,
   onAuthStateChanged
 } from 'firebase/auth';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 
 // Configuración de Firebase
 const firebaseConfig = {
@@ -100,15 +100,31 @@ export const AuthProvider = ({ children }) => {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
             console.log('✅ Usuario autenticado:', safeUser.email);
           } else {
-            console.warn('⚠️ Usuario no existe en Firestore. Creando perfil básico...');
+            // Crear perfil en Firestore automáticamente
+            // Primer usuario registrado se hace admin
+            const usersSnap = await getDocs(collection(db, 'usuarios'));
+            const esAdmin = usersSnap.empty;
+            const rol = esAdmin ? 'admin' : 'visor';
+
+            const perfil = {
+              nombre: firebaseUser.displayName || firebaseUser.email.split('@')[0],
+              email: firebaseUser.email,
+              rol,
+              activo: true
+            };
+
+            await setDoc(doc(db, 'usuarios', firebaseUser.uid), perfil);
+            console.log(`✅ Perfil creado en Firestore con rol: ${rol}`);
+
             const safeUser = {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
-              name: firebaseUser.email,
-              role: 'visor',
+              name: perfil.nombre,
+              role: rol,
               activo: true
             };
             setUser(safeUser);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
           }
         } catch (error) {
           console.error('❌ Error al obtener datos del usuario:', error);
