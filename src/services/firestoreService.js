@@ -80,6 +80,7 @@ export const crearPedido = async (pedidoData, userId = 'sistema') => {
     const pedidoRef = doc(collection(db, 'pedidos'));
     const pedido = {
       ...pedidoData,
+      numeroPedido: pedidoData.id || pedidoData.numeroPedido || null,
       id: pedidoRef.id,
       fechaCreacion: serverTimestamp(),
       fechaActualizacion: serverTimestamp(),
@@ -342,19 +343,26 @@ export const escucharPedido = (pedidoId, callback) => {
       });
       listeners.push(unsub);
     } else {
-      // No encontrado por document ID → buscar por campo 'id'
+      // No encontrado por document ID → buscar por campo 'numeroPedido'
       const pedidosRef = collection(db, 'pedidos');
-      const q = query(pedidosRef, where('id', '==', pedidoId), limit(1));
+      const q = query(pedidosRef, where('numeroPedido', '==', pedidoId), limit(1));
 
-      const unsub = onSnapshot(q, (querySnapshot) => {
+      getDocs(q).then((querySnapshot) => {
         if (!querySnapshot.empty) {
           const d = querySnapshot.docs[0];
-          callback({ id: d.id, ...d.data() });
+          const ref = doc(db, 'pedidos', d.id);
+          const unsub = onSnapshot(ref, (snap) => {
+            if (snap.exists()) {
+              callback({ id: snap.id, ...snap.data() });
+            } else {
+              callback(null);
+            }
+          });
+          listeners.push(unsub);
         } else {
           callback(null);
         }
-      });
-      listeners.push(unsub);
+      }).catch(() => callback(null));
     }
   }).catch((error) => {
     console.error('❌ Error al buscar pedido:', error);

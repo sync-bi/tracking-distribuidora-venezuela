@@ -306,36 +306,45 @@ const SeguimientoPedido = () => {
     const auth = getAuth();
     const iniciar = async () => {
       try {
+        console.log('🔑 Intentando auth anónimo...');
         await signInAnonymously(auth);
+        console.log('✅ Auth anónimo exitoso');
       } catch (e) {
-        console.warn('Auth anónimo falló, intentando sin auth:', e);
+        console.error('❌ Auth anónimo falló:', e);
+        if (!cancelado) {
+          setError('No se pudo conectar al sistema. Intente de nuevo en unos segundos.');
+          setCargando(false);
+        }
+        return;
       }
 
       unsubscribe = escucharPedido(pedidoId, (data) => {
-      if (cancelado) return;
+        if (cancelado) return;
 
-      if (data) {
-        setPedido(data);
+        if (data) {
+          console.log('✅ Pedido encontrado:', data.id);
+          setPedido(data);
 
-        // Usar el document ID real para buscar historial y recibos
-        const docId = data.id;
+          // Usar el document ID real para buscar historial y recibos
+          const docId = data.id;
 
-        // Cargar historial y recibo en paralelo sin bloquear
-        obtenerHistorialEstados(docId).then(hist => {
-          if (!cancelado) setHistorial(hist);
-        });
-
-        if (data.estado === 'Entregado' || data.estado === 'Entrega Parcial') {
-          obtenerReciboPedido(docId).then(rec => {
-            if (!cancelado) setRecibo(rec);
+          // Cargar historial y recibo en paralelo sin bloquear
+          obtenerHistorialEstados(docId).then(hist => {
+            if (!cancelado) setHistorial(hist);
           });
+
+          if (data.estado === 'Entregado' || data.estado === 'Entrega Parcial') {
+            obtenerReciboPedido(docId).then(rec => {
+              if (!cancelado) setRecibo(rec);
+            });
+          }
+        } else {
+          console.warn('⚠️ Pedido no encontrado para ID:', pedidoId);
+          setPedido(null);
+          setError('Pedido no encontrado. Verifique el codigo e intente de nuevo.');
         }
-      } else {
-        setPedido(null);
-        setError('Pedido no encontrado. Verifique el codigo e intente de nuevo.');
-      }
-      setCargando(false);
-    });
+        setCargando(false);
+      });
     };
 
     iniciar();
