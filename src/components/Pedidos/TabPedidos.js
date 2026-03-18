@@ -1,9 +1,8 @@
 // src/components/Pedidos/TabPedidos.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, Package, Search } from 'lucide-react';
-import FormularioNuevoPedido from './FormularioNuevoPedido';
+import ImportarYSeleccionar from './ImportarYSeleccionar';
 import TarjetaPedido from './TarjetaPedido';
-import ImportPedidos from './ImportPedidos';
 
 const TabPedidos = ({
   pedidos,
@@ -116,8 +115,10 @@ const TabPedidos = ({
     return { vencidos, proximos, vigentes, sinFecha };
   }, [pedidosFiltrados]);
 
-  const handleCrearPedido = (nuevoPedido) => {
-    onCrearPedido(nuevoPedido);
+  const handleImportarSeleccionados = async (pedidosSeleccionados) => {
+    for (const pedido of pedidosSeleccionados) {
+      await onCrearPedido(pedido);
+    }
     setMostrarFormulario(false);
   };
 
@@ -132,16 +133,9 @@ const TabPedidos = ({
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
             <Plus size={20} />
-            Nuevo Pedido
+            Importar Pedidos
           </button>
         </div>
-
-        {/* Importar manual (oculto por defecto en producción) */}
-        {String(process.env.REACT_APP_ALLOW_MANUAL_IMPORT || 'false').toLowerCase() === 'true' && (
-          <div className="flex justify-end">
-            <ImportPedidos onImport={onImportarPedidos} />
-          </div>
-        )}
 
         {/* Estadísticas rápidas */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
@@ -310,11 +304,12 @@ const TabPedidos = ({
         )}
       </div>
 
-      {/* Modal de formulario */}
+      {/* Modal de importar y seleccionar pedidos */}
       {mostrarFormulario && (
-        <FormularioNuevoPedido
-          onCrear={handleCrearPedido}
+        <ImportarYSeleccionar
+          onAgregar={handleImportarSeleccionados}
           onCerrar={() => setMostrarFormulario(false)}
+          pedidosExistentes={pedidos}
         />
       )}
 
