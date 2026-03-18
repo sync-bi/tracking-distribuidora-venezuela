@@ -17,7 +17,10 @@ const PanelEdicionCliente = ({
     clienteSeleccionado.coordenadas.lng !== 0;
 
   return (
-    <div className="hidden md:flex md:w-80 bg-white rounded-lg shadow-lg overflow-hidden flex-col">
+    <>
+    {/* Backdrop móvil */}
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" onClick={onCancelarEdicion} />
+    <div className="fixed inset-x-0 bottom-0 z-50 md:relative md:inset-auto md:z-auto md:w-80 bg-white rounded-t-2xl md:rounded-lg shadow-lg overflow-hidden flex flex-col max-h-[85vh] md:max-h-none">
       {/* Header */}
       <div className={`p-3 md:p-4 text-white ${tieneUbicacionOriginal ? 'bg-yellow-500' : 'bg-orange-500'}`}>
         <div className="flex items-center justify-between mb-1 md:mb-2">
@@ -152,6 +155,7 @@ const PanelEdicionCliente = ({
         </button>
       </div>
     </div>
+    </>
   );
 };
 

@@ -80,21 +80,11 @@ const TarjetaPedido = ({
 
   const handleCompartirTracking = async () => {
     const url = `${window.location.origin}/tracking/${pedido.id}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    } catch {
-      // Fallback para navegadores sin clipboard API
-      const input = document.createElement('input');
-      input.value = url;
-      document.body.appendChild(input);
-      input.select();
-      document.execCommand('copy');
-      document.body.removeChild(input);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    }
+    const mensaje = `Hola ${pedido.cliente || ''}, puede hacer seguimiento de su pedido ${pedido.numeroPedido || pedido.id} aquí: ${url}`;
+    // Abrir WhatsApp con el mensaje
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
   };
 
   return (
@@ -212,7 +202,7 @@ const TarjetaPedido = ({
             }`}
           >
             {copiado ? <Check size={12} /> : <Share2 size={12} />}
-            {copiado ? 'Copiado!' : 'Compartir'}
+            {copiado ? 'Enviado!' : 'WhatsApp'}
           </button>
           {pedido.estado === 'Pendiente' && (
             <button
