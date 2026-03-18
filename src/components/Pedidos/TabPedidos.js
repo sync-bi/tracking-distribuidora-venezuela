@@ -66,7 +66,9 @@ const TabPedidos = ({
 
   // Filtrar pedidos según criterios
   const pedidosFiltrados = pedidos.filter(pedido => {
-    const cumpleFiltroEstado = filtroEstado === 'todos' || pedido.estado === filtroEstado;
+    const cumpleFiltroEstado = filtroEstado === 'todos'
+      ? (pedido.estado !== 'Entregado' && pedido.estado !== 'Entrega Parcial')
+      : pedido.estado === filtroEstado;
     const cumpleFiltroPrioridad = filtroPrioridad === 'todos' || pedido.prioridad === filtroPrioridad;
     const cumpleBusqueda = terminoBusqueda === '' ||
       (pedido.cliente || '').toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
@@ -183,11 +185,12 @@ const TabPedidos = ({
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
           >
-            <option value="todos">Todos los estados</option>
+            <option value="todos">Activos (sin entregados)</option>
             <option value="Pendiente">Pendiente</option>
             <option value="Asignado">Asignado</option>
             <option value="En Ruta">En Ruta</option>
             <option value="Entregado">Entregado</option>
+            <option value="Entrega Parcial">Entrega Parcial</option>
           </select>
 
           {/* Filtro por prioridad */}
