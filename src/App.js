@@ -46,12 +46,12 @@ const App = () => {
   const { user, loading, logout } = useAuth();
 
   const PERMISSIONS = useMemo(() => ({
-    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'clientes'],
-    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'mapa', 'clientes'],
-    despachador: ['despachos', 'seguimiento', 'camiones', 'mapa', 'clientes'],
-    visor: ['mapa', 'pedidos', 'seguimiento'],
-    conductor: ['conductor', 'mapa'],
-    vendedor: ['clientes', 'pedidos', 'mapa']
+    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes'],
+    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes'],
+    despachador: ['despachos', 'seguimiento', 'camiones', 'clientes'],
+    visor: ['pedidos', 'seguimiento'],
+    conductor: ['conductor'],
+    vendedor: ['clientes', 'pedidos']
   }), []);
 
   const allowedTabs = useMemo(() => {

@@ -179,8 +179,10 @@ const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar }) => {
 
     // Normalizar items para asegurar que tengan id y nombre
     return itemsRaw.map((item, index) => ({
-      id: item.id || item.codigo || item.sku || `item-${index}`,
-      nombre: item.nombre || item.descripcion || item.producto || item.item || `Item ${index + 1}`,
+      id: item.id || item.codigo || item.sku || item.modelo || `item-${index}`,
+      nombre: item.nombre || item.descripcion || item.producto || item.item
+        || (item.tipo && item.marca ? `${item.tipo} ${item.marca} ${item.modelo || ''}`.trim() : null)
+        || item.modelo || `Item ${index + 1}`,
       cantidad: item.cantidad || item.qty || item.cant || 1
     }));
   }, [pedido]);
