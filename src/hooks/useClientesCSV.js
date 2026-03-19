@@ -380,16 +380,21 @@ export const useClientesCSV = () => {
     return Array.from(ciudadesSet).sort();
   }, [clientes]);
 
-  // Obtener vendedores únicos
+  // Vendedores activos (lista fija por ahora, luego vendrá de BD)
+  const VENDEDORES_ACTIVOS = [
+    'DOUGLAS BOCOURT',
+    'FRANCISCO CARVAJAL',
+    'GABRIEL RAMIREZ',
+    'JOHENDER GIRO',
+    'JUVERMIR TORCAT',
+    'LENIN GONZALEZ',
+    'LUIS WILSON BREMUS',
+    'PAOLO FALCONE'
+  ];
+
   const vendedores = useMemo(() => {
-    const vendedoresSet = new Set();
-    clientes.forEach(c => {
-      if (c.vendedorAsignado) {
-        vendedoresSet.add(c.vendedorAsignado);
-      }
-    });
-    return Array.from(vendedoresSet).sort();
-  }, [clientes]);
+    return [...VENDEDORES_ACTIVOS, 'Sin vendedor'];
+  }, []);
 
   // Filtrar clientes por ciudad y vendedor
   const obtenerClientesFiltrados = useCallback((ciudad, vendedor) => {
@@ -398,7 +403,11 @@ export const useClientesCSV = () => {
       resultado = resultado.filter(c => c.ciudad === ciudad);
     }
     if (vendedor && vendedor !== 'todos') {
-      resultado = resultado.filter(c => c.vendedorAsignado === vendedor);
+      if (vendedor === 'Sin vendedor') {
+        resultado = resultado.filter(c => !c.vendedorAsignado || c.vendedorAsignado === 'Sin asignar');
+      } else {
+        resultado = resultado.filter(c => c.vendedorAsignado === vendedor);
+      }
     }
     return resultado;
   }, [clientes]);

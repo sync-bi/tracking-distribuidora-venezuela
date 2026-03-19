@@ -166,7 +166,7 @@ const TabPedidos = ({
 
       {/* Filtros y búsqueda */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           {/* Búsqueda */}
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
@@ -205,39 +205,6 @@ const TabPedidos = ({
             <option value="Baja">Baja</option>
           </select>
 
-          {/* Cliente */}
-          <input
-            type="text"
-            placeholder="Cliente"
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            value={filtroCliente}
-            onChange={(e) => setFiltroCliente(e.target.value)}
-          />
-
-          {/* Fecha */}
-          <input
-            type="date"
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            value={filtroFecha}
-            onChange={(e) => setFiltroFecha(e.target.value)}
-          />
-
-          {/* Venc. desde */}
-          <input
-            type="date"
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            value={filtroVencDesde}
-            onChange={(e) => setFiltroVencDesde(e.target.value)}
-          />
-
-          {/* Venc. hasta */}
-          <input
-            type="date"
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            value={filtroVencHasta}
-            onChange={(e) => setFiltroVencHasta(e.target.value)}
-          />
-
           {/* Zona/Ciudad */}
           <select
             className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
@@ -255,25 +222,6 @@ const TabPedidos = ({
             <span className="text-sm text-gray-600">
               {pedidosFiltrados.length} de {pedidos.length} pedidos
             </span>
-          </div>
-          {/* Ordenar por vencimiento */}
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              className="h-4 w-4"
-              checked={ordenarPorVencimiento}
-              onChange={(e) => setOrdenarPorVencimiento(e.target.checked)}
-            />
-            Ordenar por vencimiento
-          </label>
-
-          {/* Resumen vencimiento */}
-          <div className="md:col-span-6 flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-600 mr-2">Vencimiento:</span>
-            <span className="px-2 py-1 rounded-full text-xs bg-red-100 text-red-800">Vencidos: {resumenVenc.vencidos}</span>
-            <span className="px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800">Próx.: {resumenVenc.proximos}</span>
-            <span className="px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">Vigentes: {resumenVenc.vigentes}</span>
-            <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">Sin fecha: {resumenVenc.sinFecha}</span>
           </div>
         </div>
       </div>
