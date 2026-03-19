@@ -132,9 +132,13 @@ const App = () => {
 
   // Función para optimizar ruta de camión
   const handleOptimizarRuta = (camionId) => {
-    const camion = obtenerCamionPorId(camionId);
-    if (camion) {
-      optimizarRutaCamion(camion, pedidos);
+    try {
+      const camion = obtenerCamionPorId(camionId);
+      if (camion) {
+        optimizarRutaCamion(camion, pedidos);
+      }
+    } catch (error) {
+      console.error('Error al optimizar ruta:', error);
     }
   };
 

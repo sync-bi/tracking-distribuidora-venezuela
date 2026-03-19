@@ -38,12 +38,18 @@ export const calcularTiempoEstimado = (distancia, velocidadPromedio = 40) => {
  * @returns {Array} - Array de pedidos ordenados por ruta óptima
  */
 export const optimizarRuta = (camion, pedidos) => {
-  const pedidosCamion = pedidos.filter(p => camion.pedidosAsignados.includes(p.id));
-  
+  if (!camion || !pedidos || !Array.isArray(pedidos)) return [];
+
+  const pedidosAsignados = camion.pedidosAsignados || [];
+  const pedidosCamion = pedidos.filter(p => pedidosAsignados.includes(p.id));
+
   if (pedidosCamion.length === 0) return [];
 
+  // Coordenada por defecto (Caracas) si no hay ubicación
+  const coordDefault = { lat: 10.4806, lng: -66.9036 };
+
   let rutaOptima = [];
-  let ubicacionActual = camion.ubicacionActual;
+  let ubicacionActual = camion.ubicacionActual || coordDefault;
   let pedidosRestantes = [...pedidosCamion];
 
   while (pedidosRestantes.length > 0) {
@@ -51,7 +57,16 @@ export const optimizarRuta = (camion, pedidos) => {
     let distanciaMinima = Infinity;
 
     pedidosRestantes.forEach(pedido => {
-      const distancia = calcularDistancia(ubicacionActual, pedido.coordenadas);
+      const coordPedido = pedido.coordenadas || pedido.ubicacion || null;
+      if (!coordPedido || !coordPedido.lat || !coordPedido.lng) {
+        // Sin coordenadas, asignar distancia alta para que quede al final
+        if (!pedidoMasCercano || distanciaMinima === Infinity) {
+          distanciaMinima = 999;
+          pedidoMasCercano = pedido;
+        }
+        return;
+      }
+      const distancia = calcularDistancia(ubicacionActual, coordPedido);
       if (distancia < distanciaMinima) {
         distanciaMinima = distancia;
         pedidoMasCercano = pedido;
@@ -60,13 +75,18 @@ export const optimizarRuta = (camion, pedidos) => {
 
     if (pedidoMasCercano) {
       const tiempo = calcularTiempoEstimado(distanciaMinima);
+      const coordPedido = pedidoMasCercano.coordenadas || pedidoMasCercano.ubicacion || null;
       rutaOptima.push({
         ...pedidoMasCercano,
         distancia: Math.round(distanciaMinima * 100) / 100,
         tiempoEstimado: tiempo
       });
-      ubicacionActual = pedidoMasCercano.coordenadas;
+      if (coordPedido && coordPedido.lat && coordPedido.lng) {
+        ubicacionActual = coordPedido;
+      }
       pedidosRestantes = pedidosRestantes.filter(p => p.id !== pedidoMasCercano.id);
+    } else {
+      break;
     }
   }
 

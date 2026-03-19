@@ -46,9 +46,9 @@ export const useRutas = () => {
   // Recalcular todas las rutas
   const recalcularTodasLasRutas = useCallback((camiones, pedidos) => {
     const nuevasRutas = {};
-    
-    camiones.forEach(camion => {
-      if (camion.pedidosAsignados.length > 0) {
+
+    (camiones || []).forEach(camion => {
+      if ((camion.pedidosAsignados || []).length > 0) {
         nuevasRutas[camion.id] = optimizarRuta(camion, pedidos);
       }
     });
