@@ -226,9 +226,9 @@ const TabGestionClientes = () => {
   }
 
   return (
-    <div className="fixed inset-0 top-[116px] md:top-[168px] flex flex-col md:flex-row gap-2 md:gap-4 p-2 md:p-6">
+    <div className="fixed inset-0 top-[116px] md:top-[168px] flex flex-col md:flex-row gap-2 md:gap-4 p-2 md:p-6 overflow-x-hidden">
       {/* Toggle vista móvil */}
-      <div className="md:hidden flex gap-2 mb-2">
+      <div className="md:hidden flex gap-2 mb-2 mt-1 flex-shrink-0">
         <button
           onClick={() => setVistaMobile('lista')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${

@@ -941,6 +941,15 @@ export const crearConductor = async (conductorData) => {
   return conductorData;
 };
 
+export const actualizarConductor = async (conductorId, datos) => {
+  if (!db) throw new Error('Firestore no inicializado');
+  const conductorRef = doc(db, 'conductores', conductorId);
+  await updateDoc(conductorRef, {
+    ...datos,
+    ultimaActualizacion: serverTimestamp()
+  });
+};
+
 export const eliminarConductor = async (conductorId) => {
   if (!db) throw new Error('Firestore no inicializado');
   await deleteDoc(doc(db, 'conductores', conductorId));
@@ -988,6 +997,7 @@ export default {
   // Crear individuales
   crearCamion,
   crearConductor,
+  actualizarConductor,
   eliminarCamion,
   eliminarConductor
 };

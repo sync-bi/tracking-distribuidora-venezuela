@@ -242,14 +242,6 @@ const TarjetaCamion = ({
             Detalles
           </button>
 
-          {/* Configurar */}
-          <button
-            onClick={() => onActualizarInfo(camion.id, {})}
-            className="flex items-center gap-1 px-3 py-2 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 transition-colors"
-            title="Configurar camión"
-          >
-            <Settings size={14} />
-          </button>
         </div>
       </div>
 

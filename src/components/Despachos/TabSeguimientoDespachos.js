@@ -305,7 +305,7 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
     if (!metricas) return null;
 
     return (
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 mb-4">
         <div className="bg-white p-4 rounded-lg border shadow-sm">
           <div className="flex items-center gap-2 mb-1">
             <Route size={16} className="text-blue-600" />
@@ -448,8 +448,8 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
               Optimización de Ruta
             </h3>
 
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
+            <div className="space-y-3">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Preferencia de optimización
                 </label>
@@ -465,54 +465,54 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
                 </select>
               </div>
 
-              <button
-                onClick={handleOptimizarRuta}
-                disabled={modoEdicion || rutaActual.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-              >
-                <Zap size={16} />
-                Optimizar Ruta
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleOptimizarRuta}
+                  disabled={modoEdicion || rutaActual.length === 0}
+                  className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <Zap size={14} />
+                  Optimizar
+                </button>
 
-              <button
-                onClick={() => {
-                  // Recalcular ruta con algoritmo inteligente
-                  handleOptimizarRuta();
-                }}
-                disabled={modoEdicion || rutaActual.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-              >
-                <RotateCcw size={16} />
-                Recalcular Ruta
-              </button>
+                <button
+                  onClick={() => {
+                    handleOptimizarRuta();
+                  }}
+                  disabled={modoEdicion || rutaActual.length === 0}
+                  className="flex items-center gap-1 px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <RotateCcw size={14} />
+                  Recalcular
+                </button>
 
-              <button
-                onClick={() => {
-                  // Re-iniciar ruta: resetear progreso
-                  if (despacho && window.confirm('¿Reiniciar el progreso de la ruta? Esto marcará todas las paradas como pendientes.')) {
-                    const rutaReiniciada = rutaActual.map(parada => ({
-                      ...parada,
-                      completada: false
-                    }));
-                    onModificarRuta(despacho.camionId, rutaReiniciada);
-                    onActualizarDespacho(despacho.id, { progreso: 0 });
-                  }
-                }}
-                disabled={modoEdicion || rutaActual.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-              >
-                <Play size={16} />
-                Re-iniciar Ruta
-              </button>
+                <button
+                  onClick={() => {
+                    if (despacho && window.confirm('¿Reiniciar el progreso de la ruta? Esto marcará todas las paradas como pendientes.')) {
+                      const rutaReiniciada = rutaActual.map(parada => ({
+                        ...parada,
+                        completada: false
+                      }));
+                      onModificarRuta(despacho.camionId, rutaReiniciada);
+                      onActualizarDespacho(despacho.id, { progreso: 0 });
+                    }
+                  }}
+                  disabled={modoEdicion || rutaActual.length === 0}
+                  className="flex items-center gap-1 px-3 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <Play size={14} />
+                  Reiniciar
+                </button>
 
-              <button
-                onClick={() => setModoEdicion(!modoEdicion)}
-                disabled={rutaActual.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-              >
-                <Route size={16} />
-                {modoEdicion ? 'Cancelar Edición' : 'Editar Manual'}
-              </button>
+                <button
+                  onClick={() => setModoEdicion(!modoEdicion)}
+                  disabled={rutaActual.length === 0}
+                  className="flex items-center gap-1 px-3 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <Route size={14} />
+                  {modoEdicion ? 'Cancelar' : 'Editar'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -628,7 +628,7 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
   };
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-gray-50">
+    <div className="flex flex-col md:flex-row h-screen bg-gray-50 overflow-x-hidden">
       {/* Toggle vista móvil */}
       <div className="md:hidden flex gap-2 p-2 bg-white border-b">
         <button

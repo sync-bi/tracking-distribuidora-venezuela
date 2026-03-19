@@ -1,6 +1,54 @@
 // src/components/Clientes/PanelEdicionCliente.js
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Edit2, Save, X, MapPin, Cloud, CloudOff } from 'lucide-react';
+import Map, { Marker } from 'react-map-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
+
+const MiniMapa = ({ lat, lng, onDragEnd, onMapClick }) => {
+  const [viewState, setViewState] = useState({
+    latitude: lat || 10.4806,
+    longitude: lng || -66.9036,
+    zoom: (lat && lng && lat !== 0 && lng !== 0) ? 15 : 7
+  });
+
+  const handleMapClick = useCallback((event) => {
+    const { lngLat } = event;
+    onMapClick?.(lngLat.lat, lngLat.lng);
+  }, [onMapClick]);
+
+  const handleDragEnd = useCallback((event) => {
+    const { lngLat } = event;
+    onDragEnd?.(lngLat.lat, lngLat.lng);
+  }, [onDragEnd]);
+
+  return (
+    <div className="h-48 rounded-lg overflow-hidden border">
+      <Map
+        {...viewState}
+        onMove={evt => setViewState(evt.viewState)}
+        onClick={handleMapClick}
+        mapboxAccessToken={process.env.REACT_APP_MAPBOX_TOKEN}
+        style={{ width: '100%', height: '100%' }}
+        mapStyle="mapbox://styles/mapbox/streets-v12"
+        attributionControl={false}
+      >
+        {lat && lng && lat !== 0 && lng !== 0 && (
+          <Marker
+            longitude={lng}
+            latitude={lat}
+            anchor="bottom"
+            draggable
+            onDragEnd={handleDragEnd}
+          >
+            <div className="w-6 h-6 bg-yellow-500 border-2 border-white rounded-full shadow-lg flex items-center justify-center">
+              <MapPin size={14} className="text-white" />
+            </div>
+          </Marker>
+        )}
+      </Map>
+    </div>
+  );
+};
 
 const PanelEdicionCliente = ({
   clienteSeleccionado,
@@ -15,6 +63,10 @@ const PanelEdicionCliente = ({
     clienteSeleccionado?.coordenadas?.lng &&
     clienteSeleccionado?.coordenadas?.lat !== 0 &&
     clienteSeleccionado?.coordenadas?.lng !== 0;
+
+  const handleMapUpdate = useCallback((lat, lng) => {
+    setFormulario(prev => ({ ...prev, lat, lng }));
+  }, [setFormulario]);
 
   return (
     <>
@@ -110,13 +162,19 @@ const PanelEdicionCliente = ({
           </div>
         </div>
 
-        {/* Instrucciones */}
-        <div className={`border rounded-lg p-3 ${tieneUbicacionOriginal ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
-          <p className={`text-sm ${tieneUbicacionOriginal ? 'text-blue-800' : 'text-orange-800'}`}>
-            {tieneUbicacionOriginal
-              ? 'Arrastra el marcador amarillo en el mapa o haz click en la ubicación correcta.'
-              : 'Este cliente no tiene ubicación. Haz click en el mapa donde se encuentra el cliente o arrastra el marcador amarillo.'
-            }
+        {/* Mini mapa para arrastrar marcador */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Ubicación en mapa
+          </label>
+          <MiniMapa
+            lat={formulario.lat}
+            lng={formulario.lng}
+            onDragEnd={handleMapUpdate}
+            onMapClick={handleMapUpdate}
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Toca el mapa o arrastra el marcador para ajustar la ubicación
           </p>
         </div>
 

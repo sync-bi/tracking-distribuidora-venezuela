@@ -206,17 +206,17 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
             </div>
 
             {/* Lista de pedidos */}
-            <div className="border rounded-lg max-h-[50vh] overflow-y-auto">
-              <table className="w-full text-sm">
+            <div className="border rounded-lg max-h-[50vh] overflow-auto">
+              <table className="w-full text-sm table-fixed">
                 <thead className="bg-gray-50 sticky top-0">
                   <tr>
-                    <th className="p-3 text-left w-10"></th>
-                    <th className="p-3 text-left">Pedido</th>
-                    <th className="p-3 text-left">Cliente</th>
-                    <th className="p-3 text-left hidden md:table-cell">Ciudad</th>
-                    <th className="p-3 text-left hidden lg:table-cell">Productos</th>
-                    <th className="p-3 text-left">Prioridad</th>
-                    <th className="p-3 text-left">Estado</th>
+                    <th className="p-2 md:p-3 text-left w-8 md:w-10"></th>
+                    <th className="p-2 md:p-3 text-left w-16 md:w-24">Pedido</th>
+                    <th className="p-2 md:p-3 text-left">Cliente</th>
+                    <th className="p-2 md:p-3 text-left hidden md:table-cell w-24">Ciudad</th>
+                    <th className="p-2 md:p-3 text-left hidden lg:table-cell w-20">Productos</th>
+                    <th className="p-2 md:p-3 text-left w-16 md:w-20">Prioridad</th>
+                    <th className="p-2 md:p-3 text-left w-16 md:w-20">Estado</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -235,7 +235,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
                         }`}
                         onClick={() => !yaExiste && toggleSeleccion(pedido.id)}
                       >
-                        <td className="p-3">
+                        <td className="p-2 md:p-3">
                           {yaExiste ? (
                             <Truck size={16} className="text-green-500" title="Ya en tracking" />
                           ) : isSelected ? (
@@ -244,14 +244,14 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
                             <Square size={16} className="text-gray-300" />
                           )}
                         </td>
-                        <td className="p-3 font-medium">{pedido.id}</td>
-                        <td className="p-3">{pedido.cliente}</td>
-                        <td className="p-3 hidden md:table-cell">{pedido.ciudad || '-'}</td>
-                        <td className="p-3 hidden lg:table-cell text-gray-500">
-                          {pedido.productos?.length || 0} items
+                        <td className="p-2 md:p-3 font-medium truncate">{pedido.id}</td>
+                        <td className="p-2 md:p-3 truncate">{pedido.cliente}</td>
+                        <td className="p-2 md:p-3 hidden md:table-cell truncate">{pedido.ciudad || '-'}</td>
+                        <td className="p-2 md:p-3 hidden lg:table-cell text-gray-500">
+                          {pedido.productos?.length || 0}
                         </td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        <td className="p-2 md:p-3">
+                          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
                             pedido.prioridad === 'Alta' || pedido.prioridad === 'Urgente'
                               ? 'bg-red-100 text-red-700'
                               : pedido.prioridad === 'Media'
@@ -261,7 +261,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
                             {pedido.prioridad}
                           </span>
                         </td>
-                        <td className="p-3">
+                        <td className="p-2 md:p-3">
                           {yaExiste ? (
                             <span className="text-xs text-green-600 font-medium">En tracking</span>
                           ) : (

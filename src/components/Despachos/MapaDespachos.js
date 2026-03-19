@@ -395,7 +395,7 @@ const MapaDespachos = ({
   const tiempoTotal = Object.values(rutasReales).reduce((acc, ruta) => acc + (ruta.duration || 0), 0);
 
   return (
-    <div className="bg-white rounded-lg border shadow-sm">
+    <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
       {/* Header del mapa */}
       <div className="p-4 border-b bg-gray-50">
         <div className="flex justify-between items-center mb-3">
@@ -422,13 +422,13 @@ const MapaDespachos = ({
         </div>
 
         {/* Controles del mapa */}
-        <div className="flex justify-between items-center">
-          <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex flex-wrap gap-1">
             <button
               onClick={() => setEstiloMapa('mapbox://styles/mapbox/streets-v12')}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
-                estiloMapa.includes('streets') 
-                  ? 'bg-blue-500 text-white' 
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                estiloMapa.includes('streets')
+                  ? 'bg-blue-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
@@ -436,9 +436,9 @@ const MapaDespachos = ({
             </button>
             <button
               onClick={() => setEstiloMapa('mapbox://styles/mapbox/satellite-v9')}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
-                estiloMapa.includes('satellite') 
-                  ? 'bg-blue-500 text-white' 
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                estiloMapa.includes('satellite')
+                  ? 'bg-blue-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
@@ -446,22 +446,18 @@ const MapaDespachos = ({
             </button>
             <button
               onClick={() => setEstiloMapa('mapbox://styles/mapbox/navigation-day-v1')}
-              className={`px-3 py-1 text-xs rounded transition-colors ${
-                estiloMapa.includes('navigation') 
-                  ? 'bg-blue-500 text-white' 
+              className={`px-2 py-1 text-xs rounded transition-colors ${
+                estiloMapa.includes('navigation')
+                  ? 'bg-blue-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               Navegación
             </button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Selector de perfil de ruta */}
             <select
               value={perfilRuta}
               onChange={(e) => setPerfilRuta(e.target.value)}
-              className="text-xs p-1 border rounded"
+              className="text-xs px-2 py-1 border rounded"
               title="Tipo de ruta"
             >
               <option value="driving-traffic">Tráfico Real</option>
@@ -469,6 +465,9 @@ const MapaDespachos = ({
               <option value="cycling">Ciclismo</option>
               <option value="walking">Caminar</option>
             </select>
+          </div>
+
+          <div className="flex items-center gap-1">
 
             <button
               onClick={() => setMostrarEtiquetas(!mostrarEtiquetas)}
@@ -656,7 +655,7 @@ const MapaDespachos = ({
         </Map>
 
         {/* Panel de información de la ruta */}
-        <div className="absolute bottom-4 right-4 bg-white p-4 rounded-lg shadow-lg border max-w-sm">
+        <div className="absolute bottom-2 right-2 md:bottom-4 md:right-4 bg-white p-2 md:p-4 rounded-lg shadow-lg border max-w-[200px] md:max-w-sm">
           <h5 className="font-medium text-sm mb-3 flex items-center gap-2">
             <Route size={14} className="text-blue-600" />
             Ruta Real
@@ -698,9 +697,9 @@ const MapaDespachos = ({
       </div>
 
       {/* Leyenda */}
-      <div className="p-4 border-t bg-gradient-to-r from-gray-50 to-blue-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6 text-xs text-gray-600">
+      <div className="p-2 md:p-4 border-t bg-gradient-to-r from-gray-50 to-blue-50">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-3 md:gap-6 text-xs text-gray-600">
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-green-500 rounded-full shadow-sm"></div>
               <span>Depósito</span>

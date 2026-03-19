@@ -495,10 +495,10 @@ const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar }) => {
         </button>
         <button
           onClick={onCancelar}
-          className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
         >
           <X size={18} />
-          Cancelar
+          Volver sin guardar
         </button>
       </div>
     </div>
