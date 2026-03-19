@@ -902,6 +902,50 @@ export const guardarReciboEntrega = async (recibo, userId = 'sistema') => {
   }
 };
 
+// ==========================================
+// CREAR / ELIMINAR CAMIONES Y CONDUCTORES
+// ==========================================
+
+export const crearCamion = async (camionData) => {
+  if (!db) throw new Error('Firestore no inicializado');
+  const camionRef = doc(db, 'camiones', camionData.id);
+  const existing = await getDoc(camionRef);
+  if (existing.exists()) throw new Error(`El camión ${camionData.id} ya existe`);
+  await setDoc(camionRef, {
+    ...camionData,
+    estado: 'Disponible',
+    pedidosAsignados: [],
+    velocidad: '0 km/h',
+    combustible: '100%',
+    ultimaActualizacion: serverTimestamp()
+  });
+  return camionData;
+};
+
+export const eliminarCamion = async (camionId) => {
+  if (!db) throw new Error('Firestore no inicializado');
+  await deleteDoc(doc(db, 'camiones', camionId));
+};
+
+export const crearConductor = async (conductorData) => {
+  if (!db) throw new Error('Firestore no inicializado');
+  const conductorRef = doc(db, 'conductores', conductorData.id);
+  const existing = await getDoc(conductorRef);
+  if (existing.exists()) throw new Error(`El conductor ${conductorData.id} ya existe`);
+  await setDoc(conductorRef, {
+    ...conductorData,
+    estado: 'Disponible',
+    camionAsignado: null,
+    fechaIngreso: serverTimestamp()
+  });
+  return conductorData;
+};
+
+export const eliminarConductor = async (conductorId) => {
+  if (!db) throw new Error('Firestore no inicializado');
+  await deleteDoc(doc(db, 'conductores', conductorId));
+};
+
 // Exportar todo
 export default {
   isFirestoreAvailable,
@@ -940,5 +984,10 @@ export default {
   obtenerAuditoria,
   // Inicialización
   inicializarCamiones,
-  inicializarConductores
+  inicializarConductores,
+  // Crear individuales
+  crearCamion,
+  crearConductor,
+  eliminarCamion,
+  eliminarConductor
 };

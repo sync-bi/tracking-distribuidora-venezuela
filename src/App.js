@@ -208,6 +208,7 @@ const App = () => {
 
   const camionesProps = {
     camiones,
+    conductores,
     pedidos,
     rutas,
     onOptimizarRuta: handleOptimizarRuta,
