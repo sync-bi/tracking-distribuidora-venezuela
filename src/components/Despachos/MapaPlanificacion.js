@@ -1,7 +1,7 @@
 // src/components/Despachos/MapaPlanificacion.js
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import Map, { Marker, Popup, Source, Layer } from 'react-map-gl';
-import { MapPin, Package, Navigation, RotateCcw, Route, CheckSquare, Square, Eye } from 'lucide-react';
+import { MapPin, Package, Navigation, RotateCcw, Route, CheckSquare, Square, Eye, Loader2 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { intelligentOptimizer } from '../../services/routeOptimizer';
 
@@ -30,6 +30,9 @@ const MapaPlanificacion = ({
   const [popupInfo, setPopupInfo] = useState(null);
   const [mostrarRutaSugerida, setMostrarRutaSugerida] = useState(true);
   const [rutaOptimizada, setRutaOptimizada] = useState(null);
+  const [rutaRealGeoJSON, setRutaRealGeoJSON] = useState(null);
+  const [calculandoRuta, setCalculandoRuta] = useState(false);
+  const [infoRutaReal, setInfoRutaReal] = useState(null); // distancia y tiempo reales
 
   // Asignar color por zona
   const zonaColores = useMemo(() => {
@@ -91,23 +94,58 @@ const MapaPlanificacion = ({
     setRutaOptimizada(resultado);
   }, [pedidosSeleccionados, pedidosConCoords]);
 
-  // GeoJSON para la línea de ruta sugerida
-  const rutaGeoJSON = useMemo(() => {
-    if (!rutaOptimizada || !mostrarRutaSugerida) return null;
+  // Calcular ruta real por carreteras usando Mapbox Directions API
+  useEffect(() => {
+    if (!rutaOptimizada || !mostrarRutaSugerida) {
+      setRutaRealGeoJSON(null);
+      setInfoRutaReal(null);
+      return;
+    }
 
-    const coordinates = rutaOptimizada.route
+    const coords = rutaOptimizada.route
       .filter(p => p.coordenadas)
       .map(p => [p.coordenadas.lng, p.coordenadas.lat]);
 
-    if (coordinates.length < 2) return null;
+    if (coords.length < 2) {
+      setRutaRealGeoJSON(null);
+      setInfoRutaReal(null);
+      return;
+    }
 
-    return {
-      type: 'Feature',
-      geometry: {
-        type: 'LineString',
-        coordinates
-      }
-    };
+    // Mapbox Directions soporta máximo 25 waypoints
+    const waypoints = coords.slice(0, 25);
+    const coordString = waypoints.map(c => c.join(',')).join(';');
+    const token = process.env.REACT_APP_MAPBOX_TOKEN;
+    if (!token) return;
+
+    setCalculandoRuta(true);
+
+    fetch(`https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${coordString}?geometries=geojson&overview=full&access_token=${token}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.routes && data.routes[0]) {
+          const route = data.routes[0];
+          setRutaRealGeoJSON({
+            type: 'Feature',
+            geometry: route.geometry
+          });
+          setInfoRutaReal({
+            distancia: (route.distance / 1000).toFixed(1), // km
+            tiempo: Math.round(route.duration / 60), // minutos
+            paradas: waypoints.length
+          });
+        }
+      })
+      .catch(err => {
+        console.warn('Error calculando ruta real:', err);
+        // Fallback: línea recta
+        setRutaRealGeoJSON({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: coords }
+        });
+        setInfoRutaReal(null);
+      })
+      .finally(() => setCalculandoRuta(false));
   }, [rutaOptimizada, mostrarRutaSugerida]);
 
   // Función genérica para hacer zoom a un conjunto de pedidos
@@ -217,7 +255,7 @@ const MapaPlanificacion = ({
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
-              <Route size={14} />
+              {calculandoRuta ? <Loader2 size={14} className="animate-spin" /> : <Route size={14} />}
               Ruta
             </button>
           )}
@@ -252,17 +290,25 @@ const MapaPlanificacion = ({
           mapStyle="mapbox://styles/mapbox/streets-v12"
           attributionControl={false}
         >
-          {/* Línea de ruta sugerida */}
-          {rutaGeoJSON && (
-            <Source id="ruta-sugerida" type="geojson" data={rutaGeoJSON}>
+          {/* Ruta real por carreteras */}
+          {rutaRealGeoJSON && (
+            <Source id="ruta-real" type="geojson" data={rutaRealGeoJSON}>
               <Layer
-                id="ruta-sugerida-line"
+                id="ruta-real-borde"
                 type="line"
                 paint={{
-                  'line-color': '#2563eb',
-                  'line-width': 3,
-                  'line-opacity': 0.8,
-                  'line-dasharray': [2, 1]
+                  'line-color': '#1e40af',
+                  'line-width': 6,
+                  'line-opacity': 0.3
+                }}
+              />
+              <Layer
+                id="ruta-real-line"
+                type="line"
+                paint={{
+                  'line-color': '#3b82f6',
+                  'line-width': 4,
+                  'line-opacity': 0.9
                 }}
               />
             </Source>
@@ -354,27 +400,46 @@ const MapaPlanificacion = ({
           )}
         </Map>
 
-        {/* Info de ruta optimizada */}
+        {/* Info de ruta */}
         {rutaOptimizada && mostrarRutaSugerida && (
-          <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur p-3 rounded-lg shadow-lg border text-xs max-w-[180px]">
+          <div className="absolute bottom-2 right-2 bg-white/95 backdrop-blur p-3 rounded-lg shadow-lg border text-xs max-w-[200px]">
             <div className="font-medium text-blue-700 mb-2 flex items-center gap-1">
               <Route size={12} />
-              Ruta sugerida
+              {calculandoRuta ? 'Calculando ruta...' : 'Ruta por carreteras'}
+              {calculandoRuta && <Loader2 size={12} className="animate-spin" />}
             </div>
-            <div className="space-y-1 text-gray-600">
-              <div className="flex justify-between">
-                <span>Distancia:</span>
-                <span className="font-medium">{rutaOptimizada.metrics.totalDistance} km</span>
+            {infoRutaReal ? (
+              <div className="space-y-1 text-gray-600">
+                <div className="flex justify-between">
+                  <span>Distancia real:</span>
+                  <span className="font-bold text-gray-900">{infoRutaReal.distancia} km</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tiempo estimado:</span>
+                  <span className="font-bold text-gray-900">
+                    {infoRutaReal.tiempo >= 60
+                      ? `${Math.floor(infoRutaReal.tiempo / 60)}h ${infoRutaReal.tiempo % 60}min`
+                      : `${infoRutaReal.tiempo} min`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Paradas:</span>
+                  <span className="font-medium">{infoRutaReal.paradas}</span>
+                </div>
+                <div className="text-[10px] text-blue-500 mt-1">Con tráfico en tiempo real</div>
               </div>
-              <div className="flex justify-between">
-                <span>Tiempo est.:</span>
-                <span className="font-medium">{rutaOptimizada.metrics.totalTimeMinutes} min</span>
+            ) : (
+              <div className="space-y-1 text-gray-600">
+                <div className="flex justify-between">
+                  <span>Distancia aprox.:</span>
+                  <span className="font-medium">{rutaOptimizada.metrics.totalDistance} km</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Paradas:</span>
+                  <span className="font-medium">{rutaOptimizada.route.length}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span>Paradas:</span>
-                <span className="font-medium">{rutaOptimizada.route.length}</span>
-              </div>
-            </div>
+            )}
           </div>
         )}
 
