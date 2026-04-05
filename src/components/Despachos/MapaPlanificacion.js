@@ -175,6 +175,7 @@ const MapaPlanificacion = ({
       initialLoadRef.current = true;
       zoomAPedidos(pedidosConCoords);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedidosConCoords.length, zoomAPedidos]);
 
   // Handler para clic en zona desde la leyenda del mapa

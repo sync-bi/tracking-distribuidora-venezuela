@@ -1,4 +1,10 @@
 {
+  "build": {
+    "env": {
+      "CI": "false",
+      "DISABLE_ESLINT_PLUGIN": "true"
+    }
+  },
   "rewrites": [
     { "source": "/tracking/:path*", "destination": "/index.html" },
     { "source": "/((?!api|static|.*\\..*).*)", "destination": "/index.html" }

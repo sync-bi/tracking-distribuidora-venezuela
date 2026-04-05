@@ -8,7 +8,6 @@ import {
   CheckCircle,
   Clock,
   FileText,
-  Filter
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -57,7 +56,6 @@ const TabNoConformidad = ({ pedidos = [], despachos = [] }) => {
   const [filtroEstado, setFiltroEstado] = useState('todas');
   const [filtroTipo, setFiltroTipo] = useState('');
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
-  const [ncSeleccionada, setNcSeleccionada] = useState(null);
 
   // Form state
   const [form, setForm] = useState({

@@ -9,8 +9,6 @@ import {
   AlertTriangle,
   ClipboardCheck,
   Search,
-  ArrowRight,
-  Phone,
   XCircle
 } from 'lucide-react';
 import { getAuth, signInAnonymously } from 'firebase/auth';

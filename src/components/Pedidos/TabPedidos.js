@@ -25,13 +25,13 @@ const TabPedidos = ({
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('pendientes');
-  const [filtroPrioridad, setFiltroPrioridad] = useState('todos');
-  const [filtroCliente, setFiltroCliente] = useState('');
+  const [filtroPrioridad] = useState('todos');
+  const [filtroCliente] = useState('');
   const [filtroFechaDesde, setFiltroFechaDesde] = useState(fechaHaceDias(15));
   const [filtroZona, setFiltroZona] = useState('');
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
-  const [filtroVencDesde, setFiltroVencDesde] = useState('');
-  const [filtroVencHasta, setFiltroVencHasta] = useState('');
+  const [filtroVencDesde] = useState('');
+  const [filtroVencHasta] = useState('');
   const [ordenarPorVencimiento, setOrdenarPorVencimiento] = useState(false);
 
   // Normaliza nombres de ciudades para unificar sinónimos
@@ -123,23 +123,6 @@ const TabPedidos = ({
     return (a.id || '').localeCompare(b.id || '');
   });
 
-  // Resumen de vencimientos en resultados filtrados
-  const resumenVenc = useMemo(() => {
-    let vencidos = 0, proximos = 0, vigentes = 0, sinFecha = 0;
-    const hoy = new Date();
-    hoy.setHours(0,0,0,0);
-    (pedidosFiltrados || []).forEach(p => {
-      const fv = p.fechaVencimiento;
-      if (!fv) { sinFecha++; return; }
-      const d = new Date(`${fv}T00:00:00`);
-      if (isNaN(d.getTime())) { sinFecha++; return; }
-      const diff = Math.floor((d - hoy) / (1000*60*60*24));
-      if (diff < 0) vencidos++;
-      else if (diff <= 2) proximos++;
-      else vigentes++;
-    });
-    return { vencidos, proximos, vigentes, sinFecha };
-  }, [pedidosFiltrados]);
 
   const handleImportarSeleccionados = async (pedidosSeleccionados) => {
     for (const pedido of pedidosSeleccionados) {
