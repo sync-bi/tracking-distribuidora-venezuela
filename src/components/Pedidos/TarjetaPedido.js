@@ -1,6 +1,6 @@
 // src/components/Pedidos/TarjetaPedido.js
-import React, { useState } from 'react';
-import { MapPin, Eye, Truck, Clock, Package, AlertCircle, Share2, Check } from 'lucide-react';
+import React from 'react';
+import { MapPin, Eye, Truck, Clock, Package, AlertCircle } from 'lucide-react';
 
 const TarjetaPedido = ({
   pedido,
@@ -80,17 +80,6 @@ const TarjetaPedido = ({
     } catch (_) {
       return null;
     }
-  };
-
-  const [copiado, setCopiado] = useState(false);
-
-  const handleCompartirTracking = async () => {
-    const url = `${window.location.origin}/tracking/${pedido.id}`;
-    const mensaje = `Hola ${pedido.cliente || ''}, puede hacer seguimiento de su pedido ${pedido.numeroPedido || pedido.id} aquí: ${url}`;
-    // Abrir WhatsApp con el mensaje
-    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
-    setCopiado(true);
-    setTimeout(() => setCopiado(false), 2000);
   };
 
   return (
@@ -198,17 +187,6 @@ const TarjetaPedido = ({
           >
             <Eye size={12} />
             Ver
-          </button>
-          <button
-            onClick={handleCompartirTracking}
-            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded text-xs transition-colors ${
-              copiado
-                ? 'bg-green-500 text-white'
-                : 'bg-indigo-500 text-white hover:bg-indigo-600'
-            }`}
-          >
-            {copiado ? <Check size={12} /> : <Share2 size={12} />}
-            {copiado ? 'Enviado!' : 'WhatsApp'}
           </button>
           {(pedido.estado === 'Pendiente' || pedido.estado === 'En Consolidación') && (
             <button
