@@ -5,10 +5,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Truck, MapPin, Clock, Fuel, Route, Navigation, Zap,
   ChevronUp, ChevronDown, Play, Pause, CheckCircle,
-  AlertCircle, Package, Radio, RotateCcw, List, Map as MapIcon, ChevronLeft
+  AlertCircle, Package, Radio, RotateCcw, List, Map as MapIcon, ChevronLeft, Trash2
 } from 'lucide-react';
 import MapaDespachos from './MapaDespachos';
 import { escucharPosicionVehiculo, isFirebaseAvailable } from '../../services/firebase';
+import { getFirestore, collection, getDocs, writeBatch, doc as firestoreDoc } from 'firebase/firestore';
 import {
   intelligentOptimizer as optimizarRutaInteligente,
   calculateRouteMetrics
@@ -234,6 +235,31 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
         <p className="text-xs md:text-sm text-gray-600 mt-1">
           {despachosActivos.length} en seguimiento
         </p>
+        {/* TEMPORAL: Limpiar despachos viejos */}
+        {despachos.length > 0 && (
+          <button
+            onClick={async () => {
+              if (!window.confirm(`¿Eliminar ${despachos.length} despachos viejos de Firebase?`)) return;
+              try {
+                const db = getFirestore();
+                const snap = await getDocs(collection(db, 'despachos'));
+                let batch = writeBatch(db);
+                let count = 0;
+                for (const d of snap.docs) {
+                  batch.delete(firestoreDoc(db, 'despachos', d.id));
+                  count++;
+                  if (count % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
+                }
+                if (count % 400 !== 0) await batch.commit();
+                alert(`${count} despachos eliminados.`);
+              } catch (err) { alert('Error: ' + err.message); }
+            }}
+            className="mt-2 flex items-center gap-1 px-3 py-1.5 bg-red-500 text-white rounded text-xs hover:bg-red-600 w-full justify-center"
+          >
+            <Trash2 size={14} />
+            Limpiar Despachos Viejos
+          </button>
+        )}
       </div>
 
       <div className="divide-y">
