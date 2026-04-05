@@ -28,7 +28,7 @@ import TabMapa from './components/Mapa/TabMapa';
 import Tracker from './components/Conductor/Tracker';
 import { trackingClient } from './services/trackingClient';
 import { actualizarPosicionVehiculo } from './services/firebase';
-import { guardarReciboEntrega } from './services/firestoreService';
+import { guardarReciboEntrega, crearNoConformidad } from './services/firestoreService';
 import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 // Componentes de Ubicaciones
@@ -329,6 +329,32 @@ const App = () => {
             ? `Entregado conforme. Recibido por: ${recibo.receptor?.nombre || 'N/A'}`
             : `Entrega parcial - ${recibo.itemsProblemas?.length || 0} item(s) con problemas. Recibido por: ${recibo.receptor?.nombre || 'N/A'}`;
           await actualizarEstadoPedido(recibo.pedidoId, nuevoEstado, observaciones);
+
+          // Crear No Conformidad automáticamente si la entrega no es conforme
+          if (!recibo.conforme) {
+            const pedidoInfo = pedidos.find(p => p.id === recibo.pedidoId);
+            const problemas = (recibo.itemsProblemas || [])
+              .map(item => `${item.nombre || 'Item'}: ${item.causaLabel || 'Sin causa'}${item.detalle ? ' - ' + item.detalle : ''}`)
+              .join('; ');
+
+            const tipoNC = recibo.itemsProblemas?.length > 0
+              ? (recibo.itemsProblemas.some(i => i.causa === 'danado') ? 'Producto dañado'
+                : recibo.itemsProblemas.some(i => i.causa === 'faltante') ? 'Producto faltante'
+                : recibo.itemsProblemas.some(i => i.causa === 'incorrecto') ? 'Producto incorrecto'
+                : 'Devolución')
+              : 'Otro';
+
+            await crearNoConformidad({
+              tipo: tipoNC,
+              pedidoId: recibo.pedidoId,
+              descripcion: `Entrega no conforme - Pedido ${pedidoInfo?.numeroPedido || recibo.pedidoId} - Cliente: ${pedidoInfo?.cliente || 'N/A'}. ${problemas}`,
+              gravedad: recibo.itemsProblemas?.length > 2 ? 'Grave' : recibo.itemsProblemas?.length > 0 ? 'Moderada' : 'Leve',
+              accionCorrectiva: '',
+              responsable: ''
+            }, user?.uid || user?.email || 'conductor');
+
+            console.log('⚠️ No Conformidad creada automáticamente para pedido:', recibo.pedidoId);
+          }
         }
         // Verificar si todos los pedidos del camión ya fueron entregados
         const pedidoEntregado = pedidos.find(p => p.id === recibo.pedidoId);
