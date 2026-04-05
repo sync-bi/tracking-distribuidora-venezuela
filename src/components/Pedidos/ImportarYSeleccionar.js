@@ -1,8 +1,39 @@
 // src/components/Pedidos/ImportarYSeleccionar.js
 import React, { useState, useMemo, useEffect } from 'react';
-import { Upload, Search, CheckSquare, Square, Package, Truck } from 'lucide-react';
+import { Upload, Search, CheckSquare, Square, Package, Truck, Database, FileSpreadsheet } from 'lucide-react';
 import Modal from '../UI/Modal';
 import { mapRowsToPedidos, parseCSV } from '../../utils/importers';
+
+// Convierte un pedido de la API SQL al formato que usa el sistema
+const sqlPedidoToLocal = (p) => ({
+  id: p.numeroPedido,
+  numeroPedido: p.numeroPedido,
+  cliente: p.nombreCliente || '',
+  codigoCliente: p.codigoCliente || '',
+  direccion: p.direccionCliente || '',
+  telefono: p.telefonoCliente || '',
+  ciudad: p.ciudadCliente || '',
+  zona: p.nombreZona || '',
+  coordenadas: p.coordenadas || { lat: 10.4806, lng: -66.9036 },
+  productos: (p.productos || []).map(prod => ({
+    tipo: 'Repuesto',
+    marca: '',
+    cantidad: prod.cantidad || 1,
+    modelo: prod.codigoArticulo || '',
+    descripcion: prod.descripcion || prod.codigoArticulo || '',
+    precioUnitario: prod.precioUnitario,
+    subtotal: prod.montoRenglon
+  })),
+  prioridad: 'Media',
+  estado: p.status === 'Completado' ? 'Entregado' : 'Pendiente',
+  fechaCreacion: p.fechaEmision ? new Date(p.fechaEmision).toISOString().split('T')[0] : '',
+  fechaVencimiento: p.fechaVencimiento ? new Date(p.fechaVencimiento).toISOString().split('T')[0] : '',
+  horaEstimada: '',
+  camionAsignado: null,
+  vendedorAsignado: p.nombreVendedor || 'Sin asignar',
+  montoNeto: p.totalNeto || 0,
+  almacen: (p.productos && p.productos[0]?.almacen) || ''
+});
 
 const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) => {
   const [pedidosImportados, setPedidosImportados] = useState([]);
@@ -11,14 +42,33 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
   const [error, setError] = useState(null);
   const [busqueda, setBusqueda] = useState('');
   const [agregando, setAgregando] = useState(false);
+  const [fuenteDatos, setFuenteDatos] = useState(null); // 'sql' | 'excel' | null
 
   // Cargar pedidos automáticamente al abrir
   useEffect(() => {
     const cargarPedidos = async () => {
       setCargando(true);
       setError(null);
+
+      // 1. Intentar desde SQL Server (API)
       try {
-        // Intentar cargar Excel o CSV del servidor
+        const res = await fetch('/api/pedidos?estado=pendientes', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.ok && data.pedidos && data.pedidos.length > 0) {
+            const pedidos = data.pedidos.map(sqlPedidoToLocal);
+            setPedidosImportados(pedidos);
+            setFuenteDatos('sql');
+            setCargando(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('API SQL no disponible, intentando Excel...', err.message);
+      }
+
+      // 2. Fallback: cargar Excel o CSV
+      try {
         const candidates = ['/Pedidos.xlsx', '/pedidos.xlsx', '/Pedidos.csv', '/pedidos.csv'];
         for (const path of candidates) {
           try {
@@ -31,6 +81,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
               const pedidos = mapRowsToPedidos(rows);
               if (pedidos.length > 0) {
                 setPedidosImportados(pedidos);
+                setFuenteDatos('excel');
                 setCargando(false);
                 return;
               }
@@ -43,6 +94,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
               const pedidos = mapRowsToPedidos(rows);
               if (pedidos.length > 0) {
                 setPedidosImportados(pedidos);
+                setFuenteDatos('excel');
                 setCargando(false);
                 return;
               }
@@ -148,7 +200,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
         {cargando ? (
           <div className="text-center py-12">
             <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600 font-medium">Actualizando pedidos del sistema...</p>
+            <p className="text-gray-600 font-medium">Consultando pedidos del sistema...</p>
           </div>
         ) : pedidosImportados.length === 0 ? (
           <div className="space-y-4">
@@ -192,6 +244,14 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
                 <span className="text-sm text-gray-500">
                   {seleccionados.size} de {pedidosImportados.length} seleccionados
                 </span>
+                {fuenteDatos && (
+                  <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                    fuenteDatos === 'sql' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {fuenteDatos === 'sql' ? <Database size={12} /> : <FileSpreadsheet size={12} />}
+                    {fuenteDatos === 'sql' ? 'Base de datos' : 'Excel'}
+                  </span>
+                )}
               </div>
               <div className="relative w-full sm:w-64">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
