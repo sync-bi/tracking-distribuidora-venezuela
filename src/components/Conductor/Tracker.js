@@ -541,7 +541,7 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
     const idsEntregados = new Set(recibosGuardados.map(r => r.pedidoId));
     return pedidos.filter(p =>
       p.camionAsignado === vehiculoId &&
-      (p.estado === 'Asignado' || p.estado === 'En Ruta') &&
+      (p.estado === 'Asignado' || p.estado === 'En Ruta' || p.estado === 'En Consolidación') &&
       !idsEntregados.has(p.id)
     );
   }, [pedidos, vehiculoId, recibosGuardados]);
