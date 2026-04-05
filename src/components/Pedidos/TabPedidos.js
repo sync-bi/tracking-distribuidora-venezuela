@@ -1,8 +1,9 @@
 // src/components/Pedidos/TabPedidos.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCw, Package, Search, Calendar, Database, Loader2 } from 'lucide-react';
+import { RefreshCw, Package, Search, Calendar, Database, Loader2, Trash2 } from 'lucide-react';
 import TarjetaPedido from './TarjetaPedido';
 import { obtenerCorreccionesClientes } from '../../services/firestoreService';
+import { getFirestore, collection, getDocs, writeBatch, doc as firestoreDoc } from 'firebase/firestore';
 
 // Helper: fecha ISO (YYYY-MM-DD) de hace N días
 const fechaHaceDias = (dias) => {
@@ -177,6 +178,7 @@ const TabPedidos = ({
   }, []);
 
   // Sincronizar pedidos desde SQL Server
+  // Solo AGREGA nuevos pendientes. No borra nada — los entregados se ocultan del listado.
   const sincronizarPedidos = useCallback(async () => {
     setSincronizando(true);
     try {
@@ -190,15 +192,7 @@ const TabPedidos = ({
 
       const pedidosSQL = data.pedidos.map(p => sqlPedidoToLocal(p, correcciones));
 
-      // Pedidos en Firestore que NO están en SQL (ya fueron despachados) → eliminar
-      const idsSQL = new Set(pedidosSQL.map(p => p.id));
-      for (const pedido of pedidos) {
-        if (!idsSQL.has(pedido.numeroPedido || pedido.id) && pedido.estado === 'Pendiente') {
-          try { await onEliminarPedido(pedido.id); } catch (_) {}
-        }
-      }
-
-      // Pedidos en SQL que NO están en Firestore → crear
+      // Solo crear pedidos que NO están en Firestore
       const idsFirestore = new Set(pedidos.map(p => p.numeroPedido || p.id));
       let nuevos = 0;
       for (const pedido of pedidosSQL) {
@@ -209,14 +203,51 @@ const TabPedidos = ({
       }
 
       setUltimaSync(new Date());
-      console.log(`✅ Sincronización: ${nuevos} nuevos, ${pedidosSQL.length} pendientes en SQL`);
+      console.log(`✅ Sincronización: ${nuevos} nuevos, ${pedidosSQL.length} pendientes en SQL, ${pedidos.length} en Firebase`);
     } catch (err) {
       console.error('Error sincronizando:', err);
       alert('Error al sincronizar: ' + err.message);
     } finally {
       setSincronizando(false);
     }
-  }, [pedidos, onCrearPedido, onEliminarPedido, sqlPedidoToLocal]);
+  }, [pedidos, onCrearPedido, sqlPedidoToLocal]);
+
+  // Limpiar TODO de Firebase (pedidos + despachos) — botón de pruebas
+  const [limpiando, setLimpiando] = useState(false);
+  const handleLimpiarTodo = async () => {
+    if (!window.confirm('¿Limpiar TODOS los pedidos y despachos de Firebase? Solo para pruebas.')) return;
+    setLimpiando(true);
+    try {
+      const db = getFirestore();
+      // Limpiar pedidos
+      const snapPedidos = await getDocs(collection(db, 'pedidos'));
+      let batch = writeBatch(db);
+      let count = 0;
+      for (const d of snapPedidos.docs) {
+        batch.delete(firestoreDoc(db, 'pedidos', d.id));
+        count++;
+        if (count % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
+      }
+      if (count % 400 !== 0) await batch.commit();
+
+      // Limpiar despachos
+      const snapDespachos = await getDocs(collection(db, 'despachos'));
+      batch = writeBatch(db);
+      let countD = 0;
+      for (const d of snapDespachos.docs) {
+        batch.delete(firestoreDoc(db, 'despachos', d.id));
+        countD++;
+        if (countD % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
+      }
+      if (countD % 400 !== 0) await batch.commit();
+
+      alert(`Limpio: ${count} pedidos + ${countD} despachos eliminados. Se re-sincronizará automáticamente.`);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setLimpiando(false);
+    }
+  };
 
   // Sincronizar automáticamente al cargar si no hay pedidos
   useEffect(() => {
@@ -240,14 +271,25 @@ const TabPedidos = ({
               </p>
             )}
           </div>
-          <button
-            onClick={sincronizarPedidos}
-            disabled={sincronizando}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-blue-300"
-          >
-            {sincronizando ? <Loader2 size={20} className="animate-spin" /> : <RefreshCw size={20} />}
-            {sincronizando ? 'Sincronizando...' : 'Actualizar'}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleLimpiarTodo}
+              disabled={limpiando}
+              className="flex items-center gap-2 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-300 text-sm"
+              title="Limpiar todo Firebase (solo pruebas)"
+            >
+              <Trash2 size={16} />
+              {limpiando ? 'Limpiando...' : 'Limpiar'}
+            </button>
+            <button
+              onClick={sincronizarPedidos}
+              disabled={sincronizando}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-blue-300"
+            >
+              {sincronizando ? <Loader2 size={20} className="animate-spin" /> : <RefreshCw size={20} />}
+              {sincronizando ? 'Sincronizando...' : 'Actualizar'}
+            </button>
+          </div>
         </div>
 
         {/* Estadísticas rápidas */}
