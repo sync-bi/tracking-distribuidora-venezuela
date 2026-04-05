@@ -30,6 +30,7 @@ const TabDespachoSimplificado = ({
   const [conductorSeleccionado, setConductorSeleccionado] = useState('');
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
   const [zonaExpandida, setZonaExpandida] = useState(null);
+  const [zonaEnfocada, setZonaEnfocada] = useState(null); // zona para zoom en el mapa
   const [vistaMobile, setVistaMobile] = useState('pedidos'); // 'pedidos' | 'mapa' | 'resumen'
 
   // Filtrar pedidos disponibles (sin asignar)
@@ -265,7 +266,12 @@ const TabDespachoSimplificado = ({
                         ? 'bg-blue-50 hover:bg-blue-100'
                         : 'bg-gray-50 hover:bg-gray-100'
                     }`}
-                    onClick={() => setZonaExpandida(expandida ? null : zona)}
+                    onClick={() => {
+                      const nuevaZona = expandida ? null : zona;
+                      setZonaExpandida(nuevaZona);
+                      // Enfocar el mapa en la zona seleccionada
+                      setZonaEnfocada(nuevaZona);
+                    }}
                   >
                     <div className="flex items-center gap-3 flex-1">
                       <button
@@ -359,6 +365,8 @@ const TabDespachoSimplificado = ({
           onTogglePedido={togglePedido}
           onToggleZona={toggleZona}
           zonas={pedidosFiltrados}
+          zonaEnfocada={zonaEnfocada}
+          onZonaEnfocada={setZonaEnfocada}
         />
       </div>
 
