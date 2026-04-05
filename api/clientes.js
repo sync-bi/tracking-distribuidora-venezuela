@@ -46,17 +46,44 @@ module.exports = async function handler(req, res) {
       ORDER BY c.cli_des
     `);
 
-    const clientes = result.recordset.map(c => {
-      let lat = null, lng = null;
+    // Geocodificar ciudades sin coordenadas
+    const geocodeCache = {};
+    const geocodificarCiudad = async (ciudad) => {
+      if (!ciudad || !process.env.REACT_APP_MAPBOX_TOKEN) return null;
+      const key = ciudad.trim().toUpperCase();
+      if (geocodeCache[key] !== undefined) return geocodeCache[key];
+      try {
+        const query = encodeURIComponent(`${ciudad}, Venezuela`);
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${process.env.REACT_APP_MAPBOX_TOKEN}&country=VE&limit=1`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data.features && data.features[0]) {
+          const [lng, lat] = data.features[0].center;
+          geocodeCache[key] = { lat, lng, geocodificada: true };
+          return geocodeCache[key];
+        }
+      } catch (_) {}
+      geocodeCache[key] = null;
+      return null;
+    };
+
+    const clientes = [];
+    for (const c of result.recordset) {
+      let coords = null;
       const v1 = parseFloat(c.coord_valor1);
       const v2 = parseFloat(c.coord_valor2);
       if (!isNaN(v1) && !isNaN(v2)) {
-        if (v1 > 0 && v1 < 13) { lat = v1; lng = v2; }
-        else if (v1 < 0) { lat = v2; lng = v1; }
-        else { lat = v1; lng = v2; }
+        if (v1 > 0 && v1 < 13) { coords = { lat: v1, lng: v2 }; }
+        else if (v1 < 0) { coords = { lat: v2, lng: v1 }; }
+        else { coords = { lat: v1, lng: v2 }; }
       }
 
-      return {
+      // Geocodificar si no tiene coordenadas
+      if (!coords && c.ciudad) {
+        coords = await geocodificarCiudad(c.ciudad);
+      }
+
+      clientes.push({
         codigo: c.codigo,
         nombre: c.nombre,
         direccion: c.direccion,
@@ -69,9 +96,9 @@ module.exports = async function handler(req, res) {
         rif: c.rif,
         email: c.email,
         activo: !c.inactivo,
-        coordenadas: lat !== null ? { lat, lng } : null
-      };
-    });
+        coordenadas: coords
+      });
+    }
 
     res.status(200).json({
       ok: true,

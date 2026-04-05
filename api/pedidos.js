@@ -122,6 +122,30 @@ module.exports = async function handler(req, res) {
       return { lat: v1, lng: v2 };
     };
 
+    // Geocodificar ciudades sin coordenadas usando Mapbox
+    const geocodeCache = {};
+    const geocodificarCiudad = async (ciudad) => {
+      if (!ciudad || !process.env.REACT_APP_MAPBOX_TOKEN) return null;
+      const key = ciudad.trim().toUpperCase();
+      if (geocodeCache[key] !== undefined) return geocodeCache[key];
+
+      try {
+        const query = encodeURIComponent(`${ciudad}, Venezuela`);
+        const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${process.env.REACT_APP_MAPBOX_TOKEN}&country=VE&limit=1`;
+        const resp = await fetch(url);
+        const data = await resp.json();
+        if (data.features && data.features[0]) {
+          const [lng, lat] = data.features[0].center;
+          geocodeCache[key] = { lat, lng, geocodificada: true };
+          return geocodeCache[key];
+        }
+      } catch (err) {
+        console.warn('Geocoding falló para:', ciudad, err.message);
+      }
+      geocodeCache[key] = null;
+      return null;
+    };
+
     // Determinar estado real del pedido
     const determinarEstado = (statusProfit, productos) => {
       // Status Profit: 0=Pendiente, 1=Parcial, 2=Completado
@@ -136,11 +160,17 @@ module.exports = async function handler(req, res) {
       return algoDespachado ? 'Parcial' : 'Pendiente';
     };
 
-    // Armar respuesta
-    const pedidos = result.recordset.map(p => {
+    // Armar respuesta — geocodificar los que no tienen coordenadas
+    const pedidos = [];
+    for (const p of result.recordset) {
       const productos = renglonesPorPedido[p.numero_pedido] || [];
-      const coordenadas = corregirCoords(p.coord_valor1, p.coord_valor2);
+      let coordenadas = corregirCoords(p.coord_valor1, p.coord_valor2);
       const estadoDespacho = determinarEstado(p.status_pedido, productos);
+
+      // Si no tiene coordenadas, geocodificar por ciudad
+      if (!coordenadas && p.ciudad_cliente) {
+        coordenadas = await geocodificarCiudad(p.ciudad_cliente);
+      }
 
       // Calcular totales de despacho
       const totalUnidades = productos.reduce((s, pr) => s + pr.cantidad, 0);
@@ -150,7 +180,7 @@ module.exports = async function handler(req, res) {
         ? Math.round((totalDespachado / totalUnidades) * 100)
         : 0;
 
-      return {
+      pedidos.push({
         numeroPedido: p.numero_pedido,
         fechaEmision: p.fecha_emision,
         fechaVencimiento: p.fecha_vencimiento,
@@ -173,8 +203,8 @@ module.exports = async function handler(req, res) {
         nombreVendedor: p.nombre_vendedor,
         coordenadas,
         productos
-      };
-    });
+      });
+    }
 
     // Resumen
     const resumen = {
