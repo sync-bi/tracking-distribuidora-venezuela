@@ -1,9 +1,8 @@
 // src/components/Pedidos/TabPedidos.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCw, Package, Search, Calendar, Trash2 } from 'lucide-react';
-import ImportarYSeleccionar from './ImportarYSeleccionar';
+import { RefreshCw, Package, Search, Calendar, Database, Loader2 } from 'lucide-react';
 import TarjetaPedido from './TarjetaPedido';
-import { getFirestore, collection, getDocs, writeBatch, doc as firestoreDoc } from 'firebase/firestore';
+import { obtenerCorreccionesClientes } from '../../services/firestoreService';
 
 // Helper: fecha ISO (YYYY-MM-DD) de hace N días
 const fechaHaceDias = (dias) => {
@@ -23,8 +22,9 @@ const TabPedidos = ({
   estadisticas,
   onImportarPedidos
 }) => {
-  const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [ultimaSync, setUltimaSync] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState('pendientes');
   const [filtroPrioridad] = useState('todos');
   const [filtroCliente] = useState('');
@@ -125,62 +125,129 @@ const TabPedidos = ({
   });
 
 
-  const handleImportarSeleccionados = async (pedidosSeleccionados) => {
-    for (const pedido of pedidosSeleccionados) {
-      await onCrearPedido(pedido);
+  // Convertir pedido SQL al formato local
+  const sqlPedidoToLocal = useCallback((p, correcciones = {}) => {
+    let coordenadas = null;
+    if (p.coordenadas && !p.coordenadas.geocodificada) {
+      coordenadas = p.coordenadas;
     }
-    setMostrarFormulario(false);
-  };
-
-  // TEMPORAL: Limpiar todos los pedidos viejos de Firestore
-  const [limpiando, setLimpiando] = useState(false);
-  const handleLimpiarPedidos = async () => {
-    if (!window.confirm(`¿Estás seguro de eliminar los ${pedidos.length} pedidos de Firestore? Esta acción no se puede deshacer.`)) return;
-    setLimpiando(true);
-    try {
-      const db = getFirestore();
-      const snap = await getDocs(collection(db, 'pedidos'));
-      let count = 0;
-      let batch = writeBatch(db);
-      for (const d of snap.docs) {
-        batch.delete(firestoreDoc(db, 'pedidos', d.id));
-        count++;
-        if (count % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
+    if (!coordenadas) {
+      const codigoNorm = (p.codigoCliente || '').replace(/^0+/, '');
+      const correccion = correcciones[codigoNorm] || correcciones[p.codigoCliente];
+      if (correccion?.coordenadas?.lat && correccion?.coordenadas?.lng) {
+        coordenadas = { lat: correccion.coordenadas.lat, lng: correccion.coordenadas.lng };
       }
-      if (count % 400 !== 0) await batch.commit();
-      alert(`${count} pedidos eliminados. Ahora usa "Actualizar Pedidos" para importar los reales desde SQL Server.`);
-    } catch (err) {
-      alert('Error: ' + err.message);
-    } finally {
-      setLimpiando(false);
     }
-  };
+    if (!coordenadas && p.coordenadas?.geocodificada) {
+      coordenadas = p.coordenadas;
+    }
+    if (!coordenadas) coordenadas = { lat: 10.4806, lng: -66.9036 };
+
+    return {
+      id: p.numeroPedido,
+      numeroPedido: p.numeroPedido,
+      cliente: p.nombreCliente || '',
+      codigoCliente: p.codigoCliente || '',
+      direccion: p.direccionCliente || '',
+      telefono: p.telefonoCliente || '',
+      ciudad: p.ciudadCliente || '',
+      zona: p.nombreZona || '',
+      coordenadas,
+      productos: (p.productos || []).map(prod => ({
+        tipo: 'Repuesto', marca: '',
+        cantidad: prod.cantidad || 1,
+        pendiente: prod.pendiente || 0,
+        despachado: prod.despachado || 0,
+        modelo: prod.codigoArticulo || '',
+        descripcion: prod.descripcion || prod.codigoArticulo || '',
+        precioUnitario: prod.precioUnitario,
+        subtotal: prod.montoRenglon
+      })),
+      prioridad: 'Media',
+      estado: p.estadoDespacho === 'Despachado' ? 'Entregado' : 'Pendiente',
+      estadoDespachoSQL: p.estadoDespacho,
+      porcentajeDespacho: p.porcentajeDespacho || 0,
+      fechaCreacion: p.fechaEmision ? new Date(p.fechaEmision).toISOString().split('T')[0] : '',
+      fechaVencimiento: p.fechaVencimiento ? new Date(p.fechaVencimiento).toISOString().split('T')[0] : '',
+      horaEstimada: '',
+      camionAsignado: null,
+      vendedorAsignado: p.nombreVendedor || 'Sin asignar',
+      montoNeto: p.totalNeto || 0
+    };
+  }, []);
+
+  // Sincronizar pedidos desde SQL Server
+  const sincronizarPedidos = useCallback(async () => {
+    setSincronizando(true);
+    try {
+      const res = await fetch('/api/pedidos?desde=2026-03-15&estado=pendientes', { cache: 'no-store' });
+      if (!res.ok) throw new Error('API no disponible');
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || 'Error en API');
+
+      let correcciones = {};
+      try { correcciones = await obtenerCorreccionesClientes(); } catch (_) {}
+
+      const pedidosSQL = data.pedidos.map(p => sqlPedidoToLocal(p, correcciones));
+
+      // Pedidos en Firestore que NO están en SQL (ya fueron despachados) → eliminar
+      const idsSQL = new Set(pedidosSQL.map(p => p.id));
+      for (const pedido of pedidos) {
+        if (!idsSQL.has(pedido.numeroPedido || pedido.id) && pedido.estado === 'Pendiente') {
+          try { await onEliminarPedido(pedido.id); } catch (_) {}
+        }
+      }
+
+      // Pedidos en SQL que NO están en Firestore → crear
+      const idsFirestore = new Set(pedidos.map(p => p.numeroPedido || p.id));
+      let nuevos = 0;
+      for (const pedido of pedidosSQL) {
+        if (!idsFirestore.has(pedido.id)) {
+          await onCrearPedido(pedido);
+          nuevos++;
+        }
+      }
+
+      setUltimaSync(new Date());
+      console.log(`✅ Sincronización: ${nuevos} nuevos, ${pedidosSQL.length} pendientes en SQL`);
+    } catch (err) {
+      console.error('Error sincronizando:', err);
+      alert('Error al sincronizar: ' + err.message);
+    } finally {
+      setSincronizando(false);
+    }
+  }, [pedidos, onCrearPedido, onEliminarPedido, sqlPedidoToLocal]);
+
+  // Sincronizar automáticamente al cargar si no hay pedidos
+  useEffect(() => {
+    if (pedidos.length === 0 && !sincronizando) {
+      sincronizarPedidos();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="p-6">
       {/* Header con estadísticas */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Gestión de Pedidos</h2>
-          <div className="flex items-center gap-2">
-            {pedidos.length > 0 && (
-              <button
-                onClick={handleLimpiarPedidos}
-                disabled={limpiando}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-300"
-              >
-                <Trash2 size={18} />
-                {limpiando ? 'Limpiando...' : 'Limpiar Pedidos Viejos'}
-              </button>
+          <div>
+            <h2 className="text-2xl font-bold">Gestión de Pedidos</h2>
+            {ultimaSync && (
+              <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                <Database size={12} />
+                Última sync: {ultimaSync.toLocaleTimeString('es-VE')}
+              </p>
             )}
-            <button
-              onClick={() => setMostrarFormulario(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              <RefreshCw size={20} />
-              Actualizar Pedidos
-            </button>
           </div>
+          <button
+            onClick={sincronizarPedidos}
+            disabled={sincronizando}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:bg-blue-300"
+          >
+            {sincronizando ? <Loader2 size={20} className="animate-spin" /> : <RefreshCw size={20} />}
+            {sincronizando ? 'Sincronizando...' : 'Actualizar'}
+          </button>
         </div>
 
         {/* Estadísticas rápidas */}
@@ -301,15 +368,6 @@ const TabPedidos = ({
           </div>
         )}
       </div>
-
-      {/* Modal de importar y seleccionar pedidos */}
-      {mostrarFormulario && (
-        <ImportarYSeleccionar
-          onAgregar={handleImportarSeleccionados}
-          onCerrar={() => setMostrarFormulario(false)}
-          pedidosExistentes={pedidos}
-        />
-      )}
 
       {/* Modal de detalles */}
       {pedidoSeleccionado && (
