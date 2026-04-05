@@ -1,8 +1,9 @@
 // src/components/Pedidos/TabPedidos.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { RefreshCw, Package, Search, Calendar } from 'lucide-react';
+import { RefreshCw, Package, Search, Calendar, Trash2 } from 'lucide-react';
 import ImportarYSeleccionar from './ImportarYSeleccionar';
 import TarjetaPedido from './TarjetaPedido';
+import { getFirestore, collection, getDocs, writeBatch, doc as firestoreDoc } from 'firebase/firestore';
 
 // Helper: fecha ISO (YYYY-MM-DD) de hace N días
 const fechaHaceDias = (dias) => {
@@ -131,19 +132,55 @@ const TabPedidos = ({
     setMostrarFormulario(false);
   };
 
+  // TEMPORAL: Limpiar todos los pedidos viejos de Firestore
+  const [limpiando, setLimpiando] = useState(false);
+  const handleLimpiarPedidos = async () => {
+    if (!window.confirm(`¿Estás seguro de eliminar los ${pedidos.length} pedidos de Firestore? Esta acción no se puede deshacer.`)) return;
+    setLimpiando(true);
+    try {
+      const db = getFirestore();
+      const snap = await getDocs(collection(db, 'pedidos'));
+      let count = 0;
+      let batch = writeBatch(db);
+      for (const d of snap.docs) {
+        batch.delete(firestoreDoc(db, 'pedidos', d.id));
+        count++;
+        if (count % 400 === 0) { await batch.commit(); batch = writeBatch(db); }
+      }
+      if (count % 400 !== 0) await batch.commit();
+      alert(`${count} pedidos eliminados. Ahora usa "Actualizar Pedidos" para importar los reales desde SQL Server.`);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    } finally {
+      setLimpiando(false);
+    }
+  };
+
   return (
     <div className="p-6">
       {/* Header con estadísticas */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl font-bold">Gestión de Pedidos</h2>
-          <button
-            onClick={() => setMostrarFormulario(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-          >
-            <RefreshCw size={20} />
-            Actualizar Pedidos
-          </button>
+          <div className="flex items-center gap-2">
+            {pedidos.length > 0 && (
+              <button
+                onClick={handleLimpiarPedidos}
+                disabled={limpiando}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-300"
+              >
+                <Trash2 size={18} />
+                {limpiando ? 'Limpiando...' : 'Limpiar Pedidos Viejos'}
+              </button>
+            )}
+            <button
+              onClick={() => setMostrarFormulario(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <RefreshCw size={20} />
+              Actualizar Pedidos
+            </button>
+          </div>
         </div>
 
         {/* Estadísticas rápidas */}
