@@ -33,9 +33,18 @@ const TabDespachoSimplificado = ({
   const [zonaEnfocada, setZonaEnfocada] = useState(null); // zona para zoom en el mapa
   const [vistaMobile, setVistaMobile] = useState('pedidos'); // 'pedidos' | 'mapa' | 'resumen'
 
-  // Filtrar pedidos disponibles (sin asignar)
+  // Filtrar pedidos disponibles para despachar
   const pedidosDisponibles = useMemo(() => {
-    return pedidos.filter(p => !p.camionAsignado || p.estado === 'Pendiente');
+    console.log('📦 Despachos recibe', pedidos.length, 'pedidos. Estados:',
+      pedidos.reduce((acc, p) => { acc[p.estado] = (acc[p.estado] || 0) + 1; return acc; }, {}),
+      'Camiones asignados:', pedidos.filter(p => p.camionAsignado).length
+    );
+    return pedidos.filter(p => {
+      // Excluir entregados, despachados, desistidos
+      const excluidos = ['Entregado', 'Entrega Parcial', 'Desistido', 'Cancelado'];
+      if (excluidos.includes(p.estado)) return false;
+      return true;
+    });
   }, [pedidos]);
 
   // Agrupar pedidos por zona/ciudad
