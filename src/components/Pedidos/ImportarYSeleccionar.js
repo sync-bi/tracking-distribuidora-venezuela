@@ -106,7 +106,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
 
       // 1. Intentar desde SQL Server (API)
       try {
-        const res = await fetch('/api/pedidos?desde=2026-03-15', { cache: 'no-store' });
+        const res = await fetch('/api/pedidos?desde=2026-03-15&estado=pendientes', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data.ok && data.pedidos && data.pedidos.length > 0) {
