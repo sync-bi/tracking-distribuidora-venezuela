@@ -160,13 +160,55 @@ export const useClientesCSV = () => {
   };
 
   // Cargar CSV + Firestore
+  // Intentar cargar clientes desde la API SQL Server
+  const cargarClientesDesdeSQL = async () => {
+    try {
+      const res = await fetch('/api/clientes?activos=true', { cache: 'no-store' });
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (!data.ok || !data.clientes || data.clientes.length === 0) return null;
+
+      console.log(`🗄️ ${data.clientes.length} clientes cargados desde SQL Server`);
+      return data.clientes.map((c, idx) => ({
+        id: c.codigo || `cli-${idx}`,
+        codigoCliente: c.codigo,
+        codigoNormalizado: (c.codigo || '').replace(/^0+/, ''),
+        nombre: c.nombre || '',
+        ciudad: c.ciudad || '',
+        direccion: c.direccion || '',
+        direccionTemporal: '',
+        coordenadas: c.coordenadas
+          ? { lat: c.coordenadas.lat, lng: c.coordenadas.lng, corregida: false }
+          : { lat: 0, lng: 0, corregida: false },
+        vendedorAsignado: c.nombreVendedor || 'Sin asignar',
+        tipoCliente: '',
+        telefono: c.telefono || '',
+        email: c.email || '',
+        rif: c.rif || '',
+        zona: c.nombreZona || '',
+        activo: c.activo,
+        fuenteDatos: 'sql'
+      }));
+    } catch (err) {
+      console.warn('API SQL clientes no disponible:', err.message);
+      return null;
+    }
+  };
+
   const cargarTodo = async () => {
     setCargando(true);
     setError(null);
 
     try {
-      // 1. Cargar CSV base
-      const clientesCSV = await cargarClientesDesdeCSV();
+      // 1. Intentar desde SQL Server primero
+      let clientesBase = await cargarClientesDesdeSQL();
+
+      // 2. Fallback: cargar CSV base
+      if (!clientesBase) {
+        clientesBase = await cargarClientesDesdeCSV();
+      }
+
+      const clientesCSV = clientesBase;
 
       // 2. Cargar correcciones de Firestore
       let correccionesFS = {};

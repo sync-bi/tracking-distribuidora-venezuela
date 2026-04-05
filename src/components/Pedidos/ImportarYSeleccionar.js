@@ -5,35 +5,51 @@ import Modal from '../UI/Modal';
 import { mapRowsToPedidos, parseCSV } from '../../utils/importers';
 
 // Convierte un pedido de la API SQL al formato que usa el sistema
-const sqlPedidoToLocal = (p) => ({
-  id: p.numeroPedido,
-  numeroPedido: p.numeroPedido,
-  cliente: p.nombreCliente || '',
-  codigoCliente: p.codigoCliente || '',
-  direccion: p.direccionCliente || '',
-  telefono: p.telefonoCliente || '',
-  ciudad: p.ciudadCliente || '',
-  zona: p.nombreZona || '',
-  coordenadas: p.coordenadas || { lat: 10.4806, lng: -66.9036 },
-  productos: (p.productos || []).map(prod => ({
-    tipo: 'Repuesto',
-    marca: '',
-    cantidad: prod.cantidad || 1,
-    modelo: prod.codigoArticulo || '',
-    descripcion: prod.descripcion || prod.codigoArticulo || '',
-    precioUnitario: prod.precioUnitario,
-    subtotal: prod.montoRenglon
-  })),
-  prioridad: 'Media',
-  estado: p.status === 'Completado' ? 'Entregado' : 'Pendiente',
-  fechaCreacion: p.fechaEmision ? new Date(p.fechaEmision).toISOString().split('T')[0] : '',
-  fechaVencimiento: p.fechaVencimiento ? new Date(p.fechaVencimiento).toISOString().split('T')[0] : '',
-  horaEstimada: '',
-  camionAsignado: null,
-  vendedorAsignado: p.nombreVendedor || 'Sin asignar',
-  montoNeto: p.totalNeto || 0,
-  almacen: (p.productos && p.productos[0]?.almacen) || ''
-});
+const sqlPedidoToLocal = (p) => {
+  // Mapear estado de despacho de SQL al estado del tracking
+  const mapearEstado = () => {
+    if (p.estadoDespacho === 'Despachado') return 'Entregado';
+    if (p.estadoDespacho === 'Parcial') return 'En Ruta';
+    return 'Pendiente';
+  };
+
+  return {
+    id: p.numeroPedido,
+    numeroPedido: p.numeroPedido,
+    cliente: p.nombreCliente || '',
+    codigoCliente: p.codigoCliente || '',
+    direccion: p.direccionCliente || '',
+    telefono: p.telefonoCliente || '',
+    ciudad: p.ciudadCliente || '',
+    zona: p.nombreZona || '',
+    coordenadas: p.coordenadas || { lat: 10.4806, lng: -66.9036 },
+    productos: (p.productos || []).map(prod => ({
+      tipo: 'Repuesto',
+      marca: '',
+      cantidad: prod.cantidad || 1,
+      pendiente: prod.pendiente || 0,
+      despachado: prod.despachado || 0,
+      modelo: prod.codigoArticulo || '',
+      descripcion: prod.descripcion || prod.codigoArticulo || '',
+      precioUnitario: prod.precioUnitario,
+      subtotal: prod.montoRenglon
+    })),
+    prioridad: 'Media',
+    estado: mapearEstado(),
+    estadoDespachoSQL: p.estadoDespacho,
+    porcentajeDespacho: p.porcentajeDespacho || 0,
+    totalUnidades: p.totalUnidades || 0,
+    totalDespachado: p.totalDespachado || 0,
+    totalPendiente: p.totalPendiente || 0,
+    fechaCreacion: p.fechaEmision ? new Date(p.fechaEmision).toISOString().split('T')[0] : '',
+    fechaVencimiento: p.fechaVencimiento ? new Date(p.fechaVencimiento).toISOString().split('T')[0] : '',
+    horaEstimada: '',
+    camionAsignado: null,
+    vendedorAsignado: p.nombreVendedor || 'Sin asignar',
+    montoNeto: p.totalNeto || 0,
+    almacen: (p.productos && p.productos[0]?.almacen) || ''
+  };
+};
 
 const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) => {
   const [pedidosImportados, setPedidosImportados] = useState([]);
@@ -52,7 +68,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
 
       // 1. Intentar desde SQL Server (API)
       try {
-        const res = await fetch('/api/pedidos?estado=pendientes', { cache: 'no-store' });
+        const res = await fetch('/api/pedidos?desde=2026-03-15', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           if (data.ok && data.pedidos && data.pedidos.length > 0) {
@@ -275,7 +291,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
                     <th className="p-2 md:p-3 text-left">Cliente</th>
                     <th className="p-2 md:p-3 text-left hidden md:table-cell w-24">Ciudad</th>
                     <th className="p-2 md:p-3 text-left hidden lg:table-cell w-20">Productos</th>
-                    <th className="p-2 md:p-3 text-left w-16 md:w-20">Prioridad</th>
+                    <th className="p-2 md:p-3 text-left w-20 md:w-24">Despacho</th>
                     <th className="p-2 md:p-3 text-left w-16 md:w-20">Estado</th>
                   </tr>
                 </thead>
@@ -311,15 +327,28 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
                           {pedido.productos?.length || 0}
                         </td>
                         <td className="p-2 md:p-3">
-                          <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
-                            pedido.prioridad === 'Alta' || pedido.prioridad === 'Urgente'
-                              ? 'bg-red-100 text-red-700'
-                              : pedido.prioridad === 'Media'
-                                ? 'bg-yellow-100 text-yellow-700'
+                          {pedido.estadoDespachoSQL ? (
+                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                              pedido.estadoDespachoSQL === 'Despachado'
+                                ? 'bg-green-100 text-green-700'
+                                : pedido.estadoDespachoSQL === 'Parcial'
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {pedido.estadoDespachoSQL}
+                              {pedido.porcentajeDespacho > 0 && pedido.porcentajeDespacho < 100
+                                ? ` ${pedido.porcentajeDespacho}%`
+                                : ''}
+                            </span>
+                          ) : (
+                            <span className={`px-1.5 py-0.5 rounded-full text-xs font-medium ${
+                              pedido.prioridad === 'Alta' || pedido.prioridad === 'Urgente'
+                                ? 'bg-red-100 text-red-700'
                                 : 'bg-gray-100 text-gray-700'
-                          }`}>
-                            {pedido.prioridad}
-                          </span>
+                            }`}>
+                              {pedido.prioridad}
+                            </span>
+                          )}
                         </td>
                         <td className="p-2 md:p-3">
                           {yaExiste ? (

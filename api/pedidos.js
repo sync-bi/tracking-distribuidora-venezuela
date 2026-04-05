@@ -15,16 +15,17 @@ module.exports = async function handler(req, res) {
     // Parámetros de filtro
     const { desde, estado } = req.query;
 
-    // Fecha por defecto: últimos 15 días
-    const fechaDesde = desde || new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    // Fecha por defecto: 15 de marzo 2026
+    const fechaDesde = desde || '2026-03-15';
 
-    // status en Profit: 0 = pendiente, 1 = parcial, 2 = completado
+    // status en Profit: 0 = pendiente, 1 = parcial, 2 = completado (despachado/facturado)
     let filtroEstado = '';
     if (estado === 'pendientes') {
       filtroEstado = "AND p.status IN ('0', '1')";
-    } else if (estado === 'completados') {
+    } else if (estado === 'despachados') {
       filtroEstado = "AND p.status = '2'";
     }
+    // 'todos' o sin filtro = trae todo
 
     // Query principal: pedidos con cliente, coordenadas, vendedor y zona
     const result = await pool.request()
@@ -35,6 +36,7 @@ module.exports = async function handler(req, res) {
           p.fec_emis AS fecha_emision,
           p.fec_venc AS fecha_vencimiento,
           p.total_neto,
+          p.total_bruto,
           p.status AS status_pedido,
           p.anulado,
           RTRIM(p.co_ven) AS codigo_vendedor,
@@ -60,12 +62,11 @@ module.exports = async function handler(req, res) {
         ORDER BY p.fec_emis DESC
       `);
 
-    // Obtener renglones de todos los pedidos encontrados
+    // Obtener renglones con info de pendientes
     const docNums = result.recordset.map(p => p.numero_pedido);
 
     let renglones = [];
     if (docNums.length > 0) {
-      // Construir lista de doc_nums para IN clause (en batches si son muchos)
       const batch = docNums.slice(0, 500);
       const placeholders = batch.map((_, i) => `@doc${i}`).join(',');
       const rengRequest = pool.request();
@@ -78,6 +79,7 @@ module.exports = async function handler(req, res) {
           RTRIM(r.co_art) AS codigo_articulo,
           COALESCE(RTRIM(r.des_art), RTRIM(a.art_des), RTRIM(r.co_art)) AS descripcion_articulo,
           r.total_art AS cantidad,
+          r.pendiente AS pendiente,
           r.prec_vta AS precio_unitario,
           r.reng_neto AS monto_renglon,
           RTRIM(r.co_alma) AS codigo_almacen
@@ -101,39 +103,65 @@ module.exports = async function handler(req, res) {
         codigoArticulo: r.codigo_articulo,
         descripcion: r.descripcion_articulo,
         cantidad: r.cantidad,
+        pendiente: r.pendiente,
+        despachado: r.cantidad - r.pendiente,
         precioUnitario: r.precio_unitario,
         montoRenglon: r.monto_renglon,
         almacen: r.codigo_almacen
       });
     });
 
-    // Armar respuesta con coordenadas corregidas
-    const pedidos = result.recordset.map(p => {
-      // Corregir coordenadas invertidas en zt_coordenada
-      let lat = null, lng = null;
-      const v1 = parseFloat(p.coord_valor1);
-      const v2 = parseFloat(p.coord_valor2);
-      if (!isNaN(v1) && !isNaN(v2)) {
-        // Venezuela: lat ~1-12, lng ~-73 a -60
-        // Si valor1 es positivo y <13 → es latitud; si es negativo → es longitud
-        if (v1 > 0 && v1 < 13) {
-          lat = v1;
-          lng = v2;
-        } else if (v1 < 0) {
-          lat = v2;
-          lng = v1;
-        } else {
-          lat = v1;
-          lng = v2;
-        }
+    // Corregir coordenadas invertidas en zt_coordenada
+    const corregirCoords = (v1Raw, v2Raw) => {
+      const v1 = parseFloat(v1Raw);
+      const v2 = parseFloat(v2Raw);
+      if (isNaN(v1) || isNaN(v2)) return null;
+      // Venezuela: lat ~1-12, lng ~-73 a -60
+      if (v1 > 0 && v1 < 13) return { lat: v1, lng: v2 };
+      if (v1 < 0) return { lat: v2, lng: v1 };
+      return { lat: v1, lng: v2 };
+    };
+
+    // Determinar estado real del pedido
+    const determinarEstado = (statusProfit, productos) => {
+      // Status Profit: 0=Pendiente, 1=Parcial, 2=Completado
+      if (statusProfit === '2') {
+        const todoDespachado = productos.every(p => p.pendiente === 0);
+        return todoDespachado ? 'Despachado' : 'Parcial';
       }
+      if (statusProfit === '1') return 'Parcial';
+
+      // Status 0: verificar si tiene algo despachado
+      const algoDespachado = productos.some(p => p.despachado > 0);
+      return algoDespachado ? 'Parcial' : 'Pendiente';
+    };
+
+    // Armar respuesta
+    const pedidos = result.recordset.map(p => {
+      const productos = renglonesPorPedido[p.numero_pedido] || [];
+      const coordenadas = corregirCoords(p.coord_valor1, p.coord_valor2);
+      const estadoDespacho = determinarEstado(p.status_pedido, productos);
+
+      // Calcular totales de despacho
+      const totalUnidades = productos.reduce((s, pr) => s + pr.cantidad, 0);
+      const totalPendiente = productos.reduce((s, pr) => s + pr.pendiente, 0);
+      const totalDespachado = totalUnidades - totalPendiente;
+      const porcentajeDespacho = totalUnidades > 0
+        ? Math.round((totalDespachado / totalUnidades) * 100)
+        : 0;
 
       return {
         numeroPedido: p.numero_pedido,
         fechaEmision: p.fecha_emision,
         fechaVencimiento: p.fecha_vencimiento,
         totalNeto: p.total_neto,
-        status: p.status_pedido === '0' ? 'Pendiente' : p.status_pedido === '1' ? 'Parcial' : 'Completado',
+        totalBruto: p.total_bruto,
+        statusProfit: p.status_pedido,
+        estadoDespacho,
+        porcentajeDespacho,
+        totalUnidades,
+        totalDespachado,
+        totalPendiente,
         codigoCliente: p.codigo_cliente,
         nombreCliente: p.nombre_cliente,
         direccionCliente: p.direccion_entrega || p.direccion_cliente,
@@ -143,15 +171,23 @@ module.exports = async function handler(req, res) {
         nombreZona: p.nombre_zona,
         codigoVendedor: p.codigo_vendedor,
         nombreVendedor: p.nombre_vendedor,
-        coordenadas: lat !== null ? { lat, lng } : null,
-        productos: renglonesPorPedido[p.numero_pedido] || []
+        coordenadas,
+        productos
       };
     });
 
+    // Resumen
+    const resumen = {
+      total: pedidos.length,
+      pendientes: pedidos.filter(p => p.estadoDespacho === 'Pendiente').length,
+      parciales: pedidos.filter(p => p.estadoDespacho === 'Parcial').length,
+      despachados: pedidos.filter(p => p.estadoDespacho === 'Despachado').length
+    };
+
     res.status(200).json({
       ok: true,
-      total: pedidos.length,
       fechaDesde,
+      resumen,
       pedidos
     });
   } catch (error) {
