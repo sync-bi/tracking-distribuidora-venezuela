@@ -216,56 +216,130 @@ const TabNoConformidad = ({ pedidos = [], despachos = [] }) => {
             const estadoInfo = ESTADOS_NC.find(e => e.value === nc.estado) || ESTADOS_NC[0];
             const gravedadInfo = GRAVEDADES.find(g => g.value === nc.gravedad) || GRAVEDADES[0];
 
+            // Parsear la descripción para separar cliente y items
+            const descParts = (nc.descripcion || '').split('. ');
+            const headerDesc = descParts[0] || '';
+            const clienteMatch = headerDesc.match(/Cliente:\s*(.+)/);
+            const pedidoMatch = headerDesc.match(/Pedido\s+(\S+)/);
+            const clienteNombre = clienteMatch ? clienteMatch[1] : '';
+            const pedidoNum = pedidoMatch ? pedidoMatch[1] : nc.pedidoId || '';
+
+            // Items con problemas (después del punto)
+            const itemsTexto = descParts.slice(1).join('. ').trim();
+            const itemsList = itemsTexto
+              ? itemsTexto.split(';').map(i => i.trim()).filter(Boolean)
+              : [];
+
             return (
-              <div key={nc.id} className="bg-white rounded-lg shadow p-4">
-                <div className="flex flex-col sm:flex-row justify-between gap-2 mb-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${estadoInfo.color}`}>
-                      {nc.estado}
-                    </span>
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${gravedadInfo.color}`}>
-                      {nc.gravedad}
-                    </span>
-                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                      {nc.tipo}
-                    </span>
+              <div key={nc.id} className={`bg-white rounded-lg shadow overflow-hidden border-l-4 ${
+                nc.estado === 'Abierta' ? 'border-l-red-500' :
+                nc.estado === 'En proceso' ? 'border-l-yellow-500' :
+                'border-l-green-500'
+              }`}>
+                {/* Header */}
+                <div className="p-4 pb-3">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <AlertTriangle size={16} className={
+                          nc.gravedad === 'Grave' ? 'text-red-500' :
+                          nc.gravedad === 'Moderada' ? 'text-orange-500' :
+                          'text-yellow-500'
+                        } />
+                        <span className="font-bold text-gray-900">{nc.tipo}</span>
+                      </div>
+                      {clienteNombre && (
+                        <p className="text-sm text-gray-700 font-medium">{clienteNombre}</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${estadoInfo.color}`}>
+                        {nc.estado}
+                      </span>
+                      <span className="text-xs text-gray-400">{formatFecha(nc.fechaReporte)}</span>
+                    </div>
                   </div>
-                  <span className="text-xs text-gray-400">{formatFecha(nc.fechaReporte)}</span>
+
+                  {/* Info rápida */}
+                  <div className="flex flex-wrap gap-3 mb-3">
+                    {pedidoNum && (
+                      <div className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg">
+                        <FileText size={13} className="text-gray-400" />
+                        <span className="text-xs text-gray-600">Pedido</span>
+                        <span className="text-xs font-bold text-gray-800">{pedidoNum}</span>
+                      </div>
+                    )}
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg ${gravedadInfo.color}`}>
+                      <span className="text-xs font-medium">{nc.gravedad}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <p className="text-sm text-gray-800 mb-2">{nc.descripcion}</p>
+                {/* Items con problemas */}
+                {itemsList.length > 0 && (
+                  <div className="px-4 pb-3">
+                    <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Productos afectados</p>
+                    <div className="space-y-1.5">
+                      {itemsList.map((item, idx) => {
+                        const [producto, ...causaParts] = item.split(':');
+                        const causa = causaParts.join(':').trim();
+                        return (
+                          <div key={idx} className="flex items-start gap-2 bg-red-50 rounded-lg p-2.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium text-gray-800">{producto?.trim()}</p>
+                              {causa && <p className="text-xs text-red-600 mt-0.5">{causa}</p>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-                <div className="flex flex-wrap gap-4 text-xs text-gray-500 mb-3">
-                  {nc.pedidoId && <span>Pedido: <strong>{nc.pedidoId}</strong></span>}
-                  {nc.responsable && <span>Responsable: <strong>{nc.responsable}</strong></span>}
-                </div>
-
-                {nc.accionCorrectiva && (
-                  <div className="text-xs bg-blue-50 p-2 rounded mb-3">
-                    <strong className="text-blue-700">Acción correctiva:</strong>{' '}
-                    <span className="text-blue-600">{nc.accionCorrectiva}</span>
+                {/* Responsable y acción correctiva */}
+                {(nc.responsable || nc.accionCorrectiva) && (
+                  <div className="px-4 pb-3 space-y-2">
+                    {nc.responsable && (
+                      <div className="text-xs">
+                        <span className="text-gray-500">Responsable:</span>{' '}
+                        <span className="font-medium text-gray-800">{nc.responsable}</span>
+                      </div>
+                    )}
+                    {nc.accionCorrectiva && (
+                      <div className="bg-blue-50 p-2.5 rounded-lg">
+                        <p className="text-xs font-semibold text-blue-700 mb-0.5">Acción correctiva</p>
+                        <p className="text-xs text-blue-600">{nc.accionCorrectiva}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
                 {/* Acciones */}
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="px-4 py-3 bg-gray-50 flex gap-2">
                   {nc.estado === 'Abierta' && (
                     <button
                       onClick={() => handleCambiarEstado(nc.id, 'En proceso')}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-yellow-500 text-white rounded text-xs hover:bg-yellow-600"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-yellow-500 text-white rounded-lg text-xs font-medium hover:bg-yellow-600 transition-colors"
                     >
-                      <Clock size={12} />
-                      En proceso
+                      <Clock size={14} />
+                      Marcar en proceso
                     </button>
                   )}
                   {(nc.estado === 'Abierta' || nc.estado === 'En proceso') && (
                     <button
                       onClick={() => handleCambiarEstado(nc.id, 'Cerrada')}
-                      className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white rounded text-xs hover:bg-green-600"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 transition-colors"
                     >
-                      <CheckCircle size={12} />
-                      Cerrar
+                      <CheckCircle size={14} />
+                      Cerrar caso
                     </button>
+                  )}
+                  {nc.estado === 'Cerrada' && (
+                    <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
+                      <CheckCircle size={14} />
+                      Caso cerrado
+                    </span>
                   )}
                 </div>
               </div>
