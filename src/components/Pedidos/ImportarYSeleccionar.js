@@ -3,15 +3,52 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Upload, Search, CheckSquare, Square, Package, Truck, Database, FileSpreadsheet } from 'lucide-react';
 import Modal from '../UI/Modal';
 import { mapRowsToPedidos, parseCSV } from '../../utils/importers';
+import { obtenerCorreccionesClientes } from '../../services/firestoreService';
 
 // Convierte un pedido de la API SQL al formato que usa el sistema
-const sqlPedidoToLocal = (p) => {
+const sqlPedidoToLocal = (p, correcciones = {}) => {
   // Mapear estado de despacho de SQL al estado del tracking
   const mapearEstado = () => {
     if (p.estadoDespacho === 'Despachado') return 'Entregado';
     if (p.estadoDespacho === 'Parcial') return 'En Ruta';
     return 'Pendiente';
   };
+
+  // Resolver coordenadas en orden de prioridad:
+  // 1. zt_coordenada (SQL) — viene en p.coordenadas
+  // 2. clientes_correcciones (Firebase) — viene en correcciones
+  // 3. Geocodificación por ciudad (Mapbox) — viene en p.coordenadas si fue geocodificada
+  // 4. Default Caracas
+  let coordenadas = null;
+  let fuenteCoord = 'ninguna';
+
+  // Nivel 1: zt_coordenada (SQL) — coordenadas que NO son geocodificadas
+  if (p.coordenadas && !p.coordenadas.geocodificada) {
+    coordenadas = p.coordenadas;
+    fuenteCoord = 'sql';
+  }
+
+  // Nivel 2: correcciones de Firebase
+  if (!coordenadas) {
+    const codigoNorm = (p.codigoCliente || '').replace(/^0+/, '');
+    const correccion = correcciones[codigoNorm] || correcciones[p.codigoCliente];
+    if (correccion?.coordenadas?.lat && correccion?.coordenadas?.lng) {
+      coordenadas = { lat: correccion.coordenadas.lat, lng: correccion.coordenadas.lng };
+      fuenteCoord = 'firebase';
+    }
+  }
+
+  // Nivel 3: geocodificación por ciudad (Mapbox)
+  if (!coordenadas && p.coordenadas?.geocodificada) {
+    coordenadas = p.coordenadas;
+    fuenteCoord = 'geocodificada';
+  }
+
+  // Nivel 4: default
+  if (!coordenadas) {
+    coordenadas = { lat: 10.4806, lng: -66.9036 };
+    fuenteCoord = 'default';
+  }
 
   return {
     id: p.numeroPedido,
@@ -22,7 +59,8 @@ const sqlPedidoToLocal = (p) => {
     telefono: p.telefonoCliente || '',
     ciudad: p.ciudadCliente || '',
     zona: p.nombreZona || '',
-    coordenadas: p.coordenadas || { lat: 10.4806, lng: -66.9036 },
+    coordenadas,
+    fuenteCoordenadas: fuenteCoord,
     productos: (p.productos || []).map(prod => ({
       tipo: 'Repuesto',
       marca: '',
@@ -72,7 +110,20 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
         if (res.ok) {
           const data = await res.json();
           if (data.ok && data.pedidos && data.pedidos.length > 0) {
-            const pedidos = data.pedidos.map(sqlPedidoToLocal);
+            // Cargar correcciones de Firebase para resolver coordenadas
+            let correcciones = {};
+            try {
+              correcciones = await obtenerCorreccionesClientes();
+              console.log(`📍 ${Object.keys(correcciones).length} correcciones de ubicación cargadas`);
+            } catch (_) { /* sin correcciones */ }
+
+            const pedidos = data.pedidos.map(p => sqlPedidoToLocal(p, correcciones));
+
+            // Log de fuentes de coordenadas
+            const fuentes = {};
+            pedidos.forEach(p => { fuentes[p.fuenteCoordenadas] = (fuentes[p.fuenteCoordenadas] || 0) + 1; });
+            console.log('📊 Fuentes de coordenadas:', fuentes);
+
             setPedidosImportados(pedidos);
             setFuenteDatos('sql');
             setCargando(false);
