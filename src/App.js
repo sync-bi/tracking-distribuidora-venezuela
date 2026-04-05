@@ -176,6 +176,8 @@ const App = () => {
       actualizarEstadoCamion(datosDespacho.camionId, 'Asignado');
 
       // WhatsApp automático: enviar notificación a cada cliente
+      // MODO PRUEBA: todos los mensajes van al número de prueba
+      const TELEFONO_PRUEBA = '573134967101'; // TODO: quitar después de pruebas
       const placaVehiculo = camionInfo?.placa || 'N/A';
       const nombreConductor = conductorInfo?.nombre || 'N/A';
 
@@ -183,10 +185,8 @@ const App = () => {
         const trackingUrl = `${window.location.origin}/tracking/${pedido.numeroPedido || pedido.id}`;
         const mensaje = `*Distribuidora Sarego*\n\nHola ${pedido.cliente || ''},\n\nSu pedido *${pedido.numeroPedido || pedido.id}* está en consolidación.\n\n🚛 Vehículo: ${placaVehiculo}\n👤 Conductor: ${nombreConductor}\n\n📍 Siga su pedido en tiempo real:\n${trackingUrl}\n\nGracias por su preferencia.`;
 
-        const telefono = (pedido.telefono || '').replace(/[^0-9+]/g, '');
-        const waUrl = telefono
-          ? `https://wa.me/${telefono.startsWith('+') ? telefono.slice(1) : telefono}?text=${encodeURIComponent(mensaje)}`
-          : `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+        // Modo prueba: usar número fijo. En producción cambiar a: pedido.telefono
+        const waUrl = `https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(mensaje)}`;
 
         window.open(waUrl, '_blank');
       }
