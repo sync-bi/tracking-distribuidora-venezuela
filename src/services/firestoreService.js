@@ -955,6 +955,131 @@ export const eliminarConductor = async (conductorId) => {
   await deleteDoc(doc(db, 'conductores', conductorId));
 };
 
+// ==========================================
+// NO CONFORMIDADES
+// ==========================================
+
+/**
+ * Crear una no conformidad
+ */
+export const crearNoConformidad = async (datos, userId = 'sistema') => {
+  if (!db) return null;
+
+  try {
+    const ncRef = doc(collection(db, 'no_conformidades'));
+    const nc = {
+      ...datos,
+      id: ncRef.id,
+      estado: 'Abierta',
+      fechaReporte: serverTimestamp(),
+      reportadoPor: userId,
+      fechaActualizacion: serverTimestamp()
+    };
+    await setDoc(ncRef, nc);
+    await registrarAuditoria('crear', 'no_conformidad', ncRef.id, userId, null, nc);
+    console.log('✅ No conformidad creada:', ncRef.id);
+    return { ...nc, id: ncRef.id };
+  } catch (error) {
+    console.error('❌ Error al crear no conformidad:', error);
+    throw error;
+  }
+};
+
+/**
+ * Escuchar no conformidades en tiempo real
+ */
+export const escucharNoConformidades = (callback) => {
+  if (!db) return () => {};
+
+  const ncRef = collection(db, 'no_conformidades');
+  const q = query(ncRef, orderBy('fechaReporte', 'desc'));
+
+  return onSnapshot(q, (snapshot) => {
+    const ncs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    callback(ncs);
+  });
+};
+
+/**
+ * Actualizar no conformidad
+ */
+export const actualizarNoConformidad = async (ncId, datos, userId = 'sistema') => {
+  if (!db) return;
+
+  try {
+    const ncRef = doc(db, 'no_conformidades', ncId);
+    await updateDoc(ncRef, {
+      ...datos,
+      fechaActualizacion: serverTimestamp(),
+      actualizadoPor: userId
+    });
+    console.log('✅ No conformidad actualizada:', ncId);
+  } catch (error) {
+    console.error('❌ Error al actualizar no conformidad:', error);
+    throw error;
+  }
+};
+
+// ==========================================
+// LIMPIEZA AUTOMÁTICA DE PEDIDOS DESISTIDOS
+// ==========================================
+
+/**
+ * Eliminar pedidos con estado "Desistido" que fueron marcados antes de hoy.
+ * Se ejecuta al cargar la app para limpiar pedidos del día anterior.
+ */
+export const limpiarPedidosDesistidos = async (userId = 'sistema') => {
+  if (!db) return 0;
+
+  try {
+    const pedidosRef = collection(db, 'pedidos');
+    const q = query(pedidosRef, where('estado', '==', 'Desistido'));
+    const snapshot = await getDocs(q);
+
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    let eliminados = 0;
+    const batch = writeBatch(db);
+
+    snapshot.docs.forEach(docSnap => {
+      const data = docSnap.data();
+      let fechaDesistido = null;
+
+      // Obtener la fecha en que se marcó como desistido
+      if (data.fechaActualizacion?.toDate) {
+        fechaDesistido = data.fechaActualizacion.toDate();
+      } else if (data.fechaActualizacion) {
+        fechaDesistido = new Date(data.fechaActualizacion);
+      }
+
+      // Si fue marcado antes de hoy, eliminar
+      if (fechaDesistido && fechaDesistido < hoy) {
+        batch.delete(docSnap.ref);
+        eliminados++;
+      }
+    });
+
+    if (eliminados > 0) {
+      await batch.commit();
+      await registrarAuditoria(
+        'limpieza_automatica',
+        'pedidos_desistidos',
+        `${eliminados}_pedidos`,
+        userId,
+        null,
+        { cantidad: eliminados, fecha: new Date().toISOString() }
+      );
+      console.log(`🧹 ${eliminados} pedido(s) desistido(s) eliminados automáticamente`);
+    }
+
+    return eliminados;
+  } catch (error) {
+    console.error('❌ Error al limpiar pedidos desistidos:', error);
+    return 0;
+  }
+};
+
 // Exportar todo
 export default {
   isFirestoreAvailable,
@@ -999,5 +1124,9 @@ export default {
   crearConductor,
   actualizarConductor,
   eliminarCamion,
-  eliminarConductor
+  eliminarConductor,
+  limpiarPedidosDesistidos,
+  crearNoConformidad,
+  escucharNoConformidades,
+  actualizarNoConformidad
 };

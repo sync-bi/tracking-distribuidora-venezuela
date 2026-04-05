@@ -2,9 +2,11 @@
 
 export const ESTADOS_PEDIDO = {
   PENDIENTE: 'Pendiente',
+  EN_CONSOLIDACION: 'En Consolidación',
   ASIGNADO: 'Asignado',
   EN_RUTA: 'En Ruta',
   ENTREGADO: 'Entregado',
+  DESISTIDO: 'Desistido',
   CANCELADO: 'Cancelado'
 };
 
@@ -127,9 +129,11 @@ export const DEPOSITOS = {
 
 export const COLORES_ESTADO = {
   [ESTADOS_PEDIDO.PENDIENTE]: 'bg-yellow-100 text-yellow-800',
+  [ESTADOS_PEDIDO.EN_CONSOLIDACION]: 'bg-purple-100 text-purple-800',
   [ESTADOS_PEDIDO.ASIGNADO]: 'bg-blue-100 text-blue-800',
   [ESTADOS_PEDIDO.EN_RUTA]: 'bg-green-100 text-green-800',
   [ESTADOS_PEDIDO.ENTREGADO]: 'bg-gray-100 text-gray-800',
+  [ESTADOS_PEDIDO.DESISTIDO]: 'bg-orange-100 text-orange-800',
   [ESTADOS_PEDIDO.CANCELADO]: 'bg-red-100 text-red-800'
 };
 

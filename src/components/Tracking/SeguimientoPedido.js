@@ -1,5 +1,5 @@
 // src/components/Tracking/SeguimientoPedido.js
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Package,
   Truck,
@@ -20,10 +20,12 @@ import {
   obtenerReciboPedido,
   isFirestoreAvailable
 } from '../../services/firestoreService';
+import { escucharPosicionVehiculo } from '../../services/firebase';
 
 // Configuración de estados y su orden en el timeline
 const ESTADOS_TIMELINE = [
   { key: 'Pendiente', label: 'Pedido recibido', icon: Package, color: 'yellow' },
+  { key: 'En Consolidación', label: 'Pedido en consolidación', icon: Package, color: 'blue' },
   { key: 'Asignado', label: 'Asignado a transporte', icon: Truck, color: 'blue' },
   { key: 'En Ruta', label: 'En camino', icon: MapPin, color: 'indigo' },
   { key: 'Entregado', label: 'Entregado', icon: CheckCircle, color: 'green' }
@@ -206,6 +208,124 @@ const TimelineEstados = ({ estadoActual, historial, esEntregaParcial }) => {
           </div>
         );
       })}
+    </div>
+  );
+};
+
+// Mapa de seguimiento en tiempo real del vehículo
+const MapaSeguimiento = ({ camionId, coordenadasDestino }) => {
+  const [posicionVehiculo, setPosicionVehiculo] = useState(null);
+  const mapContainerRef = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+
+  // Escuchar posición del vehículo
+  useEffect(() => {
+    if (!camionId) return;
+
+    const unsubscribe = escucharPosicionVehiculo(camionId, (posicion) => {
+      if (posicion && posicion.lat && posicion.lng) {
+        setPosicionVehiculo(posicion);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [camionId]);
+
+  // Inicializar y actualizar mapa
+  useEffect(() => {
+    if (!mapContainerRef.current || !posicionVehiculo) return;
+
+    const initMap = async () => {
+      try {
+        const mapboxgl = (await import('mapbox-gl')).default;
+        await import('mapbox-gl/dist/mapbox-gl.css');
+
+        if (!mapRef.current) {
+          mapboxgl.accessToken = process.env.REACT_APP_MAPBOX_TOKEN;
+          const map = new mapboxgl.Map({
+            container: mapContainerRef.current,
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [posicionVehiculo.lng, posicionVehiculo.lat],
+            zoom: 13,
+            attributionControl: false
+          });
+          map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+          mapRef.current = map;
+
+          // Marcador del vehículo
+          const el = document.createElement('div');
+          el.innerHTML = '<div style="background:#3b82f6;border:3px solid white;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M5 17h14l1-7H4l1 7z"/><circle cx="7.5" cy="19.5" r="1.5"/><circle cx="16.5" cy="19.5" r="1.5"/><path d="M14 17V6H3v11"/></svg></div>';
+          markerRef.current = new mapboxgl.Marker({ element: el })
+            .setLngLat([posicionVehiculo.lng, posicionVehiculo.lat])
+            .addTo(map);
+
+          // Marcador del destino
+          if (coordenadasDestino?.lat && coordenadasDestino?.lng) {
+            const destEl = document.createElement('div');
+            destEl.innerHTML = '<div style="background:#ef4444;border:3px solid white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.3)"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/></svg></div>';
+            new mapboxgl.Marker({ element: destEl })
+              .setLngLat([coordenadasDestino.lng, coordenadasDestino.lat])
+              .addTo(map);
+
+            // Ajustar vista para mostrar ambos puntos
+            const bounds = new mapboxgl.LngLatBounds();
+            bounds.extend([posicionVehiculo.lng, posicionVehiculo.lat]);
+            bounds.extend([coordenadasDestino.lng, coordenadasDestino.lat]);
+            map.fitBounds(bounds, { padding: 60, maxZoom: 14 });
+          }
+        } else {
+          // Actualizar posición del marcador
+          if (markerRef.current) {
+            markerRef.current.setLngLat([posicionVehiculo.lng, posicionVehiculo.lat]);
+          }
+          mapRef.current.flyTo({
+            center: [posicionVehiculo.lng, posicionVehiculo.lat],
+            duration: 1000
+          });
+        }
+      } catch (err) {
+        console.error('Error cargando mapa:', err);
+      }
+    };
+
+    initMap();
+  }, [posicionVehiculo, coordenadasDestino]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markerRef.current = null;
+      }
+    };
+  }, []);
+
+  if (!camionId) return null;
+
+  return (
+    <div className="bg-white rounded-2xl shadow overflow-hidden">
+      <div className="p-4 border-b flex items-center gap-2">
+        <MapPin size={18} className="text-blue-600" />
+        <h3 className="font-semibold text-gray-800">Ubicación del vehículo</h3>
+        {posicionVehiculo?.velocidad > 0 && (
+          <span className="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+            {Math.round(posicionVehiculo.velocidad)} km/h
+          </span>
+        )}
+      </div>
+      <div ref={mapContainerRef} style={{ height: '250px', width: '100%' }}>
+        {!posicionVehiculo && (
+          <div className="h-full flex items-center justify-center bg-gray-50">
+            <div className="text-center text-gray-400">
+              <Truck size={32} className="mx-auto mb-2 animate-pulse" />
+              <p className="text-sm">Esperando ubicación del vehículo...</p>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -519,6 +639,42 @@ const SeguimientoPedido = () => {
             esEntregaParcial={esEntregaParcial}
           />
         </div>
+
+        {/* Mapa en tiempo real cuando está en ruta */}
+        {(pedido.estado === 'En Ruta' || pedido.estado === 'Asignado') && pedido.camionAsignado && (
+          <MapaSeguimiento
+            camionId={pedido.camionAsignado}
+            coordenadasDestino={pedido.coordenadas}
+          />
+        )}
+
+        {/* Info del vehículo y conductor */}
+        {pedido.camionAsignado && (pedido.estado === 'En Ruta' || pedido.estado === 'En Consolidación' || pedido.estado === 'Asignado') && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <h4 className="font-semibold text-blue-800 flex items-center gap-2 mb-2">
+              <Truck size={18} />
+              Información de transporte
+            </h4>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div>
+                <p className="text-gray-500">Vehículo</p>
+                <p className="font-medium text-gray-800">{pedido.camionAsignado}</p>
+              </div>
+              {pedido.placaVehiculo && (
+                <div>
+                  <p className="text-gray-500">Placa</p>
+                  <p className="font-medium text-gray-800">{pedido.placaVehiculo}</p>
+                </div>
+              )}
+              {pedido.nombreConductor && (
+                <div>
+                  <p className="text-gray-500">Conductor</p>
+                  <p className="font-medium text-gray-800">{pedido.nombreConductor}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Recibo de entrega */}
         {recibo && <InfoRecibo recibo={recibo} />}

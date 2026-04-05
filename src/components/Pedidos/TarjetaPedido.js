@@ -13,9 +13,11 @@ const TarjetaPedido = ({
   const obtenerColorEstado = (estado) => {
     const colores = {
       'Pendiente': 'bg-yellow-100 text-yellow-800',
+      'En Consolidación': 'bg-purple-100 text-purple-800',
       'Asignado': 'bg-blue-100 text-blue-800',
       'En Ruta': 'bg-green-100 text-green-800',
       'Entregado': 'bg-gray-100 text-gray-800',
+      'Desistido': 'bg-orange-100 text-orange-800',
       'Cancelado': 'bg-red-100 text-red-800'
     };
     return colores[estado] || 'bg-gray-100 text-gray-800';
@@ -41,6 +43,10 @@ const TarjetaPedido = ({
         return <MapPin size={14} className="text-green-600" />;
       case 'Entregado':
         return <Package size={14} className="text-gray-600" />;
+      case 'En Consolidación':
+        return <Package size={14} className="text-purple-600" />;
+      case 'Desistido':
+        return <AlertCircle size={14} className="text-orange-600" />;
       case 'Cancelado':
         return <AlertCircle size={14} className="text-red-600" />;
       default:
@@ -170,17 +176,17 @@ const TarjetaPedido = ({
           </select>
         )}
 
-        {pedido.estado !== 'Entregado' && (
+        {pedido.estado !== 'Entregado' && pedido.estado !== 'Desistido' && (
           <select
             className="w-full text-xs p-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
             value={pedido.estado}
             onChange={(e) => onActualizarEstado(pedido.id, e.target.value)}
           >
             <option value="Pendiente">Pendiente</option>
+            <option value="En Consolidación">En Consolidación</option>
             <option value="Asignado">Asignado</option>
             <option value="En Ruta">En Ruta</option>
             <option value="Entregado">Entregado</option>
-            <option value="Cancelado">Cancelado</option>
           </select>
         )}
 
@@ -204,12 +210,16 @@ const TarjetaPedido = ({
             {copiado ? <Check size={12} /> : <Share2 size={12} />}
             {copiado ? 'Enviado!' : 'WhatsApp'}
           </button>
-          {pedido.estado === 'Pendiente' && (
+          {(pedido.estado === 'Pendiente' || pedido.estado === 'En Consolidación') && (
             <button
-              onClick={() => onEliminar(pedido.id)}
-              className="flex-1 py-1.5 bg-red-500 text-white rounded text-xs hover:bg-red-600"
+              onClick={() => {
+                if (window.confirm(`¿El cliente desiste del pedido ${pedido.id}? Se eliminará automáticamente mañana.`)) {
+                  onActualizarEstado(pedido.id, 'Desistido');
+                }
+              }}
+              className="flex-1 py-1.5 bg-orange-500 text-white rounded text-xs hover:bg-orange-600"
             >
-              Eliminar
+              Desistir
             </button>
           )}
         </div>

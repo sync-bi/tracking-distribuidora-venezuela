@@ -14,8 +14,10 @@ import {
   X,
   AlertCircle,
   List,
-  ClipboardList
+  ClipboardList,
+  Map as MapIcon
 } from 'lucide-react';
+import MapaPlanificacion from './MapaPlanificacion';
 
 const TabDespachoSimplificado = ({
   pedidos = [],
@@ -28,7 +30,7 @@ const TabDespachoSimplificado = ({
   const [conductorSeleccionado, setConductorSeleccionado] = useState('');
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
   const [zonaExpandida, setZonaExpandida] = useState(null);
-  const [vistaMobile, setVistaMobile] = useState('pedidos'); // 'pedidos' | 'resumen'
+  const [vistaMobile, setVistaMobile] = useState('pedidos'); // 'pedidos' | 'mapa' | 'resumen'
 
   // Filtrar pedidos disponibles (sin asignar)
   const pedidosDisponibles = useMemo(() => {
@@ -188,6 +190,15 @@ const TabDespachoSimplificado = ({
           Pedidos
         </button>
         <button
+          onClick={() => setVistaMobile('mapa')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors ${
+            vistaMobile === 'mapa' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          <MapIcon size={18} />
+          Mapa
+        </button>
+        <button
           onClick={() => setVistaMobile('resumen')}
           className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg font-medium transition-colors relative ${
             vistaMobile === 'resumen' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'
@@ -204,7 +215,7 @@ const TabDespachoSimplificado = ({
       </div>
 
       {/* Panel izquierdo - Lista de pedidos */}
-      <div id="despachos-pedidos-list" className={`${vistaMobile === 'pedidos' ? 'flex' : 'hidden'} md:flex flex-1 flex-col bg-white rounded-lg shadow-lg min-w-0`}>
+      <div id="despachos-pedidos-list" className={`${vistaMobile === 'pedidos' ? 'flex' : 'hidden'} md:flex md:w-[340px] lg:w-[380px] flex-col bg-white rounded-lg shadow-lg min-w-0 flex-shrink-0`}>
         {/* Header */}
         <div className="p-3 md:p-4 border-b">
           <h2 className="text-lg md:text-xl font-bold flex items-center gap-2 mb-3 md:mb-4">
@@ -340,8 +351,19 @@ const TabDespachoSimplificado = ({
         </div>
       </div>
 
+      {/* Panel central - Mapa de planificación */}
+      <div className={`${vistaMobile === 'mapa' ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-w-0`}>
+        <MapaPlanificacion
+          pedidos={pedidosDisponibles}
+          pedidosSeleccionados={pedidosSeleccionados}
+          onTogglePedido={togglePedido}
+          onToggleZona={toggleZona}
+          zonas={pedidosFiltrados}
+        />
+      </div>
+
       {/* Panel derecho fijo - Resumen y acciones */}
-      <div id="despachos-resumen" className={`${vistaMobile === 'resumen' ? 'flex' : 'hidden'} md:flex w-full md:w-96 flex-col gap-3 md:gap-4 flex-shrink-0 overflow-y-auto`}>
+      <div id="despachos-resumen" className={`${vistaMobile === 'resumen' ? 'flex' : 'hidden'} md:flex w-full md:w-80 flex-col gap-3 md:gap-4 flex-shrink-0 overflow-y-auto`}>
         {/* Card de resumen */}
         <div className="bg-white rounded-lg shadow-lg p-4 md:p-6">
           <h3 className="text-base md:text-lg font-bold mb-3 md:mb-4 flex items-center gap-2">

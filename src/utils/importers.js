@@ -172,6 +172,11 @@ export const mapRowsToPedidos = (rows) => {
     for (const c of cands) { const p = idx(c); if (p >= 0) return p; }
     return -1;
   })();
+  const iTelefono = (() => {
+    const cands = ['telefono', 'telefono_cliente', 'telefonocliente', 'celular', 'movil', 'phone', 'whatsapp'];
+    for (const c of cands) { const p = idx(c); if (p >= 0) return p; }
+    return -1;
+  })();
 
   const body = rows.slice(headerRowIdx + 1).filter(r => r && r.some(v => {
     if (v == null) return false;
@@ -263,6 +268,7 @@ export const mapRowsToPedidos = (rows) => {
         ...(iMontoNeto >= 0 ? { montoNeto: Number(to(head, iMontoNeto) || 0) } : {}),
         ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(head, iFechaVencimiento)) } : {}),
         ...(iVendedor >= 0 ? { vendedorAsignado: String(to(head, iVendedor) || 'Sin asignar') } : { vendedorAsignado: 'Sin asignar' }),
+        ...(iTelefono >= 0 ? { telefono: String(to(head, iTelefono) || '') } : {}),
         ...(coordenadasAdvertencia ? { coordenadasAdvertencia } : {})
       });
       idxPedido++;
@@ -321,7 +327,8 @@ export const mapRowsToPedidos = (rows) => {
       ...(iAlmacen >= 0 ? { almacen: String(to(iAlmacen) || '') } : {}),
       ...(iZona >= 0 ? { zona: String(to(iZona) || '') } : {}),
       ...(iFechaVencimiento >= 0 ? { fechaVencimiento: excelSerialToISO(to(iFechaVencimiento)) } : {}),
-      ...(iVendedor >= 0 ? { vendedorAsignado: String(to(iVendedor) || 'Sin asignar') } : { vendedorAsignado: 'Sin asignar' })
+      ...(iVendedor >= 0 ? { vendedorAsignado: String(to(iVendedor) || 'Sin asignar') } : { vendedorAsignado: 'Sin asignar' }),
+      ...(iTelefono >= 0 ? { telefono: String(to(iTelefono) || '') } : {})
     };
   });
 };

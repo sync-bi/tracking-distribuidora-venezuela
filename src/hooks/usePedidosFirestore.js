@@ -9,7 +9,8 @@ import {
   actualizarUbicacionPedido as actualizarUbicacionFS,
   actualizarEstadoPedido as actualizarEstadoFS,
   eliminarPedido as eliminarPedidoFS,
-  obtenerHistorialUbicaciones
+  obtenerHistorialUbicaciones,
+  limpiarPedidosDesistidos
 } from '../services/firestoreService';
 import { pedidosIniciales } from '../data/mockData';
 import { loadPedidosFromPublic } from '../utils/importers';
@@ -28,6 +29,11 @@ export const usePedidosFirestore = () => {
 
     const inicializar = async () => {
       if (isFirestoreAvailable()) {
+        // Limpiar pedidos desistidos del día anterior
+        limpiarPedidosDesistidos().catch(err =>
+          console.error('Error en limpieza de desistidos:', err)
+        );
+
         // Usar Firestore con sincronización en tiempo real
         console.log('📡 Conectando con Firestore...');
 

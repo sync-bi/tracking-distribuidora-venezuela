@@ -1,8 +1,15 @@
 // src/components/Pedidos/TabPedidos.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Plus, Package, Search } from 'lucide-react';
+import { RefreshCw, Package, Search, Calendar } from 'lucide-react';
 import ImportarYSeleccionar from './ImportarYSeleccionar';
 import TarjetaPedido from './TarjetaPedido';
+
+// Helper: fecha ISO (YYYY-MM-DD) de hace N días
+const fechaHaceDias = (dias) => {
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  return d.toISOString().split('T')[0];
+};
 
 const TabPedidos = ({
   pedidos,
@@ -17,10 +24,10 @@ const TabPedidos = ({
 }) => {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
-  const [filtroEstado, setFiltroEstado] = useState('todos');
+  const [filtroEstado, setFiltroEstado] = useState('pendientes');
   const [filtroPrioridad, setFiltroPrioridad] = useState('todos');
   const [filtroCliente, setFiltroCliente] = useState('');
-  const [filtroFecha, setFiltroFecha] = useState('');
+  const [filtroFechaDesde, setFiltroFechaDesde] = useState(fechaHaceDias(15));
   const [filtroZona, setFiltroZona] = useState('');
   const [terminoBusqueda, setTerminoBusqueda] = useState('');
   const [filtroVencDesde, setFiltroVencDesde] = useState('');
@@ -64,18 +71,35 @@ const TabPedidos = ({
     }
   }, [filtroVencDesde, filtroVencHasta]);
 
+  // Extraer fecha ISO de un pedido (soporta Timestamp de Firestore y strings)
+  const extraerFechaISO = useCallback((fechaCreacion) => {
+    if (!fechaCreacion) return '';
+    if (fechaCreacion.toDate) {
+      return fechaCreacion.toDate().toISOString().split('T')[0];
+    }
+    if (typeof fechaCreacion === 'string' && fechaCreacion.length >= 10) {
+      return fechaCreacion.substring(0, 10);
+    }
+    return '';
+  }, []);
+
   // Filtrar pedidos según criterios
   const pedidosFiltrados = pedidos.filter(pedido => {
-    const cumpleFiltroEstado = filtroEstado === 'todos'
-      ? (pedido.estado !== 'Entregado' && pedido.estado !== 'Entrega Parcial')
-      : pedido.estado === filtroEstado;
+    // Filtro de estado unificado: "pendientes" = todo lo que NO es Entregado/Entrega Parcial/Desistido
+    const cumpleFiltroEstado = filtroEstado === 'pendientes'
+      ? (pedido.estado !== 'Entregado' && pedido.estado !== 'Entrega Parcial' && pedido.estado !== 'Desistido')
+      : filtroEstado === 'todos'
+        ? true
+        : pedido.estado === filtroEstado;
     const cumpleFiltroPrioridad = filtroPrioridad === 'todos' || pedido.prioridad === filtroPrioridad;
     const cumpleBusqueda = terminoBusqueda === '' ||
       (pedido.cliente || '').toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
       (pedido.id || '').toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
       (pedido.direccion || '').toLowerCase().includes(terminoBusqueda.toLowerCase());
     const cumpleCliente = (filtroCliente === '') || ((pedido.cliente || '').toLowerCase().includes(filtroCliente.toLowerCase()));
-    const cumpleFecha = (filtroFecha === '') || ((pedido.fechaCreacion || '') === filtroFecha);
+    // Filtro de fecha: desde la fecha seleccionada hacia adelante
+    const fechaPedido = extraerFechaISO(pedido.fechaCreacion);
+    const cumpleFechaDesde = (filtroFechaDesde === '') || (fechaPedido && fechaPedido >= filtroFechaDesde);
     const ciudadPedidoRaw = (pedido.ciudad && String(pedido.ciudad)) || (pedido.direccion ? String(pedido.direccion).split(',').slice(-1)[0] : '') || '';
     const ciudadPedidoCanon = canonCiudad(ciudadPedidoRaw);
     const cumpleZona = (filtroZona === '') || (ciudadPedidoCanon === filtroZona);
@@ -83,7 +107,7 @@ const TabPedidos = ({
     const cumpleVencDesde = (filtroVencDesde === '') || (vence && vence >= filtroVencDesde);
     const cumpleVencHasta = (filtroVencHasta === '') || (vence && vence <= filtroVencHasta);
 
-    return cumpleFiltroEstado && cumpleFiltroPrioridad && cumpleCliente && cumpleFecha && cumpleZona && cumpleVencDesde && cumpleVencHasta && cumpleBusqueda;
+    return cumpleFiltroEstado && cumpleFiltroPrioridad && cumpleCliente && cumpleFechaDesde && cumpleZona && cumpleVencDesde && cumpleVencHasta && cumpleBusqueda;
   }).sort((a, b) => {
     if (ordenarPorVencimiento) {
       const va = a.fechaVencimiento || '';
@@ -134,8 +158,8 @@ const TabPedidos = ({
             onClick={() => setMostrarFormulario(true)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
           >
-            <Plus size={20} />
-            Importar Pedidos
+            <RefreshCw size={20} />
+            Actualizar Pedidos
           </button>
         </div>
 
@@ -166,9 +190,9 @@ const TabPedidos = ({
 
       {/* Filtros y búsqueda */}
       <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {/* Búsqueda */}
-          <div className="relative">
+          <div className="relative md:col-span-2 lg:col-span-2">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
@@ -179,30 +203,33 @@ const TabPedidos = ({
             />
           </div>
 
-          {/* Filtro por estado */}
+          {/* Filtro por fecha desde */}
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="date"
+              className="w-full pl-10 pr-2 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+              value={filtroFechaDesde}
+              onChange={(e) => setFiltroFechaDesde(e.target.value)}
+              title="Mostrar pedidos desde esta fecha"
+            />
+          </div>
+
+          {/* Filtro por estado - unificado */}
           <select
             className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
             value={filtroEstado}
             onChange={(e) => setFiltroEstado(e.target.value)}
           >
-            <option value="todos">Activos (sin entregados)</option>
-            <option value="Pendiente">Pendiente</option>
+            <option value="pendientes">Pendientes (activos)</option>
+            <option value="todos">Todos los estados</option>
+            <option value="Pendiente">Solo Pendiente</option>
+            <option value="En Consolidación">En Consolidación</option>
             <option value="Asignado">Asignado</option>
             <option value="En Ruta">En Ruta</option>
             <option value="Entregado">Entregado</option>
             <option value="Entrega Parcial">Entrega Parcial</option>
-          </select>
-
-          {/* Filtro por prioridad */}
-          <select
-            className="p-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-            value={filtroPrioridad}
-            onChange={(e) => setFiltroPrioridad(e.target.value)}
-          >
-            <option value="todos">Todas las prioridades</option>
-            <option value="Alta">Alta</option>
-            <option value="Media">Media</option>
-            <option value="Baja">Baja</option>
+            <option value="Desistido">Desistido</option>
           </select>
 
           {/* Zona/Ciudad */}
@@ -211,7 +238,7 @@ const TabPedidos = ({
             value={filtroZona}
             onChange={(e) => setFiltroZona(e.target.value)}
           >
-            <option value="">Todas las zonas/ciudades</option>
+            <option value="">Todas las zonas</option>
             {opcionesZona.map(opt => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
@@ -247,7 +274,7 @@ const TabPedidos = ({
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-1">No hay pedidos</h3>
             <p className="text-gray-500">
-              {filtroCliente || filtroFecha || filtroZona || filtroVencDesde || filtroVencHasta || filtroEstado !== 'todos' || filtroPrioridad !== 'todos'
+              {filtroCliente || filtroFechaDesde || filtroZona || filtroVencDesde || filtroVencHasta || filtroEstado !== 'pendientes' || filtroPrioridad !== 'todos'
                 ? 'No se encontraron pedidos con los filtros aplicados'
                 : 'Aún no has creado ningún pedido'}
             </p>

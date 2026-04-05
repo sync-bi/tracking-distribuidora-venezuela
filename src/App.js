@@ -37,6 +37,9 @@ import TabGestionUbicaciones from './components/Ubicaciones/TabGestionUbicacione
 // Componentes de Clientes
 import TabGestionClientes from './components/Clientes/TabGestionClientes';
 
+// Componentes de No Conformidad
+import TabNoConformidad from './components/NoConformidad/TabNoConformidad';
+
 // Tour Guide
 import TourGuide from './components/UI/TourGuide';
 import { getTourSteps } from './data/tourSteps';
@@ -46,9 +49,9 @@ const App = () => {
   const { user, loading, logout } = useAuth();
 
   const PERMISSIONS = useMemo(() => ({
-    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes'],
-    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes'],
-    despachador: ['despachos', 'seguimiento', 'camiones', 'clientes'],
+    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes', 'no-conformidad'],
+    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes', 'no-conformidad'],
+    despachador: ['despachos', 'seguimiento', 'camiones', 'clientes', 'no-conformidad'],
     visor: ['pedidos', 'seguimiento'],
     conductor: ['conductor'],
     vendedor: ['clientes', 'pedidos']
@@ -150,22 +153,43 @@ const App = () => {
         .map(pedidoId => pedidos.find(p => p.id === pedidoId))
         .filter(p => p); // Filtrar pedidos que existen
 
+      // Obtener info del camión y conductor para WhatsApp
+      const camionInfo = obtenerCamionPorId(datosDespacho.camionId);
+      const conductorInfo = conductores.find(c => c.id === datosDespacho.conductorId);
+
       // Crear despacho con la ruta de pedidos
       const nuevoDespacho = await crearDespacho({
         ...datosDespacho,
         ruta: rutaPedidos
       });
 
-      // Asignar pedidos al camión si se seleccionaron
+      // Asignar pedidos al camión y cambiar estado a "En Consolidación"
       if (datosDespacho.pedidosSeleccionados) {
         for (const pedidoId of datosDespacho.pedidosSeleccionados) {
           await asignarCamionAPedido(pedidoId, datosDespacho.camionId);
           asignarPedidoACamion(datosDespacho.camionId, pedidoId);
+          await actualizarEstadoPedido(pedidoId, 'En Consolidación', 'Despacho creado');
         }
       }
 
       // Actualizar estado del camión
       actualizarEstadoCamion(datosDespacho.camionId, 'Asignado');
+
+      // WhatsApp automático: enviar notificación a cada cliente
+      const placaVehiculo = camionInfo?.placa || 'N/A';
+      const nombreConductor = conductorInfo?.nombre || 'N/A';
+
+      for (const pedido of rutaPedidos) {
+        const trackingUrl = `${window.location.origin}/tracking/${pedido.numeroPedido || pedido.id}`;
+        const mensaje = `*Distribuidora Sarego*\n\nHola ${pedido.cliente || ''},\n\nSu pedido *${pedido.numeroPedido || pedido.id}* está en consolidación.\n\n🚛 Vehículo: ${placaVehiculo}\n👤 Conductor: ${nombreConductor}\n\n📍 Siga su pedido en tiempo real:\n${trackingUrl}\n\nGracias por su preferencia.`;
+
+        const telefono = (pedido.telefono || '').replace(/[^0-9+]/g, '');
+        const waUrl = telefono
+          ? `https://wa.me/${telefono.startsWith('+') ? telefono.slice(1) : telefono}?text=${encodeURIComponent(mensaje)}`
+          : `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+
+        window.open(waUrl, '_blank');
+      }
 
       console.log('✅ Despacho creado exitosamente:', nuevoDespacho?.id);
       return nuevoDespacho;
@@ -383,6 +407,8 @@ const App = () => {
         return <TabGestionUbicaciones {...ubicacionesProps} />;
       case 'clientes':
         return <TabGestionClientes />;
+      case 'no-conformidad':
+        return <TabNoConformidad pedidos={pedidos} despachos={despachos} />;
       default:
         return <TabPedidos {...pedidosProps} />;
     }

@@ -142,13 +142,13 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
   };
 
   return (
-    <Modal isOpen={true} onClose={onCerrar} title="Importar Pedidos" size="xl">
+    <Modal isOpen={true} onClose={onCerrar} title="Actualizar Pedidos" size="xl">
       <div className="p-6">
         {/* Zona de carga de archivo */}
         {cargando ? (
           <div className="text-center py-12">
             <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-gray-600 font-medium">Cargando pedidos del sistema...</p>
+            <p className="text-gray-600 font-medium">Actualizando pedidos del sistema...</p>
           </div>
         ) : pedidosImportados.length === 0 ? (
           <div className="space-y-4">
