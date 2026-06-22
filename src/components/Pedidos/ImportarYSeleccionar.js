@@ -1,9 +1,10 @@
 // src/components/Pedidos/ImportarYSeleccionar.js
 import React, { useState, useMemo, useEffect } from 'react';
-import { Upload, Search, CheckSquare, Square, Package, Truck, Database, FileSpreadsheet } from 'lucide-react';
+import { Upload, Search, CheckSquare, Square, Package, Truck, Database, FileSpreadsheet, AlertTriangle } from 'lucide-react';
 import Modal from '../UI/Modal';
 import { mapRowsToPedidos, parseCSV } from '../../utils/importers';
 import { obtenerCorreccionesClientes } from '../../services/firestoreService';
+import { fetchDespachos } from '../../services/despachosApi';
 
 // Convierte un pedido de la API SQL al formato que usa el sistema
 const sqlPedidoToLocal = (p, correcciones = {}) => {
@@ -85,7 +86,16 @@ const sqlPedidoToLocal = (p, correcciones = {}) => {
     camionAsignado: null,
     vendedorAsignado: p.nombreVendedor || 'Sin asignar',
     montoNeto: p.totalNeto || 0,
-    almacen: (p.productos && p.productos[0]?.almacen) || ''
+    almacen: (p.productos && p.productos[0]?.almacen) || '',
+    // --- Modelo despacho (notas de entrega + facturas) ---
+    tipoDocumento: p.tipoDocumento || null,
+    numeroNota: p.numeroNota || null,
+    numeroFactura: p.numeroFactura || null,
+    fuenteDireccion: p.fuenteDireccion || null,
+    contactoPrincipal: p.contactoPrincipal || null,
+    contactoSecundario: p.contactoSecundario || null,
+    requiereRevision: !!p.requiereRevision,
+    motivoRevision: p.motivoRevision || null
   };
 };
 
@@ -104,31 +114,32 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
       setCargando(true);
       setError(null);
 
-      // 1. Intentar desde SQL Server (API)
+      // 1. Intentar desde SQL Server (despachos: notas de entrega + facturas,
+      //    con respaldo automático a pedidos)
       try {
-        const res = await fetch('/api/pedidos?desde=2026-03-15&estado=pendientes', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.ok && data.pedidos && data.pedidos.length > 0) {
-            // Cargar correcciones de Firebase para resolver coordenadas
-            let correcciones = {};
-            try {
-              correcciones = await obtenerCorreccionesClientes();
-              console.log(`📍 ${Object.keys(correcciones).length} correcciones de ubicación cargadas`);
-            } catch (_) { /* sin correcciones */ }
+        const data = await fetchDespachos({ desde: '2026-03-15', estado: 'pendientes' });
+        if (data.ok && data.pedidos && data.pedidos.length > 0) {
+          // Cargar correcciones de Firebase para resolver coordenadas
+          let correcciones = {};
+          try {
+            correcciones = await obtenerCorreccionesClientes();
+            console.log(`📍 ${Object.keys(correcciones).length} correcciones de ubicación cargadas`);
+          } catch (_) { /* sin correcciones */ }
 
-            const pedidos = data.pedidos.map(p => sqlPedidoToLocal(p, correcciones));
+          const pedidos = data.pedidos.map(p => sqlPedidoToLocal(p, correcciones));
 
-            // Log de fuentes de coordenadas
-            const fuentes = {};
-            pedidos.forEach(p => { fuentes[p.fuenteCoordenadas] = (fuentes[p.fuenteCoordenadas] || 0) + 1; });
-            console.log('📊 Fuentes de coordenadas:', fuentes);
-
-            setPedidosImportados(pedidos);
-            setFuenteDatos('sql');
-            setCargando(false);
-            return;
+          // Log de fuentes de coordenadas
+          const fuentes = {};
+          pedidos.forEach(p => { fuentes[p.fuenteCoordenadas] = (fuentes[p.fuenteCoordenadas] || 0) + 1; });
+          console.log(`📊 Origen: ${data.origen} · Fuentes de coordenadas:`, fuentes);
+          if (data.resumen?.requierenRevision) {
+            console.log(`⚠️ ${data.resumen.requierenRevision} despacho(s) requieren revisar dirección`);
           }
+
+          setPedidosImportados(pedidos);
+          setFuenteDatos('sql');
+          setCargando(false);
+          return;
         }
       } catch (err) {
         console.warn('API SQL no disponible, intentando Excel...', err.message);
@@ -371,8 +382,26 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
                             <Square size={16} className="text-gray-300" />
                           )}
                         </td>
-                        <td className="p-2 md:p-3 font-medium truncate">{pedido.id}</td>
-                        <td className="p-2 md:p-3 truncate">{pedido.cliente}</td>
+                        <td className="p-2 md:p-3 font-medium truncate">
+                          {pedido.id}
+                          {pedido.tipoDocumento && (
+                            <span className="block text-[10px] text-gray-400 font-normal">
+                              {pedido.tipoDocumento === 'Nota de Entrega' ? 'N. Entrega' : 'Factura'}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-2 md:p-3 truncate">
+                          <span className="inline-flex items-center gap-1">
+                            {pedido.requiereRevision && (
+                              <AlertTriangle
+                                size={14}
+                                className="text-amber-500 shrink-0"
+                                title={`Revisar dirección: ${pedido.motivoRevision || 'datos incompletos'}`}
+                              />
+                            )}
+                            <span className="truncate">{pedido.cliente}</span>
+                          </span>
+                        </td>
                         <td className="p-2 md:p-3 hidden md:table-cell truncate">{pedido.ciudad || '-'}</td>
                         <td className="p-2 md:p-3 hidden lg:table-cell text-gray-500">
                           {pedido.productos?.length || 0}

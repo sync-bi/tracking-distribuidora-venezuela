@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RefreshCw, Package, Search, Calendar, Database, Loader2, Trash2 } from 'lucide-react';
 import TarjetaPedido from './TarjetaPedido';
 import { obtenerCorreccionesClientes } from '../../services/firestoreService';
+import { fetchDespachos } from '../../services/despachosApi';
 import { getFirestore, collection, getDocs, writeBatch, doc as firestoreDoc } from 'firebase/firestore';
 
 // Helper: fecha ISO (YYYY-MM-DD) de hace N días
@@ -173,7 +174,16 @@ const TabPedidos = ({
       horaEstimada: '',
       camionAsignado: null,
       vendedorAsignado: p.nombreVendedor || 'Sin asignar',
-      montoNeto: p.totalNeto || 0
+      montoNeto: p.totalNeto || 0,
+      // --- Modelo despacho (notas de entrega + facturas) ---
+      tipoDocumento: p.tipoDocumento || null,
+      numeroNota: p.numeroNota || null,
+      numeroFactura: p.numeroFactura || null,
+      fuenteDireccion: p.fuenteDireccion || null,
+      contactoPrincipal: p.contactoPrincipal || null,
+      contactoSecundario: p.contactoSecundario || null,
+      requiereRevision: !!p.requiereRevision,
+      motivoRevision: p.motivoRevision || null
     };
   }, []);
 
@@ -182,9 +192,7 @@ const TabPedidos = ({
   const sincronizarPedidos = useCallback(async () => {
     setSincronizando(true);
     try {
-      const res = await fetch('/api/pedidos?desde=2026-03-15&estado=pendientes', { cache: 'no-store' });
-      if (!res.ok) throw new Error('API no disponible');
-      const data = await res.json();
+      const data = await fetchDespachos({ desde: '2026-03-15', estado: 'pendientes' });
       if (!data.ok) throw new Error(data.error || 'Error en API');
 
       let correcciones = {};
