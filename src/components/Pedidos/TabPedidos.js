@@ -100,8 +100,11 @@ const TabPedidos = ({
       (pedido.id || '').toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
       (pedido.direccion || '').toLowerCase().includes(terminoBusqueda.toLowerCase());
     const cumpleCliente = (filtroCliente === '') || ((pedido.cliente || '').toLowerCase().includes(filtroCliente.toLowerCase()));
-    // Filtro de fecha: desde la fecha seleccionada hacia adelante
-    const fechaPedido = extraerFechaISO(pedido.fechaCreacion);
+    // Filtro de fecha: usar la fecha real del ERP (fechaEmision). Para pedidos
+    // viejos sin ese campo, caer a fechaCreacion para no ocultarlos.
+    const fechaPedido = pedido.fechaEmision
+      ? extraerFechaISO(pedido.fechaEmision)
+      : extraerFechaISO(pedido.fechaCreacion);
     const cumpleFechaDesde = (filtroFechaDesde === '') || (fechaPedido && fechaPedido >= filtroFechaDesde);
     const ciudadPedidoRaw = (pedido.ciudad && String(pedido.ciudad)) || (pedido.direccion ? String(pedido.direccion).split(',').slice(-1)[0] : '') || '';
     const ciudadPedidoCanon = canonCiudad(ciudadPedidoRaw);
@@ -169,6 +172,9 @@ const TabPedidos = ({
       estado: p.estadoDespacho === 'Despachado' ? 'Entregado' : 'Pendiente',
       estadoDespachoSQL: p.estadoDespacho,
       porcentajeDespacho: p.porcentajeDespacho || 0,
+      // Fecha real del ERP (fec_emis / fecha de nota o factura). Campo propio para
+      // que crearPedido() no la pise con serverTimestamp().
+      fechaEmision: p.fechaEmision ? new Date(p.fechaEmision).toISOString().split('T')[0] : '',
       fechaCreacion: p.fechaEmision ? new Date(p.fechaEmision).toISOString().split('T')[0] : '',
       fechaVencimiento: p.fechaVencimiento ? new Date(p.fechaVencimiento).toISOString().split('T')[0] : '',
       horaEstimada: '',

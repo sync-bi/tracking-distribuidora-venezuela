@@ -131,13 +131,13 @@ const TarjetaPedido = ({
         )}
       </div>
 
-      {/* Info adicional - fecha de emisión del pedido (ERP: fec_emis) */}
+      {/* Info adicional - fecha de emisión del pedido (ERP: fec_emis / nota / factura) */}
       {(() => {
-        const fc = pedido.fechaCreacion;
-        const d = fc?.toDate ? fc.toDate() : (fc ? new Date(fc) : null);
+        const fe = pedido.fechaEmision;
+        const d = fe?.toDate ? fe.toDate() : (fe ? new Date(fe) : null);
         const texto = d && !isNaN(d)
           ? d.toLocaleDateString('es-VE')
-          : (typeof fc === 'string' ? fc : '');
+          : (typeof fe === 'string' ? fe : '');
         if (!texto) return null;
         return (
           <div className="text-[10px] text-gray-500 mb-2">
