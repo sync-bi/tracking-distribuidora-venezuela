@@ -131,11 +131,18 @@ const TarjetaPedido = ({
         )}
       </div>
 
-      {/* Info adicional - una línea */}
-      <div className="text-[10px] text-gray-500 mb-2">
-        {pedido.fechaCreacion?.toDate ? pedido.fechaCreacion.toDate().toLocaleDateString('es-VE') : (pedido.fechaCreacion || '')} • {pedido.horaEstimada || 'Sin hora'}
-        {pedido.coordenadas && ` • ${pedido.coordenadas.lat.toFixed(2)},${pedido.coordenadas.lng.toFixed(2)}`}
-      </div>
+      {/* Info adicional - una línea: última actualización */}
+      {(() => {
+        const fa = pedido.fechaActualizacion;
+        const d = fa?.toDate ? fa.toDate() : (fa ? new Date(fa) : null);
+        if (!d || isNaN(d)) return null;
+        return (
+          <div className="text-[10px] text-gray-500 mb-2">
+            Actualizado: {d.toLocaleDateString('es-VE')}
+            {pedido.horaEstimada ? ` • ${pedido.horaEstimada}` : ''}
+          </div>
+        );
+      })()}
 
       {/* Camión asignado */}
       {pedido.camionAsignado && (
