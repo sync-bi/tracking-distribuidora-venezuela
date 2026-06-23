@@ -131,14 +131,17 @@ const TarjetaPedido = ({
         )}
       </div>
 
-      {/* Info adicional - una línea: última actualización */}
+      {/* Info adicional - fecha de emisión del pedido (ERP: fec_emis) */}
       {(() => {
-        const fa = pedido.fechaActualizacion;
-        const d = fa?.toDate ? fa.toDate() : (fa ? new Date(fa) : null);
-        if (!d || isNaN(d)) return null;
+        const fc = pedido.fechaCreacion;
+        const d = fc?.toDate ? fc.toDate() : (fc ? new Date(fc) : null);
+        const texto = d && !isNaN(d)
+          ? d.toLocaleDateString('es-VE')
+          : (typeof fc === 'string' ? fc : '');
+        if (!texto) return null;
         return (
           <div className="text-[10px] text-gray-500 mb-2">
-            Actualizado: {d.toLocaleDateString('es-VE')}
+            Emisión: {texto}
             {pedido.horaEstimada ? ` • ${pedido.horaEstimada}` : ''}
           </div>
         );
