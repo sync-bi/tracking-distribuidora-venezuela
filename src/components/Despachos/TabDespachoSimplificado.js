@@ -66,13 +66,19 @@ const TabDespachoSimplificado = ({
   const pedidosFiltrados = useMemo(() => {
     if (!terminoBusqueda) return pedidosAgrupados;
 
+    const q = terminoBusqueda.toLowerCase();
     const grupos = {};
     Object.entries(pedidosAgrupados).forEach(([zona, pedidos]) => {
-      const pedidosFiltradosZona = pedidos.filter(p =>
-        p.cliente?.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-        p.id?.toLowerCase().includes(terminoBusqueda.toLowerCase()) ||
-        p.direccion?.toLowerCase().includes(terminoBusqueda.toLowerCase())
-      );
+      const pedidosFiltradosZona = pedidos.filter(p => {
+        // Buscar en todos los campos relevantes. Importante: p.id es el ID
+        // interno de Firestore, por eso también incluimos numeroPedido/nota/factura
+        // que es lo que el usuario realmente ve y escribe.
+        const campos = [
+          p.cliente, p.id, p.numeroPedido, p.direccion, p.zona,
+          p.ciudad, p.vendedorAsignado, p.numeroNota, p.numeroFactura
+        ];
+        return campos.some(c => c != null && String(c).toLowerCase().includes(q));
+      });
 
       if (pedidosFiltradosZona.length > 0) {
         grupos[zona] = pedidosFiltradosZona;
