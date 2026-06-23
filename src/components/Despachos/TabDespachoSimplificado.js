@@ -82,6 +82,23 @@ const TabDespachoSimplificado = ({
     return grupos;
   }, [pedidosAgrupados, terminoBusqueda]);
 
+  // Lista plana de los pedidos que pasan el filtro de búsqueda
+  const pedidosFiltradosPlanos = useMemo(
+    () => Object.values(pedidosFiltrados).flat(),
+    [pedidosFiltrados]
+  );
+
+  // Pedidos a mostrar en el mapa: los que pasan el filtro + los ya seleccionados
+  // aunque no coincidan con la búsqueda, para no romper la ruta sugerida al filtrar
+  const pedidosMapa = useMemo(() => {
+    if (!terminoBusqueda) return pedidosFiltradosPlanos;
+    const ids = new Set(pedidosFiltradosPlanos.map(p => p.id));
+    const seleccionadosFuera = pedidosDisponibles.filter(
+      p => pedidosSeleccionados.includes(p.id) && !ids.has(p.id)
+    );
+    return [...pedidosFiltradosPlanos, ...seleccionadosFuera];
+  }, [pedidosFiltradosPlanos, terminoBusqueda, pedidosDisponibles, pedidosSeleccionados]);
+
   // Calcular totales
   const totales = useMemo(() => {
     const pedidosSeleccionadosData = pedidosDisponibles.filter(p =>
@@ -247,7 +264,8 @@ const TabDespachoSimplificado = ({
 
           {/* Contador */}
           <div className="mt-2 md:mt-3 text-xs md:text-sm text-gray-600">
-            {Object.keys(pedidosFiltrados).length} zonas • {pedidosDisponibles.length} pedidos
+            {Object.keys(pedidosFiltrados).length} zonas • {pedidosFiltradosPlanos.length}
+            {terminoBusqueda ? ` de ${pedidosDisponibles.length}` : ''} pedidos
           </div>
         </div>
 
@@ -262,7 +280,8 @@ const TabDespachoSimplificado = ({
             Object.entries(pedidosFiltrados).map(([zona, pedidosZona]) => {
               const zonaSeleccionada = zonaCompletamenteSeleccionada(zona);
               const algunoSeleccionado = pedidosZona.some(p => pedidosSeleccionados.includes(p.id));
-              const expandida = zonaExpandida === zona;
+              // Al filtrar por búsqueda, expandir las zonas para ver los resultados
+              const expandida = zonaExpandida === zona || !!terminoBusqueda;
 
               return (
                 <div key={zona} className="border rounded-lg overflow-hidden">
@@ -369,7 +388,7 @@ const TabDespachoSimplificado = ({
       {/* Panel central - Mapa de planificación */}
       <div className={`${vistaMobile === 'mapa' ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-w-0`}>
         <MapaPlanificacion
-          pedidos={pedidosDisponibles}
+          pedidos={pedidosMapa}
           pedidosSeleccionados={pedidosSeleccionados}
           onTogglePedido={togglePedido}
           onToggleZona={toggleZona}
