@@ -9,8 +9,10 @@ import {
   AlertTriangle,
   ClipboardCheck,
   Search,
-  XCircle
+  XCircle,
+  FileDown
 } from 'lucide-react';
+import { abrirPOD } from '../../utils/pod';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import {
   escucharPedido,
@@ -329,15 +331,30 @@ const MapaSeguimiento = ({ camionId, coordenadasDestino }) => {
 };
 
 // Info del recibo de entrega
-const InfoRecibo = ({ recibo }) => {
+const InfoRecibo = ({ recibo, pedido }) => {
   if (!recibo) return null;
+
+  const handleDescargar = () => {
+    if (!abrirPOD(recibo, pedido || {})) {
+      alert('El navegador bloqueó la ventana del comprobante. Permita las ventanas emergentes para este sitio.');
+    }
+  };
 
   return (
     <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
-      <h4 className="font-semibold text-green-800 flex items-center gap-2">
-        <ClipboardCheck size={18} />
-        Comprobante de entrega
-      </h4>
+      <div className="flex items-center justify-between gap-2">
+        <h4 className="font-semibold text-green-800 flex items-center gap-2">
+          <ClipboardCheck size={18} />
+          Comprobante de entrega
+        </h4>
+        <button
+          onClick={handleDescargar}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-green-600 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+        >
+          <FileDown size={15} />
+          Descargar
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
@@ -375,6 +392,49 @@ const InfoRecibo = ({ recibo }) => {
         <div className="border-t border-green-200 pt-3">
           <p className="text-sm text-gray-500">Observaciones:</p>
           <p className="text-sm text-gray-700">{recibo.observaciones}</p>
+        </div>
+      )}
+
+      {recibo.fotos?.length > 0 && (
+        <div className="border-t border-green-200 pt-3">
+          <p className="text-sm text-gray-500 mb-2">Evidencia fotográfica:</p>
+          <div className="grid grid-cols-3 gap-2">
+            {recibo.fotos.map((foto, idx) => (
+              <a key={idx} href={foto} target="_blank" rel="noopener noreferrer">
+                <img
+                  src={foto}
+                  alt={`Evidencia ${idx + 1}`}
+                  className="w-full h-24 object-cover rounded-lg border border-green-200 hover:opacity-90"
+                />
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {recibo.ubicacionEntrega && (
+        <div className="border-t border-green-200 pt-3">
+          <p className="text-sm text-gray-500 mb-1">Lugar de la entrega:</p>
+          <a
+            href={`https://www.google.com/maps?q=${recibo.ubicacionEntrega.lat},${recibo.ubicacionEntrega.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-blue-600 hover:underline"
+          >
+            {recibo.ubicacionEntrega.lat.toFixed(5)}, {recibo.ubicacionEntrega.lng.toFixed(5)}
+            {recibo.ubicacionEntrega.precision != null && ` (± ${recibo.ubicacionEntrega.precision} m)`}
+          </a>
+        </div>
+      )}
+
+      {recibo.firma && (
+        <div className="border-t border-green-200 pt-3">
+          <p className="text-sm text-gray-500 mb-1">Firma del receptor:</p>
+          <img
+            src={recibo.firma}
+            alt="Firma del receptor"
+            className="w-full max-w-xs bg-white border border-green-200 rounded-lg"
+          />
         </div>
       )}
     </div>
@@ -675,7 +735,7 @@ const SeguimientoPedido = () => {
         )}
 
         {/* Recibo de entrega */}
-        {recibo && <InfoRecibo recibo={recibo} />}
+        {recibo && <InfoRecibo recibo={recibo} pedido={pedido} />}
 
         {/* Mensaje si está en ruta */}
         {pedido.estado === 'En Ruta' && (

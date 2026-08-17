@@ -891,11 +891,19 @@ export const guardarReciboEntrega = async (recibo, userId = 'sistema') => {
 
     await setDoc(reciboRef, reciboData);
 
-    // Registrar en auditoría
-    await registrarAuditoria('crear', 'recibo_entrega', reciboRef.id, userId, null, reciboData);
+    // Registrar en auditoría sin la firma ni las fotos: duplicarlas haría que el
+    // documento de auditoría también se acerque al límite de 1 MiB de Firestore.
+    const { firma, fotos, ...reciboAuditable } = reciboData;
+    await registrarAuditoria('crear', 'recibo_entrega', reciboRef.id, userId, null, {
+      ...reciboAuditable,
+      firmaAdjunta: Boolean(firma),
+      cantidadFotos: fotos?.length || 0
+    });
 
     console.log('✅ Recibo de entrega guardado:', reciboRef.id);
-    return { ...reciboData, id: reciboRef.id };
+    // fechaRegistro se devuelve como Date real: el sentinel de serverTimestamp
+    // no es utilizable en el cliente (lo resuelve el servidor).
+    return { ...reciboData, id: reciboRef.id, fechaRegistro: new Date() };
   } catch (error) {
     console.error('❌ Error al guardar recibo de entrega:', error);
     throw error;

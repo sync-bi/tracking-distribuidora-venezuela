@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RefreshCw, Package, Search, Calendar, Database, Loader2, Trash2 } from 'lucide-react';
 import TarjetaPedido from './TarjetaPedido';
-import { obtenerCorreccionesClientes } from '../../services/firestoreService';
+import { obtenerCorreccionesClientes, escucharNoConformidades } from '../../services/firestoreService';
 import { fetchDespachos } from '../../services/despachosApi';
 import { getFirestore, collection, getDocs, writeBatch, doc as firestoreDoc } from 'firebase/firestore';
 
@@ -36,6 +36,21 @@ const TabPedidos = ({
   const [filtroVencDesde] = useState('');
   const [filtroVencHasta] = useState('');
   const [ordenarPorVencimiento, setOrdenarPorVencimiento] = useState(false);
+  const [noConformidades, setNoConformidades] = useState([]);
+
+  // Una orden con no conformidad sin resolver no se puede cerrar (paso 4.4 del proceso)
+  useEffect(() => {
+    const unsubscribe = escucharNoConformidades(setNoConformidades);
+    return () => unsubscribe?.();
+  }, []);
+
+  const pedidosConNCAbierta = useMemo(() => (
+    new Set(
+      noConformidades
+        .filter(nc => nc.estado !== 'Cerrada' && nc.pedidoId)
+        .map(nc => nc.pedidoId)
+    )
+  ), [noConformidades]);
 
   // Normaliza nombres de ciudades para unificar sinónimos
   const canonCiudad = useCallback((raw) => {
@@ -408,6 +423,7 @@ const TabPedidos = ({
               onActualizarEstado={onActualizarEstado}
               onEliminar={onEliminarPedido}
               onVerDetalles={setPedidoSeleccionado}
+              tieneNCAbierta={pedidosConNCAbierta.has(pedido.id)}
             />
           ))
         ) : (

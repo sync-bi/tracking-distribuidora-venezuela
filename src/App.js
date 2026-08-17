@@ -30,6 +30,7 @@ import { trackingClient } from './services/trackingClient';
 import { actualizarPosicionVehiculo } from './services/firebase';
 import { guardarReciboEntrega, crearNoConformidad } from './services/firestoreService';
 import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { ESTADOS_PEDIDO, ESTADOS_ENTREGADOS } from './utils/constants';
 
 // Componentes de Ubicaciones
 import TabGestionUbicaciones from './components/Ubicaciones/TabGestionUbicaciones';
@@ -320,11 +321,11 @@ const App = () => {
     onGuardarRecibo: async (recibo) => {
       try {
         // Guardar recibo en Firestore
-        await guardarReciboEntrega(recibo, user?.uid || user?.email || 'conductor');
+        const reciboGuardado = await guardarReciboEntrega(recibo, user?.uid || user?.email || 'conductor');
 
         // Actualizar estado del pedido a Entregado
         if (recibo.pedidoId) {
-          const nuevoEstado = recibo.conforme ? 'Entregado' : 'Entrega Parcial';
+          const nuevoEstado = recibo.conforme ? ESTADOS_PEDIDO.ENTREGADO : ESTADOS_PEDIDO.ENTREGA_PARCIAL;
           const observaciones = recibo.conforme
             ? `Entregado conforme. Recibido por: ${recibo.receptor?.nombre || 'N/A'}`
             : `Entrega parcial - ${recibo.itemsProblemas?.length || 0} item(s) con problemas. Recibido por: ${recibo.receptor?.nombre || 'N/A'}`;
@@ -365,7 +366,7 @@ const App = () => {
             p.id !== recibo.pedidoId
           );
           const todosEntregados = pedidosDelCamion.every(p =>
-            p.estado === 'Entregado' || p.estado === 'Entrega Parcial'
+            ESTADOS_ENTREGADOS.includes(p.estado)
           );
           if (todosEntregados) {
             try {
@@ -400,8 +401,13 @@ const App = () => {
         }
 
         console.log('✅ Recibo guardado en Firestore:', recibo.pedidoId);
+
+        // Devolver el recibo persistido: el conductor necesita el id para el comprobante
+        return reciboGuardado || recibo;
       } catch (err) {
         console.error('❌ Error al guardar recibo:', err);
+        // Propagar: si no se guardó, el conductor no puede ver "entrega registrada"
+        throw err;
       }
     }
   };

@@ -16,9 +16,22 @@ import {
   X,
   AlertTriangle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Camera,
+  MapPin,
+  FileDown,
+  Loader2
 } from 'lucide-react';
 import { useTracking } from '../../hooks/useTracking';
+import { resolverUbicacionEntrega, ETIQUETA_FUENTE_UBICACION } from '../../utils/geo';
+import {
+  comprimirImagen,
+  ajustarPesoRecibo,
+  formatearPeso,
+  MAX_FOTOS,
+  LIMITE_BYTES_RECIBO
+} from '../../utils/imagenes';
+import { abrirPOD } from '../../utils/pod';
 
 const formatTime = (ts) => {
   try { return new Date(ts).toLocaleTimeString(); } catch { return ''; }
@@ -140,6 +153,101 @@ const SignaturePad = ({ onSave, onClear }) => {
   );
 };
 
+// Captura de evidencia fotográfica (cámara trasera en móvil, galería en escritorio)
+const CapturaFotos = ({ fotos, onChange }) => {
+  const inputRef = useRef(null);
+  const [procesando, setProcesando] = useState(false);
+  const [errorFoto, setErrorFoto] = useState(null);
+
+  const handleSeleccion = async (e) => {
+    const archivos = Array.from(e.target.files || []);
+    // Permitir volver a elegir el mismo archivo tras borrarlo.
+    e.target.value = '';
+    if (!archivos.length) return;
+
+    const espacio = MAX_FOTOS - fotos.length;
+    if (espacio <= 0) {
+      setErrorFoto(`Máximo ${MAX_FOTOS} fotos por entrega`);
+      return;
+    }
+
+    setProcesando(true);
+    setErrorFoto(null);
+    try {
+      const nuevas = [];
+      for (const archivo of archivos.slice(0, espacio)) {
+        nuevas.push(await comprimirImagen(archivo));
+      }
+      onChange([...fotos, ...nuevas]);
+      if (archivos.length > espacio) {
+        setErrorFoto(`Solo se agregaron ${espacio} foto(s): el límite es ${MAX_FOTOS}`);
+      }
+    } catch (err) {
+      console.error('Error al procesar foto:', err);
+      setErrorFoto('No se pudo procesar la imagen. Intente de nuevo.');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const eliminarFoto = (index) => {
+    onChange(fotos.filter((_, i) => i !== index));
+    setErrorFoto(null);
+  };
+
+  return (
+    <div className="space-y-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        multiple
+        onChange={handleSeleccion}
+        className="hidden"
+      />
+
+      {fotos.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          {fotos.map((foto, index) => (
+            <div key={index} className="relative group">
+              <img
+                src={foto}
+                alt={`Evidencia ${index + 1}`}
+                className="w-full h-24 object-cover rounded-lg border"
+              />
+              <button
+                type="button"
+                onClick={() => eliminarFoto(index)}
+                className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full shadow hover:bg-red-700"
+                aria-label={`Eliminar evidencia ${index + 1}`}
+              >
+                <X size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={procesando || fotos.length >= MAX_FOTOS}
+        className="w-full flex items-center justify-center gap-2 px-3 py-2 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-blue-400 hover:text-blue-600 disabled:opacity-50 disabled:hover:border-gray-300 disabled:hover:text-gray-600"
+      >
+        {procesando ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+        {procesando
+          ? 'Procesando imagen...'
+          : fotos.length >= MAX_FOTOS
+            ? `Máximo ${MAX_FOTOS} fotos`
+            : `Tomar foto (${fotos.length}/${MAX_FOTOS})`}
+      </button>
+
+      {errorFoto && <p className="text-xs text-red-600">{errorFoto}</p>}
+    </div>
+  );
+};
+
 // Causas predefinidas para items no conformes
 const CAUSAS_NO_CONFORME = [
   { id: 'mal_estado', label: 'Mal estado' },
@@ -152,11 +260,12 @@ const CAUSAS_NO_CONFORME = [
 ];
 
 // Componente de Formulario de Recibido Conforme
-const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar }) => {
+const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar, guardando = false }) => {
   const [conforme, setConforme] = useState(true);
   const [itemsProblemas, setItemsProblemas] = useState({}); // { itemId: { causa: '', detalle: '' } }
   const [observaciones, setObservaciones] = useState('');
   const [firma, setFirma] = useState(null);
+  const [fotos, setFotos] = useState([]);
   const [nombreReceptor, setNombreReceptor] = useState('');
   const [cedulaReceptor, setCedulaReceptor] = useState('');
 
@@ -249,6 +358,12 @@ const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar }) => {
       return;
     }
 
+    // Una entrega no conforme sin foto no se puede reclamar después.
+    if (cantidadProblemas > 0 && fotos.length === 0) {
+      alert('Debe adjuntar al menos una foto que evidencie el problema reportado.');
+      return;
+    }
+
     // Construir lista de items con problemas incluyendo causa y detalle
     const itemsConProblemas = Object.entries(itemsProblemas)
       .map(([id, problema]) => {
@@ -274,6 +389,8 @@ const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar }) => {
         cedula: cedulaReceptor
       },
       firma,
+      fotos,
+      // La ubicación la resuelve el contenedor: puede necesitar pedir un fix al GPS.
       ubicacionEntrega: null
     };
 
@@ -472,6 +589,16 @@ const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar }) => {
           </div>
         </div>
 
+        {/* Evidencia fotográfica */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700 flex items-center gap-2">
+            <Camera size={16} />
+            Evidencia fotográfica
+            {cantidadProblemas > 0 && <span className="text-xs text-red-600">(obligatoria)</span>}
+          </label>
+          <CapturaFotos fotos={fotos} onChange={setFotos} />
+        </div>
+
         {/* Área de firma */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700">
@@ -488,14 +615,16 @@ const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar }) => {
       <div className="p-4 border-t bg-gray-50 space-y-2">
         <button
           onClick={handleGuardar}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
+          disabled={guardando}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold disabled:bg-green-400"
         >
-          <Save size={20} />
-          Guardar Recibo
+          {guardando ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+          {guardando ? 'Registrando ubicación y guardando...' : 'Guardar Recibo'}
         </button>
         <button
           onClick={onCancelar}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+          disabled={guardando}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium disabled:opacity-50"
         >
           <X size={18} />
           Volver sin guardar
@@ -512,6 +641,7 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
   const [recibosGuardados, setRecibosGuardados] = useState([]);
   const [expandirRecibos, setExpandirRecibos] = useState(false);
   const [mensajeExito, setMensajeExito] = useState(null);
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     if (!vehiculoId && camiones.length) setVehiculoId(camiones[0].id);
@@ -563,33 +693,58 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
   };
 
   const handleGuardarRecibo = async (recibo) => {
-    // Agregar ubicación GPS de la entrega si hay tracking activo
-    const reciboConUbicacion = {
-      ...recibo,
-      ubicacionEntrega: lastFix ? {
-        lat: lastFix.coord.lat,
-        lng: lastFix.coord.lng,
-        timestamp: lastFix.ts
-      } : null
-    };
+    if (guardando) return;
+    setGuardando(true);
 
     try {
-      // Llamar callback externo (guarda en Firestore)
-      await onGuardarRecibo?.(reciboConUbicacion);
+      // Ubicación de la entrega: fix reciente del tracking o lectura puntual del GPS.
+      // Si el conductor nunca inició el tracking, igual queda georreferenciada.
+      const ubicacionEntrega = await resolverUbicacionEntrega(lastFix);
 
-      // Agregar a la lista local de recibos
-      setRecibosGuardados(prev => [...prev, reciboConUbicacion]);
+      let reciboFinal = { ...recibo, ubicacionEntrega };
 
-      // Cerrar formulario
+      // Firestore limita el documento a 1 MiB; firma + fotos pueden acercarse.
+      const { recibo: ajustado, ajustado: seRecomprimio, peso } = await ajustarPesoRecibo(reciboFinal);
+      reciboFinal = ajustado;
+
+      if (peso > LIMITE_BYTES_RECIBO) {
+        alert(
+          `La evidencia pesa ${formatearPeso(peso)} y supera el límite permitido. ` +
+          'Elimine una foto e intente de nuevo.'
+        );
+        return;
+      }
+      if (seRecomprimio) {
+        console.warn(`Fotos recomprimidas para entrar en el límite (${formatearPeso(peso)})`);
+      }
+
+      // Guardar en Firestore vía callback externo
+      const guardado = await onGuardarRecibo?.(reciboFinal);
+
+      // Conservar el id que asignó Firestore para poder emitir el comprobante
+      const reciboConId = { ...reciboFinal, ...(guardado || {}) };
+      setRecibosGuardados(prev => [...prev, { ...reciboConId, pedido: pedidoSeleccionado }]);
+
       setMostrarFormulario(false);
       setPedidoSeleccionado(null);
 
-      // Confirmación visual
-      setMensajeExito(reciboConUbicacion.conforme ? 'Entrega registrada correctamente' : 'Entrega parcial registrada');
-      setTimeout(() => setMensajeExito(null), 3000);
+      const avisoUbicacion = ubicacionEntrega ? '' : ' (sin geolocalización: revise los permisos de ubicación)';
+      setMensajeExito(
+        (reciboConId.conforme ? 'Entrega registrada correctamente' : 'Entrega parcial registrada') + avisoUbicacion
+      );
+      setTimeout(() => setMensajeExito(null), 4000);
     } catch (err) {
       console.error('Error al guardar recibo:', err);
       alert('Error al guardar el recibo. Intente de nuevo.');
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleDescargarPOD = (recibo) => {
+    const abierto = abrirPOD(recibo, recibo.pedido || {});
+    if (!abierto) {
+      alert('El navegador bloqueó la ventana del comprobante. Permita las ventanas emergentes para este sitio.');
     }
   };
 
@@ -771,6 +926,29 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
                       ))}
                     </div>
                   )}
+
+                  <div className="mt-2 flex items-center gap-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <MapPin size={12} className={recibo.ubicacionEntrega ? 'text-green-600' : 'text-gray-400'} />
+                      {recibo.ubicacionEntrega
+                        ? ETIQUETA_FUENTE_UBICACION[recibo.ubicacionEntrega.fuente] || 'Georreferenciada'
+                        : 'Sin ubicación'}
+                    </span>
+                    {recibo.fotos?.length > 0 && (
+                      <span className="flex items-center gap-1">
+                        <Camera size={12} />
+                        {recibo.fotos.length} foto(s)
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => handleDescargarPOD(recibo)}
+                    className="mt-2 w-full flex items-center justify-center gap-2 px-3 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
+                  >
+                    <FileDown size={16} />
+                    Comprobante de entrega
+                  </button>
                 </div>
               ))}
             </div>
@@ -793,7 +971,9 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
             <FormularioRecibidoConforme
               pedido={pedidoSeleccionado}
               onGuardar={handleGuardarRecibo}
+              guardando={guardando}
               onCancelar={() => {
+                if (guardando) return;
                 setMostrarFormulario(false);
                 setPedidoSeleccionado(null);
               }}

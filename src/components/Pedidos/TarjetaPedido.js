@@ -1,6 +1,12 @@
 // src/components/Pedidos/TarjetaPedido.js
 import React from 'react';
-import { MapPin, Eye, Truck, Clock, Package, AlertCircle } from 'lucide-react';
+import { MapPin, Eye, Truck, Clock, Package, AlertCircle, Lock } from 'lucide-react';
+import {
+  ESTADOS_PEDIDO,
+  ESTADOS_ENTREGADOS,
+  COLORES_ESTADO,
+  COLORES_PRIORIDAD
+} from '../../utils/constants';
 
 const TarjetaPedido = ({
   pedido,
@@ -8,30 +14,16 @@ const TarjetaPedido = ({
   onAsignarCamion,
   onActualizarEstado,
   onEliminar,
-  onVerDetalles
+  onVerDetalles,
+  tieneNCAbierta = false
 }) => {
-  const obtenerColorEstado = (estado) => {
-    const colores = {
-      'Pendiente': 'bg-yellow-100 text-yellow-800',
-      'En Consolidación': 'bg-purple-100 text-purple-800',
-      'Asignado': 'bg-blue-100 text-blue-800',
-      'En Ruta': 'bg-green-100 text-green-800',
-      'Entregado': 'bg-gray-100 text-gray-800',
-      'Desistido': 'bg-orange-100 text-orange-800',
-      'Cancelado': 'bg-red-100 text-red-800'
-    };
-    return colores[estado] || 'bg-gray-100 text-gray-800';
-  };
+  const obtenerColorEstado = (estado) => COLORES_ESTADO[estado] || 'bg-gray-100 text-gray-800';
 
-  const obtenerColorPrioridad = (prioridad) => {
-    const colores = {
-      'Baja': 'bg-green-100 text-green-800',
-      'Media': 'bg-orange-100 text-orange-800',
-      'Alta': 'bg-red-100 text-red-800',
-      'Urgente': 'bg-purple-100 text-purple-800'
-    };
-    return colores[prioridad] || 'bg-gray-100 text-gray-800';
-  };
+  const obtenerColorPrioridad = (prioridad) => COLORES_PRIORIDAD[prioridad] || 'bg-gray-100 text-gray-800';
+
+  // Paso 4.4 del proceso: la orden se cierra al entregar, salvo que haya una
+  // incidencia abierta; en ese caso primero debe resolverse la no conformidad.
+  const puedeCerrarse = ESTADOS_ENTREGADOS.includes(pedido.estado);
 
   const obtenerIconoEstado = (estado) => {
     switch (estado) {
@@ -175,7 +167,9 @@ const TarjetaPedido = ({
           </select>
         )}
 
-        {pedido.estado !== 'Entregado' && pedido.estado !== 'Desistido' && (
+        {!puedeCerrarse
+          && pedido.estado !== ESTADOS_PEDIDO.CERRADO
+          && pedido.estado !== ESTADOS_PEDIDO.DESISTIDO && (
           <select
             className="w-full text-xs p-1.5 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500"
             value={pedido.estado}
@@ -198,11 +192,11 @@ const TarjetaPedido = ({
             <Eye size={12} />
             Ver
           </button>
-          {(pedido.estado === 'Pendiente' || pedido.estado === 'En Consolidación') && (
+          {(pedido.estado === ESTADOS_PEDIDO.PENDIENTE || pedido.estado === ESTADOS_PEDIDO.EN_CONSOLIDACION) && (
             <button
               onClick={() => {
                 if (window.confirm(`¿El cliente desiste del pedido ${pedido.id}? Se eliminará automáticamente mañana.`)) {
-                  onActualizarEstado(pedido.id, 'Desistido');
+                  onActualizarEstado(pedido.id, ESTADOS_PEDIDO.DESISTIDO);
                 }
               }}
               className="flex-1 py-1.5 bg-orange-500 text-white rounded text-xs hover:bg-orange-600"
@@ -211,6 +205,27 @@ const TarjetaPedido = ({
             </button>
           )}
         </div>
+
+        {/* Cierre de la orden */}
+        {puedeCerrarse && (
+          tieneNCAbierta ? (
+            <div className="flex items-center gap-1.5 py-1.5 px-2 bg-amber-50 border border-amber-200 rounded text-[11px] text-amber-800">
+              <Lock size={12} className="flex-shrink-0" />
+              <span>No se puede cerrar: tiene una no conformidad sin resolver</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                if (window.confirm(`¿Cerrar la orden del pedido ${pedido.numeroPedido || pedido.id}? Ya no podrá modificarse.`)) {
+                  onActualizarEstado(pedido.id, ESTADOS_PEDIDO.CERRADO);
+                }
+              }}
+              className="w-full py-1.5 bg-slate-700 text-white rounded text-xs hover:bg-slate-800"
+            >
+              Cerrar orden
+            </button>
+          )
+        )}
       </div>
 
       {/* Indicador urgente */}

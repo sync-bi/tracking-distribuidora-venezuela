@@ -6,9 +6,22 @@ export const ESTADOS_PEDIDO = {
   ASIGNADO: 'Asignado',
   EN_RUTA: 'En Ruta',
   ENTREGADO: 'Entregado',
+  ENTREGA_PARCIAL: 'Entrega Parcial',
+  CERRADO: 'Cerrado',
   DESISTIDO: 'Desistido',
   CANCELADO: 'Cancelado'
 };
+
+// Estados en los que el pedido ya fue entregado (conforme o no) pero la orden
+// sigue abierta hasta que se resuelvan las incidencias y se cierre el despacho.
+export const ESTADOS_ENTREGADOS = [
+  ESTADOS_PEDIDO.ENTREGADO,
+  ESTADOS_PEDIDO.ENTREGA_PARCIAL
+];
+
+// Un pedido se puede cerrar cuando fue entregado conforme, o cuando fue entrega
+// parcial y su no conformidad ya está resuelta.
+export const ESTADOS_CERRABLES = ESTADOS_ENTREGADOS;
 
 export const PRIORIDADES = {
   BAJA: 'Baja',
@@ -133,6 +146,8 @@ export const COLORES_ESTADO = {
   [ESTADOS_PEDIDO.ASIGNADO]: 'bg-blue-100 text-blue-800',
   [ESTADOS_PEDIDO.EN_RUTA]: 'bg-green-100 text-green-800',
   [ESTADOS_PEDIDO.ENTREGADO]: 'bg-gray-100 text-gray-800',
+  [ESTADOS_PEDIDO.ENTREGA_PARCIAL]: 'bg-amber-100 text-amber-800',
+  [ESTADOS_PEDIDO.CERRADO]: 'bg-slate-200 text-slate-700',
   [ESTADOS_PEDIDO.DESISTIDO]: 'bg-orange-100 text-orange-800',
   [ESTADOS_PEDIDO.CANCELADO]: 'bg-red-100 text-red-800'
 };
