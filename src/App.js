@@ -30,7 +30,7 @@ import { trackingClient } from './services/trackingClient';
 import { actualizarPosicionVehiculo } from './services/firebase';
 import { guardarReciboEntrega, crearNoConformidad } from './services/firestoreService';
 import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { ESTADOS_PEDIDO, ESTADOS_ENTREGADOS } from './utils/constants';
+import { ESTADOS_PEDIDO, ESTADOS_ENTREGADOS, ESTADOS_CAMION } from './utils/constants';
 
 // Componentes de Ubicaciones
 import TabGestionUbicaciones from './components/Ubicaciones/TabGestionUbicaciones';
@@ -154,10 +154,6 @@ const App = () => {
         .map(pedidoId => pedidos.find(p => p.id === pedidoId))
         .filter(p => p); // Filtrar pedidos que existen
 
-      // Obtener info del camión y conductor para WhatsApp
-      const camionInfo = obtenerCamionPorId(datosDespacho.camionId);
-      const conductorInfo = conductores.find(c => c.id === datosDespacho.conductorId);
-
       // Crear despacho con la ruta de pedidos
       const nuevoDespacho = await crearDespacho({
         ...datosDespacho,
@@ -176,21 +172,9 @@ const App = () => {
       // Actualizar estado del camión
       actualizarEstadoCamion(datosDespacho.camionId, 'Asignado');
 
-      // WhatsApp automático: enviar notificación a cada cliente
-      // MODO PRUEBA: todos los mensajes van al número de prueba
-      const TELEFONO_PRUEBA = '573134967101'; // TODO: quitar después de pruebas
-      const placaVehiculo = camionInfo?.placa || 'N/A';
-      const nombreConductor = conductorInfo?.nombre || 'N/A';
-
-      for (const pedido of rutaPedidos) {
-        const trackingUrl = `${window.location.origin}/tracking/${pedido.numeroPedido || pedido.id}`;
-        const mensaje = `*Distribuidora Sarego*\n\nHola ${pedido.cliente || ''},\n\nSu pedido *${pedido.numeroPedido || pedido.id}* está en consolidación.\n\n🚛 Vehículo: ${placaVehiculo}\n👤 Conductor: ${nombreConductor}\n\n📍 Siga su pedido en tiempo real:\n${trackingUrl}\n\nGracias por su preferencia.`;
-
-        // Modo prueba: usar número fijo. En producción cambiar a: pedido.telefono
-        const waUrl = `https://wa.me/${TELEFONO_PRUEBA}?text=${encodeURIComponent(mensaje)}`;
-
-        window.open(waUrl, '_blank');
-      }
+      // El aviso al cliente NO se envía aquí: el pedido apenas está en consolidación
+      // y el vehículo no ha salido. Se envía desde el módulo del conductor al
+      // iniciar la ruta (paso 1.3 del proceso: al salir del almacén).
 
       console.log('✅ Despacho creado exitosamente:', nuevoDespacho?.id);
       return nuevoDespacho;
@@ -284,15 +268,36 @@ const App = () => {
     despachos,
     onStartTracking: async (camionId) => {
       actualizarInfoVehiculo(camionId, { trackingActivo: true });
-      actualizarEstadoCamion(camionId, 'En Ruta');
-      // Cambiar todos los pedidos asignados a este camión a "En Ruta"
-      const pedidosDelCamion = pedidos.filter(p => p.camionAsignado === camionId && p.estado === 'Asignado');
+      actualizarEstadoCamion(camionId, ESTADOS_CAMION.EN_RUTA);
+
+      // Salida del almacén: los pedidos del camión pasan a "En Ruta".
+      // Incluye "En Consolidación": es el estado en que los deja el despacho, y
+      // antes quedaban atascados ahí porque el filtro solo miraba "Asignado".
+      const pedidosDelCamion = pedidos.filter(p =>
+        p.camionAsignado === camionId &&
+        (p.estado === ESTADOS_PEDIDO.ASIGNADO || p.estado === ESTADOS_PEDIDO.EN_CONSOLIDACION)
+      );
       for (const p of pedidosDelCamion) {
         try {
-          await actualizarEstadoPedido(p.id, 'En Ruta', 'Conductor inició ruta');
+          await actualizarEstadoPedido(p.id, ESTADOS_PEDIDO.EN_RUTA, 'Conductor inició ruta');
         } catch (e) {
           console.error('Error al actualizar pedido a En Ruta:', e);
         }
+      }
+    },
+    onRegistrarNotificacion: async (pedidoId) => {
+      // Deja constancia de que se abrió el aviso de salida para ese cliente.
+      // No es acuse de recibo: wa.me no lo provee.
+      try {
+        await actualizarPedido(pedidoId, {
+          notificacionSalida: {
+            enviadaEn: new Date().toISOString(),
+            canal: 'whatsapp',
+            por: user?.email || user?.uid || 'conductor'
+          }
+        });
+      } catch (e) {
+        console.error('Error al registrar notificación de salida:', e);
       }
     },
     onStopTracking: (camionId) => {

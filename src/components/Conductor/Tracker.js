@@ -20,7 +20,9 @@ import {
   Camera,
   MapPin,
   FileDown,
-  Loader2
+  Loader2,
+  MessageCircle,
+  Send
 } from 'lucide-react';
 import { useTracking } from '../../hooks/useTracking';
 import { resolverUbicacionEntrega, ETIQUETA_FUENTE_UBICACION } from '../../utils/geo';
@@ -32,6 +34,7 @@ import {
   LIMITE_BYTES_RECIBO
 } from '../../utils/imagenes';
 import { abrirPOD } from '../../utils/pod';
+import { construirUrlWhatsApp, esModoPrueba, TELEFONO_PRUEBA } from '../../utils/notificaciones';
 
 const formatTime = (ts) => {
   try { return new Date(ts).toLocaleTimeString(); } catch { return ''; }
@@ -634,7 +637,69 @@ const FormularioRecibidoConforme = ({ pedido, onGuardar, onCancelar, guardando =
   );
 };
 
-const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTracking, onStopTracking, onSendPosition, onGuardarRecibo }) => {
+// Aviso de salida del almacén (paso 1.3): de uno en uno, porque wa.me exige
+// confirmar el envío a mano y el navegador bloquea varias pestañas seguidas.
+const PanelAvisoClientes = ({ pedidos, placa, conductor, notificadosLocal, onNotificar }) => {
+  if (!pedidos.length) return null;
+
+  const yaNotificado = (pedido) => Boolean(pedido.notificacionSalida) || notificadosLocal.has(pedido.id);
+  const pendientes = pedidos.filter(p => !yaNotificado(p));
+
+  return (
+    <div className="bg-white rounded-lg shadow p-4 mb-6">
+      <div className="flex items-center gap-2 mb-1">
+        <MessageCircle size={16} className="text-green-600" />
+        <h3 className="font-medium">Avisar a clientes</h3>
+        <span className="ml-auto text-sm text-gray-500">
+          {pendientes.length} por avisar
+        </span>
+      </div>
+      <p className="text-xs text-gray-500 mb-3">
+        El vehículo salió del almacén. Avise a cada cliente que su pedido va en camino.
+      </p>
+
+      {esModoPrueba() && (
+        <div className="mb-3 flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+          <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+          <span>
+            Modo prueba: todos los mensajes se envían a <strong>{TELEFONO_PRUEBA}</strong>,
+            no al teléfono del cliente.
+          </span>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {pedidos.map(pedido => {
+          const notificado = yaNotificado(pedido);
+          return (
+            <div key={pedido.id} className="flex items-center gap-2 border rounded-lg p-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-gray-900 truncate">{pedido.cliente}</p>
+                <p className="text-xs text-gray-500">{pedido.numeroPedido || pedido.id}</p>
+              </div>
+              {notificado ? (
+                <span className="flex items-center gap-1 text-xs text-green-700 flex-shrink-0">
+                  <CheckCircle size={14} />
+                  Avisado
+                </span>
+              ) : (
+                <button
+                  onClick={() => onNotificar(pedido)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 text-xs font-medium flex-shrink-0"
+                >
+                  <Send size={13} />
+                  Avisar
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTracking, onStopTracking, onSendPosition, onGuardarRecibo, onRegistrarNotificacion }) => {
   const [vehiculoId, setVehiculoId] = useState(camiones[0]?.id || '');
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
@@ -642,6 +707,7 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
   const [expandirRecibos, setExpandirRecibos] = useState(false);
   const [mensajeExito, setMensajeExito] = useState(null);
   const [guardando, setGuardando] = useState(false);
+  const [notificadosLocal, setNotificadosLocal] = useState(new Set());
 
   useEffect(() => {
     if (!vehiculoId && camiones.length) setVehiculoId(camiones[0].id);
@@ -685,6 +751,36 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
   const handleStop = () => {
     stop();
     if (vehiculoId) onStopTracking?.(vehiculoId);
+  };
+
+  // Conductor del despacho activo de este camión, para nombrarlo en el aviso
+  const conductorDelDespacho = useMemo(() => {
+    const despacho = despachos.find(d => d.camionId === vehiculoId && d.estado !== 'Completado');
+    return despacho?.conductorNombre || vehiculoSeleccionado?.conductor || user?.nombre || user?.email || null;
+  }, [despachos, vehiculoId, vehiculoSeleccionado, user]);
+
+  const handleNotificarCliente = (pedido) => {
+    const url = construirUrlWhatsApp({
+      pedido,
+      placa: vehiculoSeleccionado?.placa,
+      conductor: conductorDelDespacho
+    });
+
+    if (!url) {
+      alert(`${pedido.cliente || 'El cliente'} no tiene un teléfono válido registrado.`);
+      return;
+    }
+
+    const ventana = window.open(url, '_blank');
+    if (!ventana) {
+      alert('El navegador bloqueó la ventana de WhatsApp. Permita las ventanas emergentes para este sitio.');
+      return;
+    }
+
+    // Se marca como avisado al abrir WhatsApp. No confirma que el cliente lo
+    // recibió: wa.me no da acuse de recibo.
+    setNotificadosLocal(prev => new Set(prev).add(pedido.id));
+    onRegistrarNotificacion?.(pedido.id);
   };
 
   const handleAbrirFormulario = (pedido) => {
@@ -829,6 +925,17 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
           <div className="text-gray-600 text-sm">Sin lecturas aún. Inicia el seguimiento para ver datos.</div>
         )}
       </div>
+
+      {/* Aviso de salida a los clientes: solo con la ruta ya iniciada */}
+      {isTracking && (
+        <PanelAvisoClientes
+          pedidos={pedidosDelCamion}
+          placa={vehiculoSeleccionado?.placa}
+          conductor={conductorDelDespacho}
+          notificadosLocal={notificadosLocal}
+          onNotificar={handleNotificarCliente}
+        />
+      )}
 
       {/* Pedidos asignados para entregar */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
