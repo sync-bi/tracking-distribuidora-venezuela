@@ -6,9 +6,9 @@
 // WhatsApp Business API. Por eso se notifica de uno en uno y se registra el envío:
 // abrir varias pestañas de golpe además es bloqueado por el navegador.
 
-// MODO PRUEBA: mientras esté definido, todos los mensajes van a este número en
-// lugar del teléfono del cliente. Vaciar antes de usar con clientes reales.
-export const TELEFONO_PRUEBA = '573134967101';
+// MODO PRUEBA: si se le pone un número, todos los mensajes van a ese número en
+// lugar del teléfono del cliente. Vacío = producción, se usa pedido.telefono.
+export const TELEFONO_PRUEBA = '';
 
 /**
  * Normaliza un teléfono venezolano al formato internacional que espera wa.me.

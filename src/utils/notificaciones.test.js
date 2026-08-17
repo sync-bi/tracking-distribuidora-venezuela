@@ -77,10 +77,19 @@ describe('construirMensajeSalida', () => {
 describe('construirUrlWhatsApp', () => {
   const pedido = { id: 'abc', numeroPedido: '0000006978', cliente: 'Cliente', telefono: '04123456789' };
 
-  it('apunta al numero de prueba mientras el modo prueba este activo', () => {
+  it('el modo prueba esta apagado: los avisos van al cliente real', () => {
+    expect(TELEFONO_PRUEBA).toBe('');
+    expect(esModoPrueba()).toBe(false);
+  });
+
+  it('envia al telefono del cliente, ya normalizado', () => {
     const url = construirUrlWhatsApp({ pedido, placa: 'ABC123', conductor: 'Juan', origin: ORIGIN });
-    expect(esModoPrueba()).toBe(true);
-    expect(url.startsWith(`https://wa.me/${TELEFONO_PRUEBA}?text=`)).toBe(true);
+    expect(url.startsWith('https://wa.me/584123456789?text=')).toBe(true);
+  });
+
+  it('devuelve null si el pedido no tiene telefono, para no enviar a ciegas', () => {
+    const sinTelefono = { ...pedido, telefono: '' };
+    expect(construirUrlWhatsApp({ pedido: sinTelefono, origin: ORIGIN })).toBeNull();
   });
 
   it('codifica el mensaje de forma reversible', () => {

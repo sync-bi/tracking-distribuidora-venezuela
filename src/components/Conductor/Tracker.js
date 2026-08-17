@@ -34,7 +34,12 @@ import {
   LIMITE_BYTES_RECIBO
 } from '../../utils/imagenes';
 import { abrirPOD } from '../../utils/pod';
-import { construirUrlWhatsApp, esModoPrueba, TELEFONO_PRUEBA } from '../../utils/notificaciones';
+import {
+  construirUrlWhatsApp,
+  esModoPrueba,
+  normalizarTelefono,
+  TELEFONO_PRUEBA
+} from '../../utils/notificaciones';
 
 const formatTime = (ts) => {
   try { return new Date(ts).toLocaleTimeString(); } catch { return ''; }
@@ -643,7 +648,11 @@ const PanelAvisoClientes = ({ pedidos, placa, conductor, notificadosLocal, onNot
   if (!pedidos.length) return null;
 
   const yaNotificado = (pedido) => Boolean(pedido.notificacionSalida) || notificadosLocal.has(pedido.id);
-  const pendientes = pedidos.filter(p => !yaNotificado(p));
+  // En producción el aviso va al teléfono del cliente: sin teléfono no hay nada que hacer.
+  const sePuedeAvisar = (pedido) => esModoPrueba() || Boolean(normalizarTelefono(pedido.telefono));
+
+  const pendientes = pedidos.filter(p => !yaNotificado(p) && sePuedeAvisar(p));
+  const sinTelefono = pedidos.filter(p => !sePuedeAvisar(p));
 
   return (
     <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -668,6 +677,16 @@ const PanelAvisoClientes = ({ pedidos, placa, conductor, notificadosLocal, onNot
         </div>
       )}
 
+      {sinTelefono.length > 0 && (
+        <div className="mb-3 flex items-start gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+          <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+          <span>
+            {sinTelefono.length} cliente(s) sin teléfono registrado: no se les puede avisar
+            por WhatsApp. Repórtelo a oficina para que lo carguen en el sistema.
+          </span>
+        </div>
+      )}
+
       <div className="space-y-2">
         {pedidos.map(pedido => {
           const notificado = yaNotificado(pedido);
@@ -677,7 +696,9 @@ const PanelAvisoClientes = ({ pedidos, placa, conductor, notificadosLocal, onNot
                 <p className="text-sm font-medium text-gray-900 truncate">{pedido.cliente}</p>
                 <p className="text-xs text-gray-500">{pedido.numeroPedido || pedido.id}</p>
               </div>
-              {notificado ? (
+              {!sePuedeAvisar(pedido) ? (
+                <span className="text-xs text-amber-700 flex-shrink-0">Sin teléfono</span>
+              ) : notificado ? (
                 <span className="flex items-center gap-1 text-xs text-green-700 flex-shrink-0">
                   <CheckCircle size={14} />
                   Avisado
