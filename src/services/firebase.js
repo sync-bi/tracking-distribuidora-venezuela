@@ -1,7 +1,7 @@
 // src/services/firebase.js
 // Servicio de Firebase para sincronización en tiempo real
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getDatabase, ref, set, onValue, off, serverTimestamp } from 'firebase/database';
 
 // Configuración de Firebase desde variables de entorno
@@ -196,7 +196,7 @@ export const registrarParadaCompletada = async (despachoId, paradaId) => {
   }
 };
 
-export default {
+const firebaseService = {
   isFirebaseAvailable,
   actualizarPosicionVehiculo,
   escucharPosicionVehiculo,
@@ -205,3 +205,4 @@ export default {
   guardarRutaOptimizada,
   registrarParadaCompletada
 };
+export default firebaseService;

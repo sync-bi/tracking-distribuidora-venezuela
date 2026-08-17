@@ -1,6 +1,5 @@
 // src/hooks/useCamiones.js
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { camionesIniciales } from '../data/mockData';
 import { simularMovimientoCamion } from '../utils/calculos';
 import { ESTADOS_CAMION, CONFIGURACION } from '../utils/constants';
@@ -12,7 +11,6 @@ import {
 } from '../services/firestoreService';
 
 export const useCamiones = () => {
-  const { user } = useAuth();
   const [camiones, setCamiones] = useState([]);
   const [cargando, setCargando] = useState(true);
 

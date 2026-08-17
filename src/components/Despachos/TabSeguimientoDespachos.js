@@ -220,10 +220,6 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
   };
 
   // Handle despacho selection on mobile
-  const handleSelectDespachoMobile = (id) => {
-    setDespachoSeleccionado(id);
-    setVistaMobile('mapa');
-  };
 
   // Render left sidebar with despacho list
   const renderSidebar = () => (

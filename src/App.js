@@ -35,6 +35,7 @@ import {
   registrarSalidaAlmacen
 } from './services/firestoreService';
 import TabKPIs from './components/KPIs/TabKPIs';
+import { aprenderCoordenadaDeEntrega } from './services/coordenadasClientes';
 import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ESTADOS_PEDIDO, ESTADOS_ENTREGADOS, ESTADOS_CAMION } from './utils/constants';
 
@@ -91,9 +92,6 @@ const App = () => {
     eliminarPedido,
     actualizarPedido,
     reemplazarPedidos,
-    obtenerPedidosPorEstado,
-    obtenerPedidosPorCamion,
-    obtenerPedidosPorPrioridad,
     buscarPedidos,
     estadisticas: estadisticasPedidos
   } = usePedidosFirestore();
@@ -101,12 +99,10 @@ const App = () => {
   const {
     camiones,
     asignarPedidoACamion,
-    removerPedidoDeCamion,
     actualizarEstadoCamion,
     actualizarUbicacionCamion,
     actualizarInfoVehiculo,
     obtenerCamionesDisponibles,
-    obtenerCamionesPorEstado,
     obtenerCamionPorId,
     buscarCamiones,
     estadisticas: estadisticasCamiones
@@ -115,9 +111,7 @@ const App = () => {
   const {
     rutas,
     optimizarRutaCamion,
-    obtenerRutaCamion,
     limpiarRutaCamion,
-    actualizarProgresoRuta,
     recalcularTodasLasRutas,
     estadisticasRutas
   } = useRutas();
@@ -130,7 +124,6 @@ const App = () => {
     crearDespacho,
     actualizarDespacho,
     modificarRuta,
-    obtenerConductoresDisponibles,
     estadisticas: estadisticasDespachos
   } = useDespachos();
 
@@ -439,6 +432,18 @@ const App = () => {
               console.error('Error al liberar camión/conductor:', e);
             }
           }
+        }
+
+        // Aprender la coordenada real del cliente desde el GPS de la entrega.
+        // Es la única fuente confiable: la geocodificación por dirección no
+        // funciona en Venezuela y el ERP sólo tiene coordenadas del 2.8%.
+        const pedidoEntregadoInfo = pedidos.find(p => p.id === recibo.pedidoId);
+        if (pedidoEntregadoInfo) {
+          await aprenderCoordenadaDeEntrega({
+            pedido: pedidoEntregadoInfo,
+            ubicacionEntrega: recibo.ubicacionEntrega,
+            userId: user?.email || user?.uid || 'conductor'
+          });
         }
 
         console.log('✅ Recibo guardado en Firestore:', recibo.pedidoId);

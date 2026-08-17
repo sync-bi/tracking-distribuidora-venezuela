@@ -12,8 +12,8 @@ import {
   obtenerHistorialUbicaciones,
   limpiarPedidosDesistidos
 } from '../services/firestoreService';
-import { pedidosIniciales } from '../data/mockData';
-import { loadPedidosFromPublic } from '../utils/importers';
+
+
 import { generarCoordenadasVenezuela } from '../utils/calculos';
 import { ESTADOS_PEDIDO } from '../utils/constants';
 

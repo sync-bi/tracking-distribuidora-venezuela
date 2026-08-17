@@ -1,5 +1,5 @@
 // src/services/firestoreService.js
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import {
   getFirestore,
   collection,
@@ -16,8 +16,7 @@ import {
   onSnapshot,
   serverTimestamp,
   writeBatch,
-  addDoc,
-  Timestamp
+  addDoc
 } from 'firebase/firestore';
 
 // Configuración de Firebase
@@ -1245,7 +1244,7 @@ export const escucharRecibosEntrega = (callback) => {
 };
 
 // Exportar todo
-export default {
+const firestoreService = {
   isFirestoreAvailable,
   // Pedidos
   crearPedido,
@@ -1305,3 +1304,5 @@ export default {
   escucharCalificaciones,
   escucharRecibosEntrega
 };
+
+export default firestoreService;

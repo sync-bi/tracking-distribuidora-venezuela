@@ -24,3 +24,33 @@ yarn-debug.log*
 yarn-error.log*
 
 .vercel
+
+# Herramientas locales del entorno de trabajo
+.claude/
+
+# Scripts temporales de diagnóstico (se crean y borran en el momento)
+*.tmp.js
+*.tmp.mjs
+
+# Artefacto de Windows por una redirección a "nul" en vez de /dev/null
+nul
+
+# Documentos de trabajo y datos de clientes: no van al repositorio.
+# Contienen datos personales (nombres, direcciones, teléfonos) y no son código.
+*.csv
+*.xlsx
+!public/*.csv
+!public/*.xlsx
+*.JPG
+*.jpg
+*.png
+!public/*.png
+!src/**/*.png
+!src/**/*.svg
+"Proyecto Sarego"*.pdf
+*.pdf
+Manual_*.html
+Resumen_*.html
+Ajustes_*.html
+consulta*.txt
+/por corregir/

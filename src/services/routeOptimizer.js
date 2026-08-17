@@ -464,8 +464,9 @@ export function optimizeWithConstraints(stops, constraints = {}) {
     maxTime = Infinity,
     maxStops = Infinity,
     vehicleCapacity = Infinity,
-    startPoint = null,
-    timeWindows = false
+    startPoint = null
+    // timeWindows: previsto en la firma pero aún sin implementar; se omite
+    // hasta que exista la lógica de ventanas horarias.
   } = constraints;
 
   // Filter stops that fit within constraints

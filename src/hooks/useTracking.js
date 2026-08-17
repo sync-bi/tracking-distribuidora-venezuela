@@ -1,5 +1,5 @@
 // src/hooks/useTracking.js
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { calcularDistancia } from '../utils/calculos';
 
 // Almacenamiento simple de cola usando localStorage para Fase 1

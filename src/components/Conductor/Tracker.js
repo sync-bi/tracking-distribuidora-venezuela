@@ -122,13 +122,6 @@ const SignaturePad = ({ onSave, onClear }) => {
     onClear?.();
   };
 
-  const saveSignature = () => {
-    if (!hasSignature) return null;
-    const canvas = canvasRef.current;
-    const dataUrl = canvas.toDataURL('image/png');
-    onSave?.(dataUrl);
-    return dataUrl;
-  };
 
   return (
     <div className="space-y-2">

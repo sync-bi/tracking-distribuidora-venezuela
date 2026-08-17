@@ -2,8 +2,8 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import Map, { Marker, Popup, Source, Layer } from 'react-map-gl';
 import { 
-  MapPin, Truck, Navigation, Route, Eye, EyeOff, 
-  ZoomIn, ZoomOut, RotateCcw, Settings, AlertTriangle
+  Truck, Navigation, Route, Eye, EyeOff, 
+  ZoomIn, ZoomOut, RotateCcw, AlertTriangle
 } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { DEPOSITOS, CIUDADES_VENEZUELA } from '../../utils/constants';
@@ -35,7 +35,7 @@ const MapaDespachos = ({
   const [perfilRuta, setPerfilRuta] = useState('driving-traffic'); // driving-traffic, driving, cycling, walking
   const [posCamion, setPosCamion] = useState(null); // posición animada del camión
   const [trayectoCoords, setTrayectoCoords] = useState([]);
-  const [animando, setAnimando] = useState(true);
+  const [, setAnimando] = useState(true);
 
   const rutaActual = editandoRuta ? rutaEditada : ruta;
 
@@ -67,7 +67,6 @@ const MapaDespachos = ({
     if (!isCityCenter) return base;
 
     const degToRad = (d) => (d * Math.PI) / 180;
-    const radToDeg = (r) => (r * 180) / Math.PI;
     const Rm = 111000; // metros por grado aprox. en latitud
     const angle = (index * 137.508) % 360; // distribuir en espiral de oro
     const radiusM = 300 + (index % 6) * 120; // 300m .. ~900m

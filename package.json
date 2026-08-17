@@ -31,6 +31,11 @@
       "react-app/jest"
     ]
   },
+  "jest": {
+    "moduleNameMapper": {
+      "^mapbox-gl$": "<rootDir>/src/__mocks__/mapbox-gl.js"
+    }
+  },
   "browserslist": {
     "production": [
       ">0.2%",
