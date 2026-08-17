@@ -28,7 +28,13 @@ import TabMapa from './components/Mapa/TabMapa';
 import Tracker from './components/Conductor/Tracker';
 import { trackingClient } from './services/trackingClient';
 import { actualizarPosicionVehiculo } from './services/firebase';
-import { guardarReciboEntrega, crearNoConformidad } from './services/firestoreService';
+import {
+  guardarReciboEntrega,
+  crearNoConformidad,
+  crearIncidenciaRuta,
+  registrarSalidaAlmacen
+} from './services/firestoreService';
+import TabKPIs from './components/KPIs/TabKPIs';
 import { getFirestore, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ESTADOS_PEDIDO, ESTADOS_ENTREGADOS, ESTADOS_CAMION } from './utils/constants';
 
@@ -50,10 +56,10 @@ const App = () => {
   const { user, loading, logout } = useAuth();
 
   const PERMISSIONS = useMemo(() => ({
-    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes', 'no-conformidad'],
-    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes', 'no-conformidad'],
-    despachador: ['despachos', 'seguimiento', 'camiones', 'clientes', 'no-conformidad'],
-    visor: ['pedidos', 'seguimiento'],
+    admin: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes', 'no-conformidad', 'kpis'],
+    operador: ['pedidos', 'camiones', 'despachos', 'seguimiento', 'conductor', 'clientes', 'no-conformidad', 'kpis'],
+    despachador: ['despachos', 'seguimiento', 'camiones', 'clientes', 'no-conformidad', 'kpis'],
+    visor: ['pedidos', 'seguimiento', 'kpis'],
     conductor: ['conductor'],
     vendedor: ['clientes', 'pedidos']
   }), []);
@@ -285,6 +291,36 @@ const App = () => {
         }
       }
     },
+    onConfirmarSalida: async (despachoId, checklist) => {
+      // Paso 1.1: queda registrado quién autorizó la salida y a qué hora
+      await registrarSalidaAlmacen(despachoId, checklist, user?.email || user?.uid || 'conductor');
+    },
+    onReportarIncidencia: async (datos) => {
+      const incidencia = await crearIncidenciaRuta(datos, user?.email || user?.uid || 'conductor');
+
+      // Una avería o falla del vehículo detiene la ruta: se refleja en el camión
+      if (datos.afectaTodaLaRuta && datos.camionId) {
+        try {
+          await actualizarInfoVehiculo(datos.camionId, { incidenciaActiva: datos.tipoLabel });
+        } catch (e) {
+          console.error('Error al marcar incidencia en el vehículo:', e);
+        }
+      }
+      return incidencia;
+    },
+    onRegistrarLlegada: async (pedidoId, ubicacion) => {
+      // Paso 3.1: llegada al cliente, previa a la entrega
+      try {
+        await actualizarPedido(pedidoId, {
+          llegadaCliente: {
+            fecha: new Date().toISOString(),
+            ubicacion: ubicacion || null
+          }
+        });
+      } catch (e) {
+        console.error('Error al registrar llegada:', e);
+      }
+    },
     onRegistrarNotificacion: async (pedidoId) => {
       // Deja constancia de que se abrió el aviso de salida para ese cliente.
       // No es acuse de recibo: wa.me no lo provee.
@@ -446,6 +482,8 @@ const App = () => {
         return <TabGestionClientes />;
       case 'no-conformidad':
         return <TabNoConformidad pedidos={pedidos} despachos={despachos} />;
+      case 'kpis':
+        return <TabKPIs pedidos={pedidos} despachos={despachos} />;
       default:
         return <TabPedidos {...pedidosProps} />;
     }

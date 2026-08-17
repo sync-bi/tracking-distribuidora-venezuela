@@ -34,8 +34,11 @@ import {
   LIMITE_BYTES_RECIBO
 } from '../../utils/imagenes';
 import { abrirPOD } from '../../utils/pod';
+import ChecklistSalida from '../Despachos/ChecklistSalida';
+import FormularioIncidencia from './FormularioIncidencia';
 import {
   construirUrlWhatsApp,
+  construirUrlWhatsAppEntrega,
   esModoPrueba,
   normalizarTelefono,
   TELEFONO_PRUEBA
@@ -720,7 +723,20 @@ const PanelAvisoClientes = ({ pedidos, placa, conductor, notificadosLocal, onNot
   );
 };
 
-const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTracking, onStopTracking, onSendPosition, onGuardarRecibo, onRegistrarNotificacion }) => {
+const Tracker = ({
+  user,
+  camiones = [],
+  despachos = [],
+  pedidos = [],
+  onStartTracking,
+  onStopTracking,
+  onSendPosition,
+  onGuardarRecibo,
+  onRegistrarNotificacion,
+  onConfirmarSalida,
+  onReportarIncidencia,
+  onRegistrarLlegada
+}) => {
   const [vehiculoId, setVehiculoId] = useState(camiones[0]?.id || '');
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState(null);
@@ -729,6 +745,10 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
   const [mensajeExito, setMensajeExito] = useState(null);
   const [guardando, setGuardando] = useState(false);
   const [notificadosLocal, setNotificadosLocal] = useState(new Set());
+  const [mostrarIncidencia, setMostrarIncidencia] = useState(false);
+  const [mostrarChecklist, setMostrarChecklist] = useState(false);
+  const [llegadas, setLlegadas] = useState({}); // pedidoId -> { ts, ubicacion }
+  const [entregaPorNotificar, setEntregaPorNotificar] = useState(null);
 
   useEffect(() => {
     if (!vehiculoId && camiones.length) setVehiculoId(camiones[0].id);
@@ -763,10 +783,60 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
     );
   }, [pedidos, vehiculoId, recibosGuardados]);
 
+  // Despacho activo del camión: hace falta para el checklist y las incidencias
+  const despachoActivo = useMemo(
+    () => despachos.find(d => d.camionId === vehiculoId && d.estado !== 'Completado'),
+    [despachos, vehiculoId]
+  );
+
+  // Paso 1.1: no se sale del almacén sin confirmar el checklist
+  const salidaConfirmada = Boolean(despachoActivo?.salidaAlmacen);
+
   const handleStart = async () => {
     if (!vehiculoId) return;
+
+    // Si hay un despacho sin salida confirmada, primero el checklist
+    if (despachoActivo && !salidaConfirmada) {
+      setMostrarChecklist(true);
+      return;
+    }
+
     onStartTracking?.(vehiculoId);
     start({ vehiculoId, driverId: user?.id ?? 'driver' });
+  };
+
+  const handleConfirmarSalida = async (checklist) => {
+    try {
+      await onConfirmarSalida?.(despachoActivo.id, checklist);
+      setMostrarChecklist(false);
+      onStartTracking?.(vehiculoId);
+      start({ vehiculoId, driverId: user?.id ?? 'driver' });
+      setMensajeExito('Salida registrada. Tracking iniciado.');
+      setTimeout(() => setMensajeExito(null), 3000);
+    } catch {
+      alert('No se pudo registrar la salida. Intente de nuevo.');
+    }
+  };
+
+  // Paso 3.1: registrar la llegada al cliente, antes de la entrega
+  const handleRegistrarLlegada = async (pedido) => {
+    const ubicacion = await resolverUbicacionEntrega(lastFix);
+    setLlegadas(prev => ({ ...prev, [pedido.id]: { ts: Date.now(), ubicacion } }));
+    onRegistrarLlegada?.(pedido.id, ubicacion);
+    setMensajeExito(`Llegada registrada en ${pedido.cliente || pedido.id}`);
+    setTimeout(() => setMensajeExito(null), 2500);
+  };
+
+  const handleGuardarIncidencia = async (datos) => {
+    const ubicacion = await resolverUbicacionEntrega(lastFix);
+    try {
+      await onReportarIncidencia?.({ ...datos, ubicacion });
+      setMostrarIncidencia(false);
+      setMensajeExito('Incidencia reportada a operaciones');
+      setTimeout(() => setMensajeExito(null), 3000);
+    } catch {
+      alert('No se pudo registrar la incidencia. Intente de nuevo.');
+    }
   };
 
   const handleStop = () => {
@@ -850,6 +920,9 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
         (reciboConId.conforme ? 'Entrega registrada correctamente' : 'Entrega parcial registrada') + avisoUbicacion
       );
       setTimeout(() => setMensajeExito(null), 4000);
+
+      // Paso 4.3: avisar al cliente que su pedido fue entregado
+      setEntregaPorNotificar({ pedido: pedidoSeleccionado, conforme: reciboConId.conforme });
     } catch (err) {
       console.error('Error al guardar recibo:', err);
       alert('Error al guardar el recibo. Intente de nuevo.');
@@ -947,6 +1020,17 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
         )}
       </div>
 
+      {/* Reporte de incidencia en ruta (fase 2 del proceso) */}
+      {isTracking && (
+        <button
+          onClick={() => setMostrarIncidencia(true)}
+          className="w-full mb-6 flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium"
+        >
+          <AlertTriangle size={18} />
+          Reportar incidencia en ruta
+        </button>
+      )}
+
       {/* Aviso de salida a los clientes: solo con la ruta ya iniciada */}
       {isTracking && (
         <PanelAvisoClientes
@@ -994,6 +1078,20 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
                     {pedido.estado}
                   </span>
                 </div>
+                {llegadas[pedido.id] ? (
+                  <p className="mb-2 flex items-center gap-1 text-xs text-green-700">
+                    <CheckCircle size={12} />
+                    Llegada registrada a las {formatTime(llegadas[pedido.id].ts)}
+                  </p>
+                ) : (
+                  <button
+                    onClick={() => handleRegistrarLlegada(pedido)}
+                    className="w-full mb-2 flex items-center justify-center gap-2 px-3 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm"
+                  >
+                    <MapPin size={16} />
+                    Llegué al cliente
+                  </button>
+                )}
                 <button
                   onClick={() => handleAbrirFormulario(pedido)}
                   className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
@@ -1084,12 +1182,73 @@ const Tracker = ({ user, camiones = [], despachos = [], pedidos = [], onStartTra
         </div>
       )}
 
+      {/* Aviso de entrega al cliente (paso 4.3) */}
+      {entregaPorNotificar && (
+        <div className="fixed inset-x-0 bottom-0 z-50 p-4">
+          <div className="mx-auto max-w-lg bg-white border-2 border-green-500 rounded-lg shadow-lg p-4">
+            <p className="text-sm font-medium text-gray-900 mb-1">
+              Avisar la entrega a {entregaPorNotificar.pedido?.cliente || 'el cliente'}
+            </p>
+            <p className="text-xs text-gray-500 mb-3">
+              Se le envía el comprobante de entrega por WhatsApp.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const url = construirUrlWhatsAppEntrega({
+                    pedido: entregaPorNotificar.pedido,
+                    conforme: entregaPorNotificar.conforme
+                  });
+                  if (!url) {
+                    alert('Este cliente no tiene teléfono registrado.');
+                  } else if (!window.open(url, '_blank')) {
+                    alert('El navegador bloqueó la ventana de WhatsApp.');
+                  }
+                  setEntregaPorNotificar(null);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium"
+              >
+                <Send size={14} />
+                Avisar entrega
+              </button>
+              <button
+                onClick={() => setEntregaPorNotificar(null)}
+                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+              >
+                Ahora no
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Mensaje de éxito */}
       {mensajeExito && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-bounce">
           <CheckCircle size={20} />
           <span className="font-medium">{mensajeExito}</span>
         </div>
+      )}
+
+      {/* Checklist de salida del almacén (paso 1.1) */}
+      {mostrarChecklist && despachoActivo && (
+        <ChecklistSalida
+          despacho={despachoActivo}
+          camion={vehiculoSeleccionado}
+          conductor={{ nombre: conductorDelDespacho }}
+          onConfirmar={handleConfirmarSalida}
+          onCancelar={() => setMostrarChecklist(false)}
+        />
+      )}
+
+      {/* Reporte de incidencia en ruta (fase 2) */}
+      {mostrarIncidencia && (
+        <FormularioIncidencia
+          pedidos={pedidosDelCamion}
+          camion={vehiculoSeleccionado}
+          onGuardar={handleGuardarIncidencia}
+          onCancelar={() => setMostrarIncidencia(false)}
+        />
       )}
 
       {/* Modal de Formulario de Recibido Conforme */}

@@ -14,6 +14,7 @@ import {
   intelligentOptimizer as optimizarRutaInteligente,
   calculateRouteMetrics
 } from '../../services/routeOptimizer';
+import PanelAlertas from '../Alertas/PanelAlertas';
 
 const TabSeguimientoDespachos = ({
   despachos = [],
@@ -418,6 +419,9 @@ Combustible estimado: ${resultado.metrics?.totalFuel?.toFixed(1) || 0} L`;
             <ChevronLeft size={20} />
             Volver a lista
           </button>
+
+          {/* Alertas automáticas del flujo transversal */}
+          <PanelAlertas camiones={camiones} pedidos={pedidos} />
 
           {/* Header with truck info */}
           <div className="bg-white rounded-lg border shadow-sm p-4 md:p-6 mb-4">

@@ -174,6 +174,69 @@ export const CONFIGURACION = {
   DELTA_MOVIMIENTO_SIMULADO: 0.001
 };
 
+// ==========================================
+// PROCESO DE DESPACHO (diagrama del cliente)
+// ==========================================
+
+// Paso 1.1: confirmación de salida del despacho
+export const CHECKLIST_SALIDA = [
+  { id: 'documentacion', label: 'Documentación completa' },
+  { id: 'carga_conforme', label: 'Carga completa y conforme' },
+  { id: 'vehiculo', label: 'Vehículo revisado y en condiciones' },
+  { id: 'conductor', label: 'Conductor identificado y asignado' }
+];
+
+// Fase 2: incidencias que pueden ocurrir mientras el vehículo está en ruta
+export const TIPOS_INCIDENCIA_RUTA = [
+  { id: 'retraso', label: 'Retraso', gravedad: 'Leve' },
+  { id: 'averia', label: 'Accidente / Avería', gravedad: 'Grave' },
+  { id: 'cambio_direccion', label: 'Cambio de dirección', gravedad: 'Leve' },
+  { id: 'cliente_ausente', label: 'Cliente ausente', gravedad: 'Moderada' },
+  { id: 'desvio', label: 'Desvío de ruta', gravedad: 'Moderada' },
+  { id: 'vehiculo', label: 'Problema con el vehículo', gravedad: 'Grave' }
+];
+
+// Acciones de gestión de la incidencia (paso "Gestionar incidencia" del diagrama)
+export const ACCIONES_INCIDENCIA = [
+  { id: 'continuar', label: 'Continuar la ruta' },
+  { id: 'reprogramar', label: 'Reprogramar la entrega' },
+  { id: 'reasignar', label: 'Reasignar a otro vehículo' },
+  { id: 'cancelar', label: 'Cancelar la entrega' }
+];
+
+export const ESTADOS_INCIDENCIA = ['Abierta', 'En gestión', 'Resuelta', 'Cerrada'];
+
+// Alertas automáticas del flujo transversal
+export const TIPOS_ALERTA = {
+  RETRASO: 'retraso',
+  DESVIO: 'desvio',
+  PARADA_PROLONGADA: 'parada_prolongada',
+  INCIDENCIA: 'incidencia',
+  CAMBIO_ETA: 'cambio_eta',
+  FALLA_VEHICULO: 'falla_vehiculo'
+};
+
+export const CONFIG_ALERTAS = {
+  // Minutos sin movimiento significativo para considerar el vehículo detenido
+  MINUTOS_PARADA_PROLONGADA: 20,
+  // Metros de movimiento por debajo de los cuales se considera "sin moverse"
+  METROS_MOVIMIENTO_MINIMO: 100,
+  // Minutos de atraso sobre la ETA para levantar alerta de retraso
+  MINUTOS_RETRASO: 30,
+  // Minutos sin recibir posición para considerar el tracking caído
+  MINUTOS_SIN_SENAL: 15,
+  // Kilómetros de separación de la ruta planificada para considerar desvío
+  KM_DESVIO: 3
+};
+
+// Metas de los indicadores del diagrama
+export const METAS_KPI = {
+  OTD: 95,                    // % de entregas a tiempo
+  CUMPLIMIENTO_RUTA: 90,      // % de paradas cumplidas
+  INCIDENCIAS_POR_100: 5,     // máximo tolerable
+  NPS: 50                     // nivel de servicio al cliente
+};
+
 export const ROLES_USUARIO = {
   ADMIN: 'admin',
   OPERADOR: 'operador',

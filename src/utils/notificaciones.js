@@ -64,4 +64,34 @@ export const construirUrlWhatsApp = ({ pedido, placa, conductor, origin }) => {
   return `https://wa.me/${destino}?text=${encodeURIComponent(mensaje)}`;
 };
 
+/**
+ * Mensaje de entrega completada (pasos 3.3A y 4.3 del proceso).
+ */
+export const construirMensajeEntrega = ({ pedido, conforme, origin }) => {
+  const trackingUrl = construirUrlTracking(pedido, origin);
+
+  const cuerpo = conforme
+    ? `Su pedido *${pedido.numeroPedido || pedido.id}* ha sido entregado exitosamente.`
+    : `Su pedido *${pedido.numeroPedido || pedido.id}* fue entregado con observaciones. Ya estamos gestionando el caso.`;
+
+  return `*Distribuidora Sarego*
+
+Hola ${pedido.cliente || ''},
+
+${cuerpo}
+
+📄 Consulte y descargue su comprobante de entrega:
+${trackingUrl}
+
+Gracias por su preferencia.`;
+};
+
+export const construirUrlWhatsAppEntrega = ({ pedido, conforme, origin }) => {
+  const destino = TELEFONO_PRUEBA || normalizarTelefono(pedido.telefono);
+  if (!destino) return null;
+
+  const mensaje = construirMensajeEntrega({ pedido, conforme, origin });
+  return `https://wa.me/${destino}?text=${encodeURIComponent(mensaje)}`;
+};
+
 export const esModoPrueba = () => Boolean(TELEFONO_PRUEBA);

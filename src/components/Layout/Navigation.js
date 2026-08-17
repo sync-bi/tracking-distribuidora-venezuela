@@ -1,6 +1,6 @@
 // src/components/Layout/Navigation.js
 import React, { useState } from 'react';
-import { Package, Truck, MapPin, Clipboard, Navigation as NavIcon, Radio, MapPinned, Building2, Menu, X, LogOut, AlertTriangle } from 'lucide-react';
+import { Package, Truck, MapPin, Clipboard, Navigation as NavIcon, Radio, MapPinned, Building2, Menu, X, LogOut, AlertTriangle, TrendingUp } from 'lucide-react';
 
 const Navigation = ({ activeTab, setActiveTab, allowedTabs = [], user, onLogout }) => {
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -14,7 +14,8 @@ const Navigation = ({ activeTab, setActiveTab, allowedTabs = [], user, onLogout 
     { id: 'mapa', label: 'Mapa', icon: MapPin, description: 'Vista geografica en tiempo real' },
     { id: 'ubicaciones', label: 'Ubicaciones', icon: MapPinned, description: 'Gestión de ubicaciones de clientes' },
     { id: 'clientes', label: 'Clientes', icon: Building2, description: 'Gestión de clientes y corrección de ubicaciones' },
-    { id: 'no-conformidad', label: 'No Conformidad', icon: AlertTriangle, description: 'Registro y gestión de no conformidades en despachos' }
+    { id: 'no-conformidad', label: 'No Conformidad', icon: AlertTriangle, description: 'Registro y gestión de no conformidades en despachos' },
+    { id: 'kpis', label: 'Indicadores', icon: TrendingUp, description: 'KPIs de servicio: OTD, tiempos, cumplimiento de ruta, incidencias y NPS' }
   ];
 
   const tabsFiltrados = tabs.filter(t => allowedTabs.length === 0 || allowedTabs.includes(t.id));

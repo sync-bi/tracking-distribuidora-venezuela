@@ -1088,6 +1088,162 @@ export const limpiarPedidosDesistidos = async (userId = 'sistema') => {
   }
 };
 
+// ==========================================
+// INCIDENCIAS EN RUTA (fase 2 del proceso)
+// ==========================================
+
+/**
+ * Registrar una incidencia ocurrida mientras el vehículo está en ruta.
+ * Distinta de la no conformidad, que es sobre la mercancía ya entregada.
+ */
+export const crearIncidenciaRuta = async (datos, userId = 'sistema') => {
+  if (!db) return null;
+
+  try {
+    const ref = doc(collection(db, 'incidencias_ruta'));
+    const incidencia = {
+      ...datos,
+      id: ref.id,
+      estado: 'Abierta',
+      fechaReporte: serverTimestamp(),
+      reportadoPor: userId,
+      fechaActualizacion: serverTimestamp()
+    };
+    await setDoc(ref, incidencia);
+    await registrarAuditoria('crear', 'incidencia_ruta', ref.id, userId, null, incidencia);
+    console.log('⚠️ Incidencia en ruta registrada:', ref.id);
+    return { ...incidencia, id: ref.id };
+  } catch (error) {
+    console.error('❌ Error al registrar incidencia en ruta:', error);
+    throw error;
+  }
+};
+
+export const escucharIncidenciasRuta = (callback) => {
+  if (!db) return () => {};
+
+  const ref = collection(db, 'incidencias_ruta');
+  const q = query(ref, orderBy('fechaReporte', 'desc'));
+
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  }, (error) => {
+    console.error('❌ Error en listener de incidencias en ruta:', error);
+  });
+};
+
+export const actualizarIncidenciaRuta = async (incidenciaId, datos, userId = 'sistema') => {
+  if (!db) return;
+
+  try {
+    await updateDoc(doc(db, 'incidencias_ruta', incidenciaId), {
+      ...datos,
+      fechaActualizacion: serverTimestamp(),
+      actualizadoPor: userId
+    });
+    console.log('✅ Incidencia en ruta actualizada:', incidenciaId);
+  } catch (error) {
+    console.error('❌ Error al actualizar incidencia en ruta:', error);
+    throw error;
+  }
+};
+
+// ==========================================
+// CHECKLIST DE SALIDA DEL ALMACÉN (paso 1.1)
+// ==========================================
+
+/**
+ * Registra la confirmación de salida de un despacho. Sin este registro el
+ * conductor no debería poder iniciar la ruta.
+ */
+export const registrarSalidaAlmacen = async (despachoId, checklist, userId = 'sistema') => {
+  if (!db) return null;
+
+  try {
+    const salida = {
+      ...checklist,
+      despachoId,
+      fechaSalida: new Date().toISOString(),
+      registradoPor: userId
+    };
+
+    await updateDoc(doc(db, 'despachos', despachoId), {
+      salidaAlmacen: salida,
+      estado: 'En Ruta',
+      fechaActualizacion: serverTimestamp()
+    });
+
+    await registrarAuditoria('salida_almacen', 'despacho', despachoId, userId, null, salida);
+    console.log('🚚 Salida del almacén registrada:', despachoId);
+    return salida;
+  } catch (error) {
+    console.error('❌ Error al registrar salida del almacén:', error);
+    throw error;
+  }
+};
+
+// ==========================================
+// CALIFICACIÓN DEL CLIENTE (NPS)
+// ==========================================
+
+/**
+ * Guarda la calificación que el cliente deja en el portal de seguimiento.
+ * Alimenta el KPI de nivel de servicio (NPS).
+ */
+export const guardarCalificacionCliente = async (pedidoId, calificacion, comentario = '') => {
+  if (!db) return null;
+
+  try {
+    const ref = doc(collection(db, 'calificaciones'));
+    const registro = {
+      id: ref.id,
+      pedidoId,
+      calificacion: Number(calificacion),
+      comentario,
+      fecha: new Date().toISOString()
+    };
+    await setDoc(ref, registro);
+    console.log('⭐ Calificación registrada para el pedido:', pedidoId);
+    return registro;
+  } catch (error) {
+    console.error('❌ Error al guardar calificación:', error);
+    throw error;
+  }
+};
+
+export const obtenerCalificacionPedido = async (pedidoId) => {
+  if (!db) return null;
+
+  try {
+    const q = query(collection(db, 'calificaciones'), where('pedidoId', '==', pedidoId), limit(1));
+    const snap = await getDocs(q);
+    return snap.empty ? null : snap.docs[0].data();
+  } catch (error) {
+    console.error('❌ Error al obtener calificación:', error);
+    return null;
+  }
+};
+
+export const escucharCalificaciones = (callback) => {
+  if (!db) return () => {};
+
+  return onSnapshot(collection(db, 'calificaciones'), (snapshot) => {
+    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  }, (error) => {
+    console.error('❌ Error en listener de calificaciones:', error);
+  });
+};
+
+export const escucharRecibosEntrega = (callback) => {
+  if (!db) return () => {};
+
+  return onSnapshot(collection(db, 'recibos_entrega'), (snapshot) => {
+    callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+  }, (error) => {
+    console.error('❌ Error en listener de recibos:', error);
+  });
+};
+
 // Exportar todo
 export default {
   isFirestoreAvailable,
@@ -1136,5 +1292,16 @@ export default {
   limpiarPedidosDesistidos,
   crearNoConformidad,
   escucharNoConformidades,
-  actualizarNoConformidad
+  actualizarNoConformidad,
+  // Incidencias en ruta
+  crearIncidenciaRuta,
+  escucharIncidenciasRuta,
+  actualizarIncidenciaRuta,
+  // Salida del almacén
+  registrarSalidaAlmacen,
+  // Calificaciones y KPIs
+  guardarCalificacionCliente,
+  obtenerCalificacionPedido,
+  escucharCalificaciones,
+  escucharRecibosEntrega
 };

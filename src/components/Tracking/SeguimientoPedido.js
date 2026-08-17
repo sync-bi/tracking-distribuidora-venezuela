@@ -18,7 +18,9 @@ import {
   escucharPedido,
   obtenerHistorialEstados,
   obtenerReciboPedido,
-  isFirestoreAvailable
+  isFirestoreAvailable,
+  guardarCalificacionCliente,
+  obtenerCalificacionPedido
 } from '../../services/firestoreService';
 import { escucharPosicionVehiculo } from '../../services/firebase';
 
@@ -326,6 +328,85 @@ const MapaSeguimiento = ({ camionId, coordenadasDestino }) => {
           </div>
         )}
       </div>
+    </div>
+  );
+};
+
+// Calificación del cliente tras la entrega: alimenta el KPI de NPS
+const EncuestaCliente = ({ pedidoId }) => {
+  const [calificacion, setCalificacion] = useState(null);
+  const [comentario, setComentario] = useState('');
+  const [enviada, setEnviada] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [yaCalificado, setYaCalificado] = useState(null);
+
+  useEffect(() => {
+    let cancelado = false;
+    obtenerCalificacionPedido(pedidoId).then(c => {
+      if (!cancelado) setYaCalificado(c);
+    });
+    return () => { cancelado = true; };
+  }, [pedidoId]);
+
+  const enviar = async () => {
+    if (calificacion == null || enviando) return;
+    setEnviando(true);
+    try {
+      await guardarCalificacionCliente(pedidoId, calificacion, comentario);
+      setEnviada(true);
+    } catch {
+      alert('No se pudo enviar su calificación. Intente de nuevo.');
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  if (yaCalificado || enviada) {
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+        Gracias por calificar nuestro servicio.
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+      <h4 className="font-semibold text-gray-800">¿Qué tal estuvo nuestro servicio?</h4>
+      <p className="text-xs text-gray-500">
+        Del 0 al 10, ¿qué tan probable es que nos recomiende?
+      </p>
+
+      <div className="grid grid-cols-11 gap-1">
+        {Array.from({ length: 11 }, (_, n) => (
+          <button
+            key={n}
+            onClick={() => setCalificacion(n)}
+            className={`py-2 rounded text-xs font-semibold transition-colors ${
+              calificacion === n
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-blue-100'
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+
+      <textarea
+        value={comentario}
+        onChange={(e) => setComentario(e.target.value)}
+        rows="2"
+        placeholder="¿Algo que quiera contarnos? (opcional)"
+        className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+      />
+
+      <button
+        onClick={enviar}
+        disabled={calificacion == null || enviando}
+        className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500"
+      >
+        {enviando ? 'Enviando...' : 'Enviar calificación'}
+      </button>
     </div>
   );
 };
@@ -736,6 +817,9 @@ const SeguimientoPedido = () => {
 
         {/* Recibo de entrega */}
         {recibo && <InfoRecibo recibo={recibo} pedido={pedido} />}
+
+        {/* Calificación del servicio: sólo tiene sentido con la entrega hecha */}
+        {recibo && pedido?.id && <EncuestaCliente pedidoId={pedido.id} />}
 
         {/* Mensaje si está en ruta */}
         {pedido.estado === 'En Ruta' && (
