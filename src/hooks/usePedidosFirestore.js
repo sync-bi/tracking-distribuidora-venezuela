@@ -10,7 +10,8 @@ import {
   actualizarEstadoPedido as actualizarEstadoFS,
   eliminarPedido as eliminarPedidoFS,
   obtenerHistorialUbicaciones,
-  limpiarPedidosDesistidos
+  limpiarPedidosDesistidos,
+  limpiarPendientesViejos
 } from '../services/firestoreService';
 
 
@@ -32,6 +33,13 @@ export const usePedidosFirestore = () => {
         // Limpiar pedidos desistidos del día anterior
         limpiarPedidosDesistidos().catch(err =>
           console.error('Error en limpieza de desistidos:', err)
+        );
+
+        // Purgar pendientes fuera de la ventana operativa. Nada los cierra solos
+        // (el ERP no devuelve estado de entregado), así que sin esto la colección
+        // crece sin techo y el tablero se llena de despachos fantasma.
+        limpiarPendientesViejos().catch(err =>
+          console.error('Error en limpieza de pendientes viejos:', err)
         );
 
         // Usar Firestore con sincronización en tiempo real

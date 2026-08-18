@@ -1087,6 +1087,84 @@ export const limpiarPedidosDesistidos = async (userId = 'sistema') => {
   }
 };
 
+/**
+ * Días que un despacho pendiente permanece en el tablero.
+ *
+ * Es el doble de la ventana de sincronización (7 días) a propósito: así nada
+ * desaparece de la pantalla mientras el operador lo está mirando.
+ */
+export const DIAS_RETENCION_PENDIENTES = 15;
+
+/**
+ * Elimina los despachos pendientes que ya salieron de la ventana operativa.
+ *
+ * Hace falta porque nada cierra un pendiente automáticamente: los despachos
+ * entran siempre como 'Pendiente' y el ERP no devuelve un estado de entregado.
+ * Sin esta purga la colección crece sin techo (2.8k documentos a agosto 2026).
+ *
+ * Solo borra lo que cumple LAS TRES condiciones:
+ *   1. estado 'Pendiente'   — nunca toca Asignado / En Ruta / Entregado
+ *   2. sin camión asignado  — si alguien ya lo ruteó, tiene trabajo humano encima
+ *   3. fechaEmision vieja   — la fecha del ERP, no fechaCreacion (que crearPedido
+ *                             pisa con serverTimestamp y siempre sería reciente)
+ *
+ * Un pendiente sin fechaEmision usable NO se borra: preferimos que sobre y se
+ * revise a mano antes que perder un despacho vivo.
+ */
+export const debeBorrarsePendiente = (data, fechaCorte) => {
+  if (!data || data.estado !== 'Pendiente') return false;
+  if (data.camionAsignado) return false;
+  const fecha = typeof data.fechaEmision === 'string' ? data.fechaEmision.trim() : '';
+  // Comparación lexicográfica: válida entre fechas ISO YYYY-MM-DD
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return false;
+  return fecha < fechaCorte;
+};
+
+export const limpiarPendientesViejos = async (
+  dias = DIAS_RETENCION_PENDIENTES,
+  userId = 'sistema'
+) => {
+  if (!db) return 0;
+
+  try {
+    const corte = new Date();
+    corte.setDate(corte.getDate() - dias);
+    const fechaCorte = corte.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    const pedidosRef = collection(db, 'pedidos');
+    const q = query(pedidosRef, where('estado', '==', 'Pendiente'));
+    const snapshot = await getDocs(q);
+
+    const aBorrar = snapshot.docs.filter(d => debeBorrarsePendiente(d.data(), fechaCorte));
+
+    // writeBatch admite 500 operaciones; con miles de documentos hay que trocear.
+    let eliminados = 0;
+    for (let i = 0; i < aBorrar.length; i += 400) {
+      const batch = writeBatch(db);
+      aBorrar.slice(i, i + 400).forEach(docSnap => batch.delete(docSnap.ref));
+      await batch.commit();
+      eliminados += Math.min(400, aBorrar.length - i);
+    }
+
+    if (eliminados > 0) {
+      await registrarAuditoria(
+        'limpieza_automatica',
+        'pendientes_fuera_de_ventana',
+        `${eliminados}_pedidos`,
+        userId,
+        null,
+        { cantidad: eliminados, fechaCorte, dias, fecha: new Date().toISOString() }
+      );
+      console.log(`🧹 ${eliminados} pendiente(s) anteriores al ${fechaCorte} eliminados`);
+    }
+
+    return eliminados;
+  } catch (error) {
+    console.error('❌ Error al limpiar pendientes viejos:', error);
+    return 0;
+  }
+};
+
 // ==========================================
 // INCIDENCIAS EN RUTA (fase 2 del proceso)
 // ==========================================
@@ -1289,6 +1367,8 @@ const firestoreService = {
   eliminarCamion,
   eliminarConductor,
   limpiarPedidosDesistidos,
+  limpiarPendientesViejos,
+  debeBorrarsePendiente,
   crearNoConformidad,
   escucharNoConformidades,
   actualizarNoConformidad,
