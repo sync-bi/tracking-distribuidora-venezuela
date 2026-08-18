@@ -15,6 +15,16 @@
 // -----------------------------------------------------------------------------
 const { getPool, sql } = require('./lib/db');
 
+// Ventana operativa por defecto si el cliente no manda ?desde=
+// (el frontend siempre la manda; esto es solo red de seguridad).
+const DIAS_SINCRONIZACION = 7;
+const fechaHaceDias = (dias) => {
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  return d.toISOString().split('T')[0];
+};
+
+
 // Columnas candidatas para "contacto secundario" en saCliente. Alexander las
 // agregará del lado de Profit; aquí las detectamos dinámicamente para no romper
 // la consulta si todavía no existen.
@@ -45,7 +55,7 @@ module.exports = async function handler(req, res) {
     const pool = await getPool();
 
     const { desde } = req.query;
-    const fechaDesde = desde || '2026-03-15';
+    const fechaDesde = desde || fechaHaceDias(DIAS_SINCRONIZACION);
 
     // --- Detección de columnas opcionales en saCliente ----------------------
     const colsCli = await columnasExistentes(pool, 'saCliente');

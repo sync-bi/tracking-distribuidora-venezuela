@@ -4,7 +4,7 @@ import { Upload, Search, CheckSquare, Square, Package, Truck, Database, FileSpre
 import Modal from '../UI/Modal';
 import { mapRowsToPedidos, parseCSV } from '../../utils/importers';
 import { obtenerCorreccionesClientes } from '../../services/firestoreService';
-import { fetchDespachos } from '../../services/despachosApi';
+import { fetchDespachos, fechaHaceDias, DIAS_SINCRONIZACION } from '../../services/despachosApi';
 
 // Convierte un pedido de la API SQL al formato que usa el sistema
 const sqlPedidoToLocal = (p, correcciones = {}) => {
@@ -117,7 +117,7 @@ const ImportarYSeleccionar = ({ onAgregar, onCerrar, pedidosExistentes = [] }) =
       // 1. Intentar desde SQL Server (despachos: notas de entrega + facturas,
       //    con respaldo automático a pedidos)
       try {
-        const data = await fetchDespachos({ desde: '2026-03-15', estado: 'pendientes' });
+        const data = await fetchDespachos({ desde: fechaHaceDias(DIAS_SINCRONIZACION), estado: 'pendientes' });
         if (data.ok && data.pedidos && data.pedidos.length > 0) {
           // Cargar correcciones de Firebase para resolver coordenadas
           let correcciones = {};

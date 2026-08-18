@@ -3,15 +3,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { RefreshCw, Package, Search, Calendar, Database, Loader2, Trash2 } from 'lucide-react';
 import TarjetaPedido from './TarjetaPedido';
 import { obtenerCorreccionesClientes, escucharNoConformidades } from '../../services/firestoreService';
-import { fetchDespachos } from '../../services/despachosApi';
+import { fetchDespachos, fechaHaceDias, DIAS_SINCRONIZACION } from '../../services/despachosApi';
 import { getFirestore, collection, getDocs, writeBatch, doc as firestoreDoc } from 'firebase/firestore';
-
-// Helper: fecha ISO (YYYY-MM-DD) de hace N días
-const fechaHaceDias = (dias) => {
-  const d = new Date();
-  d.setDate(d.getDate() - dias);
-  return d.toISOString().split('T')[0];
-};
 
 const TabPedidos = ({
   pedidos,
@@ -213,7 +206,7 @@ const TabPedidos = ({
   const sincronizarPedidos = useCallback(async () => {
     setSincronizando(true);
     try {
-      const data = await fetchDespachos({ desde: '2026-03-15', estado: 'pendientes' });
+      const data = await fetchDespachos({ desde: fechaHaceDias(DIAS_SINCRONIZACION), estado: 'pendientes' });
       if (!data.ok) throw new Error(data.error || 'Error en API');
 
       let correcciones = {};

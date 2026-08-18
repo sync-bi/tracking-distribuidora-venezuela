@@ -2,7 +2,19 @@
 // Obtiene despachos desde el nuevo origen (notas de entrega + facturas).
 // Cae automáticamente al endpoint anterior (/api/pedidos) si el nuevo no está
 // disponible, para que la app nunca quede sin datos.
-export async function fetchDespachos({ desde = '2026-03-15', estado = 'pendientes' } = {}) {
+
+// Ventana operativa de sincronización. Un despacho más viejo que esto ya no se
+// considera "por rutear": si aparece uno trabado, se revisa a mano en el ERP.
+export const DIAS_SINCRONIZACION = 7;
+
+// Fecha ISO (YYYY-MM-DD) de hace N días
+export const fechaHaceDias = (dias) => {
+  const d = new Date();
+  d.setDate(d.getDate() - dias);
+  return d.toISOString().split('T')[0];
+};
+
+export async function fetchDespachos({ desde = fechaHaceDias(DIAS_SINCRONIZACION), estado = 'pendientes' } = {}) {
   // 1) Nuevo origen: despachos (notas de entrega + facturas)
   try {
     const res = await fetch(`/api/despachos?desde=${desde}`, { cache: 'no-store' });
