@@ -54,3 +54,6 @@ Resumen_*.html
 Ajustes_*.html
 consulta*.txt
 /por corregir/
+
+# Informe generado localmente (la version viva esta en /estado.html)
+informe/

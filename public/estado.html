@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Estado del proyecto · Tracking Sarego</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+  :root {
+    --ground:#F4F7F8; --surface:#FFFFFF; --sunken:#EAEFF2; --line:#D5DEE3;
+    --ink:#131A20; --muted:#64757F; --steel:#1F4E6B;
+    --ok:#2C6A4B; --warn:#8C5D06; --crit:#9C302C;
+    --ok-bg:#E6F0EA; --warn-bg:#F7EEDC; --crit-bg:#F7E7E6;
+    --display:'Archivo','Helvetica Neue',Arial,sans-serif;
+    --body:'Source Serif 4',Georgia,'Times New Roman',serif;
+    --mono:'IBM Plex Mono',Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0E1418; --surface:#161E24; --sunken:#1B252C; --line:#2C3941;
+      --ink:#E4EBEF; --muted:#93A4AE; --steel:#7FB0CD;
+      --ok:#7BC49B; --warn:#DDAE5A; --crit:#E38B86;
+      --ok-bg:#16281F; --warn-bg:#2A2213; --crit-bg:#2C1918;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0E1418; --surface:#161E24; --sunken:#1B252C; --line:#2C3941;
+    --ink:#E4EBEF; --muted:#93A4AE; --steel:#7FB0CD;
+    --ok:#7BC49B; --warn:#DDAE5A; --crit:#E38B86;
+    --ok-bg:#16281F; --warn-bg:#2A2213; --crit-bg:#2C1918;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--body);
+    font-size:17px;line-height:1.62;margin:0;padding:0 24px 96px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:820px;margin:0 auto}
+  .prose{max-width:66ch}
+  header.masthead{padding:56px 0 28px;border-bottom:2px solid var(--ink);margin-bottom:24px}
+  .eyebrow{font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--muted)}
+  h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,5.4vw,50px);
+    line-height:1.04;letter-spacing:-.022em;text-wrap:balance;margin:14px 0 18px}
+  .standfirst{font-size:19px;max-width:60ch;margin:0 0 26px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px 28px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .meta b{color:var(--ink);font-weight:500}
+  .sello{display:flex;align-items:center;gap:10px;background:var(--sunken);
+    border-left:3px solid var(--steel);padding:10px 14px;margin-bottom:44px;
+    font-family:var(--mono);font-size:12px;color:var(--muted);flex-wrap:wrap}
+  .pip{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+  .pip.cargando{background:var(--warn);animation:latir 1.1s ease-in-out infinite}
+  .pip.error{background:var(--crit)}
+  @keyframes latir{0%,100%{opacity:1}50%{opacity:.25}}
+  @media (prefers-reduced-motion:reduce){.pip.cargando{animation:none}}
+  button.recargar{margin-left:auto;font-family:var(--mono);font-size:11.5px;
+    background:var(--surface);color:var(--steel);border:1px solid var(--line);
+    padding:5px 12px;border-radius:3px;cursor:pointer}
+  button.recargar:hover{border-color:var(--steel)}
+  button.recargar:focus-visible{outline:2px solid var(--steel);outline-offset:2px}
+  button.recargar[disabled]{opacity:.5;cursor:default}
+  h2{font-family:var(--display);font-weight:700;font-size:25px;letter-spacing:-.014em;
+    line-height:1.2;text-wrap:balance;margin:0 0 6px}
+  h3{font-family:var(--display);font-weight:600;font-size:18px;letter-spacing:-.008em;margin:0 0 4px}
+  section{margin-bottom:52px}
+  .section-head{margin-bottom:24px}
+  p{margin:0 0 15px}
+  code{font-family:var(--mono);font-size:.855em;background:var(--sunken);
+    padding:1px 5px;border-radius:3px;word-break:break-word}
+  strong{font-weight:600}
+  .verdict{background:var(--surface);border:1px solid var(--line);
+    border-left:5px solid var(--steel);padding:22px 26px;margin-bottom:52px}
+  .verdict p{margin:0}
+  .verdict p + p{margin-top:12px}
+  .board{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+    gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:22px}
+  .cell{background:var(--surface);padding:16px 18px 18px}
+  .cell .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--muted);display:block;margin-bottom:9px}
+  .cell .v{font-family:var(--display);font-weight:700;font-size:27px;line-height:1;
+    letter-spacing:-.02em;font-variant-numeric:tabular-nums;display:block}
+  .cell .n{font-family:var(--mono);font-size:11.5px;color:var(--muted);display:block;
+    margin-top:7px;line-height:1.45}
+  .v.ok{color:var(--ok)} .v.warn{color:var(--warn)} .v.crit{color:var(--crit)}
+  .card{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--line);
+    padding:20px 24px 22px;margin-bottom:18px}
+  .card.crit{border-left-color:var(--crit)}
+  .card.warn{border-left-color:var(--warn)}
+  .card.ok{border-left-color:var(--ok)}
+  .card-top{display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 14px;margin-bottom:12px}
+  .owner{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.1em;
+    text-transform:uppercase;padding:3px 9px;border-radius:2px;white-space:nowrap}
+  .owner.cliente{background:var(--crit-bg);color:var(--crit)}
+  .owner.nuestro{background:var(--warn-bg);color:var(--warn)}
+  .owner.hecho{background:var(--ok-bg);color:var(--ok)}
+  .card p:last-child{margin-bottom:0}
+  .card .prose{max-width:64ch}
+  .tabla-wrap{overflow-x:auto;margin:16px 0}
+  table{border-collapse:collapse;width:100%;font-size:15px}
+  th,td{text-align:left;padding:9px 14px 9px 0;border-bottom:1px solid var(--line)}
+  th{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted);font-weight:500}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:14px}
+  ul.plain{padding-left:20px;margin:0 0 15px}
+  ul.plain li{margin-bottom:7px}
+  details{border-top:1px solid var(--line);padding:14px 0 2px}
+  summary{cursor:pointer;font-family:var(--display);font-weight:600;font-size:15px}
+  summary:focus-visible{outline:2px solid var(--steel);outline-offset:3px}
+  details .prose{padding-top:10px}
+  footer{border-top:1px solid var(--line);margin-top:60px;padding-top:20px;
+    font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1.7}
+  .esqueleto{color:var(--muted)}
+  .aviso{background:var(--warn-bg);border-left:3px solid var(--warn);color:var(--warn);
+    padding:12px 16px;font-family:var(--mono);font-size:12px;margin-bottom:24px}
+  @media (max-width:560px){
+    body{font-size:16px;padding:0 18px 72px}
+    .card{padding:18px 18px 20px}
+    header.masthead{padding-top:40px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">Tracking Distribuidora Sarego · SYNC BI</span>
+    <h1>Qué falta para salir a producción</h1>
+    <p class="standfirst">
+      Todas las cifras se miden contra la base de Profit Plus al abrir esta página.
+      Cada punto separa lo que depende del equipo de lo que depende del cliente.
+    </p>
+    <div class="meta">
+      <span>Ventana de reparto: <b id="m-ventana">últimos 90 días</b></span>
+      <span><b id="m-clientes">—</b> clientes en el ERP</span>
+    </div>
+  </header>
+
+  <div class="sello">
+    <span class="pip cargando" id="pip"></span>
+    <span id="sello-txt">Consultando el ERP…</span>
+    <button class="recargar" id="btn-recargar" disabled>Actualizar</button>
+  </div>
+
+  <div id="contenido" aria-live="polite">
+    <p class="esqueleto prose">Midiendo contra la base…</p>
+  </div>
+
+  <footer>
+    Tracking Distribuidora Sarego — SYNC BI<br>
+    <span id="pie">Los datos se leen del ERP en cada carga de esta página.</span>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var num = function (n) { return Number(n).toLocaleString('es-VE'); };
+  var pct = function (p, t) { return t > 0 ? Math.round(p / t * 100) : 0; };
+  var esc = function (s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  };
+
+  // El token viaja en la URL de la página y se reenvía al endpoint, para que la
+  // página quede protegida con el mismo secreto si ESTADO_TOKEN está configurado.
+  function token() {
+    var m = location.search.match(/[?&]t=([^&]+)/);
+    return m ? m[1] : '';
+  }
+
+  function pintarError(msg) {
+    $('pip').className = 'pip error';
+    $('sello-txt').textContent = 'No se pudo leer el ERP';
+    $('btn-recargar').disabled = false;
+    $('contenido').innerHTML =
+      '<div class="card crit"><div class="card-top">' +
+      '<span class="owner cliente">Sin datos</span>' +
+      '<h3>No se pudo consultar Profit Plus</h3></div><div class="prose">' +
+      '<p>' + esc(msg) + '</p>' +
+      '<p>Esto suele significar que el servidor SQL no está accesible en este momento, ' +
+      'o que las credenciales del despliegue cambiaron. La página no guarda copia de los ' +
+      'datos a propósito: es preferible no mostrar nada antes que mostrar cifras viejas ' +
+      'como si fueran de hoy.</p></div></div>';
+  }
+
+  function pintar(d) {
+    var sinUbicacion = d.clientesTotal - d.ubicables;
+    var pctSin = pct(sinUbicacion, d.clientesTotal);
+    var pctCob = pct(d.ubicablesConDespacho, d.conDespacho);
+    var top = (d.ciudades || []).slice(0, 5);
+    var enTop3 = (d.ciudades || []).slice(0, 3)
+      .reduce(function (s, c) { return s + c.clientes; }, 0);
+    var hayPiloto = d.ubicablesConDespacho >= 20;
+    var falta = d.tablasFaltantes || [];
+
+    var medido = new Date(d.medidoEn);
+    $('pip').className = 'pip';
+    $('sello-txt').textContent = 'Medido contra la base el ' +
+      medido.toLocaleDateString('es-VE', { day: 'numeric', month: 'long', year: 'numeric' }) +
+      ' a las ' + medido.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' });
+    $('btn-recargar').disabled = false;
+
+    $('m-ventana').textContent = 'últimos ' + d.diasVentana + ' días';
+    $('m-clientes').textContent = num(d.clientesTotal);
+
+    var filas = top.map(function (c) {
+      return '<tr><td>' + esc(c.ciudad || 'Sin ciudad') + '</td>' +
+             '<td class="n">' + num(c.clientes) + '</td>' +
+             '<td class="n">' + num(c.documentos) + '</td></tr>';
+    }).join('');
+
+    var h = '';
+
+    if (!d.protegido) {
+      h += '<div class="aviso">Esta página no exige contraseña: cualquiera con el enlace ' +
+           've estas cifras. Para cerrarla, definan ESTADO_TOKEN en Vercel.</div>';
+    }
+
+    h += '<div class="verdict prose">' +
+      '<p><strong>El desarrollo no es el problema.</strong> Los módulos están construidos y las ' +
+      'pruebas pasan. Lo que impide arrancar es un dato que vive en Profit Plus: ' +
+      '<strong>' + num(sinUbicacion) + ' de ' + num(d.clientesTotal) + ' clientes (' + pctSin +
+      ' %) no tienen ubicación</strong>. Sin eso no hay ruta, no hay mapa y no hay seguimiento.</p>' +
+      '<p>' + (hayPiloto
+        ? 'Pero no hace falta resolverlo entero para empezar. <strong>' +
+          num(d.ubicablesConDespacho) + ' clientes ya ubicados</strong> tuvieron despachos en los ' +
+          'últimos ' + d.diasVentana + ' días, y ' + num(enTop3) + ' de ellos están concentrados ' +
+          'en tres ciudades vecinas. Eso alcanza para un arranque parcial.'
+        : 'Hoy solo <strong>' + num(d.ubicablesConDespacho) + ' clientes ubicados</strong> ' +
+          'tuvieron despachos en los últimos ' + d.diasVentana + ' días. Son muy pocos para ' +
+          'sostener un arranque parcial.') + '</p></div>';
+
+    h += '<section><div class="section-head"><h2>Dónde está parado hoy</h2></div>' +
+      '<div class="board">' +
+      '<div class="cell"><span class="k">Clientes ubicables</span>' +
+      '<span class="v crit">' + pct(d.ubicables, d.clientesTotal) + ' %</span>' +
+      '<span class="n">' + num(d.ubicables) + ' de ' + num(d.clientesTotal) + '</span></div>' +
+      '<div class="cell"><span class="k">Cobertura del reparto</span>' +
+      '<span class="v ' + (hayPiloto ? 'warn' : 'crit') + '">' + pctCob + ' %</span>' +
+      '<span class="n">' + num(d.ubicablesConDespacho) + ' de ' + num(d.conDespacho) +
+      ' con despacho</span></div>' +
+      '<div class="cell"><span class="k">Notas duplicadas</span>' +
+      '<span class="v warn">' + num(d.notasDuplicadas) + '</span>' +
+      '<span class="n">inflan el tablero</span></div>' +
+      '<div class="cell"><span class="k">Tablas del ERP</span>' +
+      '<span class="v ' + (falta.length ? 'warn' : 'ok') + '">' +
+      (5 - falta.length) + '/5</span>' +
+      '<span class="n">' + (falta.length ? 'faltan por crear' : 'instaladas') + '</span></div>' +
+      '</div></section>';
+
+    h += '<section><div class="section-head"><h2>El bloqueador real</h2></div>' +
+      '<div class="card crit"><div class="card-top">' +
+      '<span class="owner cliente">Depende del cliente</span>' +
+      '<h3>' + num(sinUbicacion) + ' clientes no tienen dónde entregarse</h3></div>' +
+      '<div class="prose"><p>De los ' + num(d.clientesTotal) + ' clientes del ERP, solo ' +
+      '<strong>' + num(d.ubicables) + '</strong> tienen una ubicación utilizable en ' +
+      '<code>zt_coordenada</code>. El resto no se puede poner en un mapa.</p>' +
+      '<p>Esto no se arregla con código: es captura de datos en Profit Plus. No es «hay que ' +
+      'mejorar las direcciones», es que <strong>' + pctSin + ' de cada 100 clientes no se ' +
+      'pueden ubicar</strong>.</p></div></div></section>';
+
+    h += '<section><div class="section-head"><h2>' +
+      (hayPiloto ? 'Hay con qué arrancar' : 'Todavía no alcanza para arrancar') + '</h2>' +
+      '<p class="prose" style="color:var(--muted);margin-top:8px">Clientes ya ubicados que ' +
+      'recibieron despachos en los últimos ' + d.diasVentana + ' días.</p></div>' +
+      '<div class="tabla-wrap"><table><thead><tr><th>Ciudad</th>' +
+      '<th class="n">Clientes ubicados</th><th class="n">Documentos</th></tr></thead>' +
+      '<tbody>' + filas + '</tbody></table></div><div class="prose"><p>' +
+      (hayPiloto
+        ? 'No es una lista dispersa: <strong>' + num(enTop3) + ' de los ' +
+          num(d.ubicablesConDespacho) + '</strong> están en las tres primeras ciudades, que son ' +
+          'vecinas. Es una zona de reparto coherente, con volumen real.'
+        : 'Los clientes ubicados están demasiado dispersos para armar una zona de reparto.') +
+      '</p><p>Y el sistema aprende ubicaciones desde el GPS del conductor al entregar. ' +
+      '<strong>Cada entrega ubica un cliente más</strong>: la carga de datos deja de ser un muro ' +
+      'de ' + num(d.clientesTotal) + ' filas y pasa a ser un subproducto de operar.</p></div></section>';
+
+    h += '<section><div class="section-head"><h2>Lo que falta de cada lado</h2></div>' +
+      '<div class="card warn"><div class="card-top">' +
+      '<span class="owner nuestro">Nuestro</span><h3>El tablero duplica despachos</h3></div>' +
+      '<div class="prose"><p>Hay <strong>' + num(d.notasDuplicadas) + ' notas de entrega ' +
+      'facturadas en más de una factura</strong>. Cada una aparece repetida, porque el cruce ' +
+      'entre notas y facturas genera una fila por factura en vez de una por nota.</p></div></div>' +
+      '<div class="card ' + (falta.length ? 'warn' : 'ok') + '"><div class="card-top">' +
+      '<span class="owner ' + (falta.length ? 'cliente' : 'hecho') + '">' +
+      (falta.length ? 'Esperando al cliente' : 'Instalado') + '</span><h3>' +
+      (falta.length ? 'Faltan ' + falta.length + ' tablas por crear en el ERP'
+                    : 'Las tablas del ERP ya están creadas') + '</h3></div><div class="prose"><p>' +
+      (falta.length
+        ? 'El script de instalación está entregado. Faltan: <code>' +
+          falta.map(esc).join('</code>, <code>') + '</code>. Sin ellas, devolverle al ERP lo que ' +
+          'pasó en la calle no se puede implementar.'
+        : 'Las cinco tablas del documento técnico están creadas. El sistema ya puede devolverle ' +
+          'al ERP el resultado de cada entrega.') +
+      '</p><p style="font-family:var(--mono);font-size:12.5px;color:var(--muted)">' +
+      'Tablas <code>zt_</code> en la base: ' +
+      ((d.tablasZt || []).length
+        ? d.tablasZt.map(function (t) { return '<code>' + esc(t) + '</code>'; }).join(' ')
+        : 'ninguna') +
+      '</p></div></div></section>';
+
+    h += '<section><details><summary>Cómo se obtiene cada cifra</summary><div class="prose">' +
+      '<p style="margin-top:12px">Esta página consulta <code>/api/estado</code>, que mide contra ' +
+      'Profit Plus en el momento de abrirla. Solo hace <code>SELECT</code>: no modifica nada.</p>' +
+      '<ul class="plain">' +
+      '<li><strong>Clientes en el ERP:</strong> filas en <code>saCliente</code>.</li>' +
+      '<li><strong>Ubicables:</strong> clientes de <code>zt_coordenada</code> cuya coordenada cae ' +
+      'dentro de Venezuela. Fuera de esa caja el valor es dato corrupto, no una ubicación.</li>' +
+      '<li><strong>Con despacho:</strong> clientes con nota o factura no anulada en los últimos ' +
+      d.diasVentana + ' días.</li>' +
+      '<li><strong>Notas duplicadas:</strong> valores de <code>num_doc</code> que aparecen en más ' +
+      'de una factura.</li></ul>' +
+      '<p><strong>Lo que esta página no puede saber:</strong> si las ubicaciones que existen son ' +
+      'correctas. Que una coordenada caiga dentro de Venezuela no garantiza que sea la puerta del ' +
+      'cliente. Eso solo se confirma entregando.</p>' +
+      '<p style="font-family:var(--mono);font-size:12px;color:var(--muted)">Las cifras se guardan ' +
+      'en caché media hora para no golpear el ERP en cada recarga.</p>' +
+      '</div></details></section>';
+
+    $('contenido').innerHTML = h;
+  }
+
+  function cargar() {
+    $('pip').className = 'pip cargando';
+    $('sello-txt').textContent = 'Consultando el ERP…';
+    $('btn-recargar').disabled = true;
+
+    var t = token();
+    fetch('/api/estado' + (t ? '?t=' + encodeURIComponent(t) : ''), { cache: 'no-store' })
+      .then(function (r) {
+        if (r.status === 401) throw new Error('El enlace no trae un token válido.');
+        if (!r.ok) throw new Error('El servidor respondió ' + r.status + '.');
+        return r.json();
+      })
+      .then(function (d) {
+        if (!d.ok) throw new Error(d.detalle || d.error || 'Respuesta inesperada.');
+        pintar(d);
+      })
+      .catch(function (e) { pintarError(e.message); });
+  }
+
+  $('btn-recargar').addEventListener('click', cargar);
+  cargar();
+})();
+</script>
+</body>
+</html>
