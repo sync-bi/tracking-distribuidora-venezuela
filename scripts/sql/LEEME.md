@@ -1,98 +1,76 @@
-# Tablas a crear en Profit Plus — Tracking Sarego
+# Instalación en la base de datos — Tracking Sarego
 
-Scripts para la base de datos del ERP. Preparados por SYNC BI, verificados el
-18-08-2026 contra la base real antes de entregarlos.
+Lo que se le entrega al administrador de base de datos del cliente.
 
-## Quién debe correrlos
+## Archivo a ejecutar
 
-**El DBA, con una cuenta `db_owner` o `sysadmin`.**
+**`SAREGO_Tracking_Instalacion.sql`** — es el único que hay que correr.
 
-La cuenta que usa la aplicación (`ossa`) no tiene permiso para crear ni alterar
-tablas — se comprobó. Por eso cada script termina con un `GRANT` que le da a esa
-cuenta los permisos mínimos que necesita sobre la tabla nueva: leer, insertar y
-actualizar. Nada más.
+Implementa la sección *"Escritura al ERP — qué tablas crear"* del documento técnico
+*Proceso de despacho con tracking en tiempo real* (17-08-2026). Las definiciones de
+tabla son exactamente las de ese documento, para que no haya discrepancia entre lo
+que se explicó y lo que se ejecuta.
 
-Si en su instalación la aplicación usa otro usuario, cambien el nombre en esos
-`GRANT` antes de ejecutar.
+| Sección | Qué hace |
+|---|---|
+| 1 | Verifica que sea la base correcta y haya permisos |
+| 2–6 | Crea las 5 tablas del documento |
+| 7 | Agrega 2 columnas a `zt_coordenada` (la tabla de ubicaciones, que ya existe) |
+| 8 | Crea `zt_cliente_contacto` — adicional, ver abajo |
+| 9 | Crea el usuario y otorga permisos tabla por tabla |
+| 10 | Muestra el resultado para que el DBA lo verifique |
 
-## Orden de ejecución
+Es **idempotente**: se puede correr varias veces sin causar daño. Lo que ya existe se
+detecta y no se toca.
 
-| # | Archivo | Qué hace | ¿Modifica datos? |
-|---|---------|----------|------------------|
-| 00 | `00_diagnostico.sql` | Revisa el estado actual. Solo consultas. | No |
-| 01 | `01_zt_coordenada.sql` | Completa la tabla de ubicaciones que ya existe | Sí, dos registros |
-| 02 | `02_zt_cliente_contacto.sql` | Crea la tabla del segundo contacto | Crea tabla |
-| 03 | `03_zt_entrega.sql` | Crea el buzón de resultados de entrega | Crea tabla |
-| 99 | `99_recuperar_coordenadas_de_csv.sql` | **No hace falta.** Herramienta de respaldo | No |
+## Antes de ejecutar
 
-Los tres primeros son **idempotentes**: se pueden correr varias veces sin causar
-daño. Si algo ya existe, lo detectan y no lo tocan.
+1. **Cambiar la contraseña** en la sección 9. Está marcada `CAMBIAR_ESTA_CLAVE_ANTES_DE_EJECUTAR`.
+2. Enviarla a SYNC BI por un canal seguro — no por correo ni WhatsApp.
+3. Decidir si autorizan la sección 7 (las dos columnas en `zt_coordenada`). Es la única
+   tabla existente que el script toca, y solo para agregar columnas. Si prefieren que no,
+   se puede omitir esa sección y el sistema escribe en una tabla aparte.
 
-Llevan `GO` entre lotes, así que conviene ejecutarlos desde SQL Server Management
-Studio o con `sqlcmd`.
+Se ejecuta desde SQL Server Management Studio o `sqlcmd`, porque usa separadores `GO`.
 
-## Qué se encontró en la base (18-08-2026)
+## Sobre los permisos
 
-Esto es lo que se midió antes de escribir los scripts, para no proponer cosas que
-ya están hechas:
+El usuario `sarego_tracking` recibe permisos **tabla por tabla, nunca sobre la base completa**:
 
-- **`zt_coordenada` ya existe** con llave primaria y sin duplicados. Tiene 121
-  clientes con ubicación, y los valores están correctos. Solo le faltan las
-  columnas para registrar de dónde salió cada coordenada.
-- **Dos registros tienen la latitud y la longitud invertidas.** El script 01 los
-  corrige. Se detectan sin ambigüedad porque en Venezuela la latitud es positiva
-  y la longitud negativa.
-- **`saCliente` no tiene ningún campo de contacto secundario.** Se buscaron las
-  ocho variantes posibles y no existe ninguna. Tampoco `persona_con`, así que hoy
-  el contacto principal también llega vacío al sistema. Por eso hace falta el
-  script 02.
-- **`zt_cliente_contacto` y `zt_entrega` no existen.** Hay que crearlas.
-- **No hay daño de formato en las coordenadas.** Se había detectado un problema
-  con valores tipo `10.971.725.066.821.500`, pero eso lo produjo Excel al abrir
-  un CSV exportado. En la base los valores están sanos. El script 99 queda solo
-  como herramienta por si alguna vez se carga un archivo dañado.
+- **Lectura** sobre las 9 tablas del ERP que la aplicación consulta. Ninguna más.
+- **Escritura** sobre las tablas `zt_` del tracking. Ninguna más.
 
-## Por qué las tablas nuevas llevan el prefijo `zt_`
+No se le da `db_datareader` ni `db_datawriter`: esos roles darían acceso a *todas* las
+tablas de Profit Plus, incluidas contabilidad, nómina y cuentas por cobrar. No puede crear,
+alterar ni borrar tablas, y cualquier consulta a una tabla no listada se la niega el motor.
 
-Son tablas nuestras, no de Profit Plus. Eso es deliberado:
+La sección 10 imprime los permisos efectivos para que el DBA lo compruebe con sus propios ojos.
 
-- Una actualización del ERP puede recrear sus propias tablas y perder cualquier
-  columna que les hayamos agregado, junto con los datos capturados.
-- Las validaciones y pantallas de Profit no conocen columnas ajenas, así que el
-  dato no se podría mantener desde el propio ERP.
+## Los otros archivos
 
-Ninguno de estos scripts modifica una tabla nativa de Profit Plus. No tocan
-inventario, cuentas por cobrar ni documentos fiscales.
+- **`00_diagnostico.sql`** — solo consultas, no modifica nada. Útil para revisar el estado
+  de la base antes o después de instalar.
+- **`99_recuperar_coordenadas_de_csv.sql`** — **no hace falta.** Herramienta de respaldo por
+  si alguna vez se carga a la base un CSV cuyas coordenadas pasaron por Excel.
 
-## Sobre `zt_entrega`: es un buzón, no una intervención
+## Qué se verificó antes de escribir esto (18-08-2026)
 
-La conversación sobre "escribir al ERP" quedó frenada, con razón, porque escribir
-dentro de las tablas de Profit es delicado. **Esta propuesta no hace eso.**
+Contra la base real, para no proponer cosas ya hechas:
 
-La aplicación escribiría únicamente en `zt_entrega`, que es nueva y nuestra:
+- `zt_coordenada` ya existe, con llave primaria y sin duplicados. 121 clientes con ubicación
+  y los valores están correctos. Solo le faltan las dos columnas de trazabilidad.
+- Ninguna de las 5 tablas del documento existe todavía.
+- `saCliente` no tiene ninguna columna de contacto secundario — se comprobaron las ocho
+  variantes posibles. Tampoco `persona_con`, así que hoy el contacto principal también llega
+  vacío al sistema. De ahí la tabla adicional de la sección 8, que **no está** en el documento
+  del 17 de agosto.
+- La cuenta que usa hoy la aplicación no puede crear tablas ni usuarios. Por eso hace falta
+  el DBA y un usuario nuevo.
+- El documento listaba 7 tablas del ERP para lectura; el script otorga 9. Faltaban
+  `saPedidoVenta` y `saPedidoVentaReng`, que la aplicación usa en su consulta de respaldo.
 
-- No modifica ninguna tabla de Profit Plus.
-- No altera inventario, cuentas por cobrar ni documentos fiscales.
-- Si mañana deciden apagarla, se deja de escribir y no pasa nada más.
-- Ustedes deciden, con calma, si algún proceso de Profit la lee o no.
-
-La decisión es reversible en cualquier momento, y ahí está lo que la hace segura.
-
-## El beneficio concreto: llenar las ubicaciones que faltan
-
-Hoy 92 % de los clientes no tiene ubicación en el mapa. Capturar cuatro mil
-direcciones a mano no es viable, y se descartó geocodificar por dirección: se
-probó contra veinte direcciones reales del ERP y el servicio devolvió ciudad o
-estado en las veinte, nunca la calle. Llenar la base con centros de ciudad sería
-peor que no tener nada, porque mandaría a los conductores a puntos falsos.
-
-La fuente confiable es el propio reparto. Al entregar, el teléfono del conductor
-registra la posición exacta de la puerta del cliente — mejor que cualquier
-geocodificador, porque es el sitio real donde se descargó la mercancía.
-
-Con las columnas del script 01 y la tabla del script 03, **cada entrega ubica un
-cliente más**. La base se corrige sola a medida que se reparte, sin que nadie se
-siente a capturar direcciones.
+Los scripts pasaron validación sintáctica contra el SQL Server del cliente con `SET PARSEONLY`,
+que analiza sin ejecutar. Las secciones de creación no se ejecutaron: eso lo decide su DBA.
 
 ## Consultas
 
