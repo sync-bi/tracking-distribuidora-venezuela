@@ -74,10 +74,27 @@ module.exports = async function handler(req, res) {
     // Vínculo: una línea de factura (saFacturaVentaReng.num_doc) referencia el
     // número de la nota de entrega que la originó.
     const query = `
-      WITH fact_nota AS (
+      WITH fact_nota_todas AS (
+        -- Todos los pares factura-nota. Una nota aparece varias veces si se
+        -- facturo en partes.
         SELECT DISTINCT RTRIM(fvr.doc_num) AS factura, RTRIM(fvr.num_doc) AS nota
         FROM saFacturaVentaReng fvr
         WHERE fvr.num_doc IS NOT NULL AND LTRIM(RTRIM(fvr.num_doc)) <> ''
+      ),
+      fact_nota AS (
+        -- UNA sola fila por nota de entrega.
+        --
+        -- Una nota facturada en varias facturas sigue siendo UN despacho: la
+        -- mercancia salio del almacen una vez y se entrega una vez. Que
+        -- administracion la haya facturado en partes no cambia el trabajo del
+        -- conductor. Sin este agrupamiento el tablero repetia la misma entrega,
+        -- una vez por factura.
+        SELECT
+          nota,
+          MIN(factura)            AS factura,   -- representativa y estable
+          COUNT(DISTINCT factura) AS facturas_de_la_nota
+        FROM fact_nota_todas
+        GROUP BY nota
       ),
       despachos AS (
         -- A) Notas de entrega (con su factura asociada si existe)
@@ -87,7 +104,8 @@ module.exports = async function handler(req, res) {
           nde.fec_emis        AS fecha_nota,
           RTRIM(nde.dir_ent)  AS dir_nota,
           RTRIM(nde.co_cli)   AS co_cli,
-          nde.total_neto      AS neto_doc
+          nde.total_neto      AS neto_doc,
+          fn.facturas_de_la_nota AS facturas_de_la_nota
         FROM saNotaEntregaVenta nde
         LEFT JOIN fact_nota fn ON fn.nota = RTRIM(nde.doc_num)
         WHERE nde.fec_emis >= @fechaDesde
@@ -102,15 +120,17 @@ module.exports = async function handler(req, res) {
           NULL                AS fecha_nota,
           NULL                AS dir_nota,
           RTRIM(fv.co_cli)    AS co_cli,
-          fv.total_neto       AS neto_doc
+          fv.total_neto       AS neto_doc,
+          1                   AS facturas_de_la_nota
         FROM saFacturaVenta fv
         WHERE fv.fec_emis >= @fechaDesde
           AND fv.anulado = 0
-          AND NOT EXISTS (SELECT 1 FROM fact_nota fn WHERE fn.factura = RTRIM(fv.doc_num))
+          AND NOT EXISTS (SELECT 1 FROM fact_nota_todas fn WHERE fn.factura = RTRIM(fv.doc_num))
       )
       SELECT
         d.nota                                   AS numero_nota,
         d.factura                                AS numero_factura,
+        d.facturas_de_la_nota                    AS facturas_de_la_nota,
         d.fecha_nota                             AS fecha_nota,
         fv.fec_emis                              AS fecha_factura,
         RTRIM(d.co_cli)                          AS codigo_cliente,
@@ -239,6 +259,9 @@ module.exports = async function handler(req, res) {
         tipoDocumento,
         numeroNota: d.numero_nota || null,
         numeroFactura: d.numero_factura || null,
+        // Cuantas facturas respaldan esta nota. Mayor que 1 = se facturo en
+        // partes; sigue siendo una sola entrega.
+        facturasDeLaNota: d.facturas_de_la_nota || 1,
         fechaNota: d.fecha_nota || null,
         fechaFactura: d.fecha_factura || null,
         fuenteDireccion: fuente,           // 'nota' | 'factura' | 'ficha' | 'fiscal' | 'ninguna'

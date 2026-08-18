@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklist de salida Sarego</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --ground:#F4F7F8; --surface:#FFFFFF; --sunken:#EAEFF2; --line:#D5DEE3;
+    --ink:#131A20; --muted:#64757F; --steel:#1F4E6B;
+    --ok:#2C6A4B; --warn:#8C5D06; --crit:#9C302C;
+    --ok-bg:#E6F0EA; --warn-bg:#F7EEDC; --crit-bg:#F7E7E6;
+    --display:'Archivo','Helvetica Neue',Arial,sans-serif;
+    --mono:'IBM Plex Mono',Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0E1418; --surface:#161E24; --sunken:#1B252C; --line:#2C3941;
+      --ink:#E4EBEF; --muted:#93A4AE; --steel:#7FB0CD;
+      --ok:#7BC49B; --warn:#DDAE5A; --crit:#E38B86;
+      --ok-bg:#16281F; --warn-bg:#2A2213; --crit-bg:#2C1918;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0E1418; --surface:#161E24; --sunken:#1B252C; --line:#2C3941;
+    --ink:#E4EBEF; --muted:#93A4AE; --steel:#7FB0CD;
+    --ok:#7BC49B; --warn:#DDAE5A; --crit:#E38B86;
+    --ok-bg:#16281F; --warn-bg:#2A2213; --crit-bg:#2C1918;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--ground);color:var(--ink);font-family:var(--display);
+    font-size:16px;line-height:1.5;margin:0;padding:0 24px 72px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto}
+
+  header{padding:48px 0 20px;border-bottom:2px solid var(--ink);margin-bottom:28px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--muted)}
+  h1{font-weight:700;font-size:clamp(30px,5vw,42px);line-height:1.05;
+    letter-spacing:-.022em;margin:12px 0 14px}
+  .fecha{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+  .cifras{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+    gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:36px}
+  .cifra{background:var(--surface);padding:14px 16px 16px}
+  .cifra .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--muted);display:block;margin-bottom:8px}
+  .cifra .v{font-weight:700;font-size:26px;line-height:1;letter-spacing:-.02em;
+    font-variant-numeric:tabular-nums;display:block}
+  .v.crit{color:var(--crit)} .v.warn{color:var(--warn)} .v.ok{color:var(--ok)}
+
+  h2{font-size:13px;font-family:var(--mono);font-weight:600;letter-spacing:.12em;
+    text-transform:uppercase;color:var(--muted);margin:0 0 12px;
+    padding-bottom:8px;border-bottom:1px solid var(--line)}
+  section{margin-bottom:36px}
+
+  ol{list-style:none;counter-reset:t;padding:0;margin:0;display:grid;gap:2px}
+  li{counter-increment:t;background:var(--surface);border:1px solid var(--line);
+    padding:14px 18px 15px 54px;position:relative}
+  li::before{content:counter(t);position:absolute;left:18px;top:14px;
+    font-family:var(--mono);font-size:13px;font-weight:600;color:var(--steel);
+    font-variant-numeric:tabular-nums}
+  li .t{font-weight:600;font-size:16px;display:block;margin-bottom:3px}
+  li .d{font-family:var(--mono);font-size:12.5px;color:var(--muted);line-height:1.55}
+  li .d b{color:var(--ink);font-weight:500}
+
+  .tag{display:inline-block;font-family:var(--mono);font-size:9.5px;font-weight:600;
+    letter-spacing:.09em;text-transform:uppercase;padding:2px 7px;border-radius:2px;
+    margin-left:8px;vertical-align:2px}
+  .tag.cli{background:var(--crit-bg);color:var(--crit)}
+  .tag.nos{background:var(--warn-bg);color:var(--warn)}
+  .tag.dec{background:var(--sunken);color:var(--steel)}
+
+  .listo{background:var(--ok-bg);border:1px solid var(--line);border-left:4px solid var(--ok);
+    padding:14px 18px;font-family:var(--mono);font-size:12.5px;color:var(--ink);line-height:1.7}
+  .listo b{color:var(--ok)}
+
+  footer{border-top:1px solid var(--line);margin-top:44px;padding-top:16px;
+    font-family:var(--mono);font-size:11.5px;color:var(--muted);line-height:1.7}
+  a{color:var(--steel)}
+  @media(max-width:520px){
+    body{padding:0 16px 56px}
+    li{padding:13px 14px 14px 46px}
+    li::before{left:14px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">Tracking Distribuidora Sarego · SYNC BI</span>
+  <h1>Qué falta para salir a producción</h1>
+  <div class="fecha">18 de agosto de 2026 · medido contra Profit Plus</div>
+</header>
+
+<div class="cifras">
+  <div class="cifra"><span class="k">Clientes en el ERP</span><span class="v">4.389</span></div>
+  <div class="cifra"><span class="k">Con ubicación</span><span class="v crit">119</span></div>
+  <div class="cifra"><span class="k">Listos para rutear</span><span class="v warn">48</span></div>
+  <div class="cifra"><span class="k">Tablas creadas</span><span class="v crit">1 / 6</span></div>
+</div>
+
+<section>
+  <h2>Bloquea la salida</h2>
+  <ol>
+    <li>
+      <span class="t">Correr el script SQL en el ERP<span class="tag cli">Cliente</span></span>
+      <span class="d">Faltan las <b>5 tablas</b>: zt_despacho, zt_despacho_doc, zt_entrega,
+      zt_entrega_reng, zt_incidencia. Script entregado y validado. <b>1 hora de su DBA.</b></span>
+    </li>
+    <li>
+      <span class="t">Aprobar el arranque por zonas<span class="tag dec">Decisión</span></span>
+      <span class="d">Salir con Caracas (30), San Antonio de los Altos (8) y Los Teques (3).
+      <b>41 clientes</b>, zona compacta. Alternativa: esperar a que carguen 4.270 ubicaciones.</span>
+    </li>
+    <li>
+      <span class="t">Corregir despachos duplicados<span class="tag nos">Nosotros</span></span>
+      <span class="d"><b>381 notas</b> facturadas en varias facturas aparecen repetidas en el
+      tablero. <b>Medio día.</b></span>
+    </li>
+    <li>
+      <span class="t">Conectar la escritura al ERP<span class="tag nos">Nosotros</span></span>
+      <span class="d">Paso 4.1 del diagrama. Depende del punto 1. <b>2 días.</b></span>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <h2>Antes de entregar al cliente</h2>
+  <ol start="5">
+    <li>
+      <span class="t">Cerrar el acceso de emergencia<span class="tag nos">Nosotros</span></span>
+      <span class="d">Si faltan las claves de Firebase, la app abre con <b>admin123</b> en vez de
+      fallar. Hoy no está activo en producción. <b>2 horas.</b></span>
+    </li>
+    <li>
+      <span class="t">Documentar las variables de entorno<span class="tag nos">Nosotros</span></span>
+      <span class="d">.env.example cubre 11 de <b>19</b>. Faltan todas las de SQL Server y
+      tracking. <b>1 hora.</b></span>
+    </li>
+    <li>
+      <span class="t">Capacitar al operador y al conductor<span class="tag dec">Decisión</span></span>
+      <span class="d">Manuales ya escritos. Falta agendar. <b>Medio día.</b></span>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <h2>No bloquea, decidir después</h2>
+  <ol start="8">
+    <li>
+      <span class="t">Acuse de recibo en WhatsApp<span class="tag cli">Cliente</span></span>
+      <span class="d">Hoy se sabe que el aviso se envió, no que el cliente lo leyó. Confirmarlo
+      exige WhatsApp Business API: verificación de Meta y <b>costo por conversación</b>.</span>
+    </li>
+    <li>
+      <span class="t">Segundo contacto por cliente<span class="tag cli">Cliente</span></span>
+      <span class="d">saCliente no tiene campo de contacto secundario. Sin él, si el cliente no
+      contesta el conductor no tiene a quién llamar. Tabla incluida en el script del punto 1.</span>
+    </li>
+  </ol>
+</section>
+
+<section>
+  <h2>Ya está resuelto</h2>
+  <div class="listo">
+    <b>✓</b> Aplicación desplegada y conectada al ERP<br>
+    <b>✓</b> 22 de las 25 capacidades del diagrama, operativas<br>
+    <b>✓</b> 6 alertas automáticas y 5 indicadores<br>
+    <b>✓</b> 110 pruebas automatizadas en verde<br>
+    <b>✓</b> Aviso al cliente por WhatsApp al salir del almacén<br>
+    <b>✓</b> Aprendizaje de ubicaciones desde el GPS de las entregas<br>
+    <b>✓</b> Comprobante de entrega con firma, fotos y coordenadas
+  </div>
+</section>
+
+<footer>
+  Cifras medidas contra la base SARUSA_AD el 18-08-2026.<br>
+  Estado siempre actualizado: <a href="https://tracking-distribuidora-venezuela.vercel.app/estado.html">/estado.html</a>
+</footer>
+
+</div>
+</body>
+</html>
