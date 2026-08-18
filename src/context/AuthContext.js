@@ -46,8 +46,14 @@ if (isFirebaseConfigured()) {
   }
 }
 
-// Usuarios MOCK para desarrollo (fallback si Firebase no está configurado)
-const MOCK_USERS = [
+// Los usuarios de prueba existen SOLO en desarrollo.
+//
+// La comparación con 'production' es literal a propósito: el compilador la
+// resuelve al construir y elimina el arreglo entero del paquete que se publica,
+// así las contraseñas no viajan al navegador del usuario final.
+const PERMITE_DEMO = process.env.NODE_ENV !== 'production';
+
+const MOCK_USERS = !PERMITE_DEMO ? [] : [
   { id: 1, name: 'Admin', email: 'admin@example.com', password: 'admin123', role: 'admin', uid: 'mock-admin' },
   { id: 2, name: 'Operador', email: 'op@example.com', password: 'op123', role: 'operador', uid: 'mock-operador' },
   { id: 3, name: 'Despachador', email: 'disp@example.com', password: 'disp123', role: 'despachador', uid: 'mock-despachador' },
@@ -67,7 +73,15 @@ export const AuthProvider = ({ children }) => {
   // Listener de autenticación de Firebase
   useEffect(() => {
     if (!auth) {
-      // Modo MOCK: cargar de localStorage
+      // Sin Firebase en producción no hay sesión que restaurar: una sesión
+      // guardada de antes no debe servir para entrar a una app sin autenticación.
+      if (!PERMITE_DEMO) {
+        console.error('❌ Firebase no está configurado. La aplicación no puede autenticar.');
+        setLoading(false);
+        return;
+      }
+
+      // En desarrollo: recuperar la sesión de prueba
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) setUser(JSON.parse(raw));
@@ -195,29 +209,33 @@ export const AuthProvider = ({ children }) => {
         errorMessage = error.message;
       }
 
-      // FALLBACK: Si Firebase falla, intentar con usuarios MOCK
-      const found = MOCK_USERS.find(u => u.email === email && u.password === password);
-      if (found) {
-        console.warn('⚠️ Firebase Auth falló, usando autenticación MOCK');
-        const safeUser = {
-          uid: found.uid,
-          id: found.id,
-          name: found.name,
-          email: found.email,
-          role: found.role
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(safeUser));
-        setUser(safeUser);
-        return safeUser;
-      }
-
+      // Aquí NO se cae a los usuarios de prueba.
+      //
+      // Antes, si Firebase rechazaba unas credenciales, este bloque las
+      // comparaba contra la lista de demo y dejaba entrar. Como Firebase
+      // rechaza cualquier correo que no exista, bastaba escribir el usuario
+      // demo para entrar como administrador en producción.
+      //
+      // Si Firebase está configurado, es la única autoridad: lo que él rechaza,
+      // queda rechazado.
       throw new Error(errorMessage);
     }
   } else {
-    // Sin Firebase Auth, solo MOCK
+    // Sin Firebase configurado.
+    //
+    // En producción esto es un despliegue incompleto: faltan las variables de
+    // entorno. La aplicación debe decirlo y negarse a entrar, en vez de abrir
+    // con usuarios de prueba, que es como quedaba abierta a cualquiera.
+    if (!PERMITE_DEMO) {
+      throw new Error(
+        'La aplicación no está conectada al servicio de autenticación. ' +
+        'Avisa al administrador: faltan las variables de configuración de Firebase.'
+      );
+    }
+
     const found = MOCK_USERS.find(u => u.email === email && u.password === password);
     if (found) {
-      console.warn('⚠️ Usando autenticación MOCK (Firebase no disponible)');
+      console.warn('⚠️ Usando autenticación de desarrollo (Firebase no disponible)');
       const safeUser = {
         uid: found.uid,
         id: found.id,

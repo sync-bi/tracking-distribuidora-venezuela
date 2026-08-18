@@ -439,9 +439,9 @@ const FullGuideModal = ({ onClose }) => {
               <h4 className="font-bold text-indigo-900 mb-2">Para Conductores con Dispositivo Móvil</h4>
               <p className="text-indigo-800 mb-2"><strong>Paso 1:</strong> Iniciar Sesión como Conductor</p>
               <ul className="list-disc pl-6 text-indigo-800 mb-2">
-                <li>Usuario: driver@example.com</li>
-                <li>Contraseña: driver123</li>
-                <li>Rol: Conductor</li>
+                <li>Entra con el usuario y la contraseña que te dio el administrador</li>
+                <li>Tu cuenta debe tener el rol <strong>Conductor</strong></li>
+                <li>Si no puedes entrar, pídele al administrador que revise tu cuenta</li>
               </ul>
               <p className="text-indigo-800 mb-2"><strong>Paso 2:</strong> Ir a la Pestaña "Conductor"</p>
               <p className="text-indigo-800 mb-2"><strong>Paso 3:</strong> Seleccionar tu Camión - Despliega el selector y elige tu camión asignado</p>

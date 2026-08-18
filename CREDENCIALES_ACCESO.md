@@ -1,197 +1,66 @@
-# 🔐 Credenciales de Acceso - Sistema de Tracking
+# Acceso al sistema de tracking
 
-**Fecha de actualización:** 26 Enero 2025
-**Modo:** Desarrollo Local (MOCK)
-
----
-
-## 👥 Usuarios Disponibles
-
-El sistema funciona en modo desarrollo con usuarios de prueba. Usa cualquiera de estas credenciales para acceder:
-
-### 1️⃣ Administrador
-```
-Email: admin@example.com
-Contraseña: admin123
-Rol: admin
-```
-**Acceso:** Total al sistema (todas las pestañas)
+**Actualizado:** 18 de agosto de 2026
 
 ---
 
-### 2️⃣ Operador
-```
-Email: op@example.com
-Contraseña: op123
-Rol: operador
-```
-**Acceso:** Gestión operativa completa (todas las pestañas excepto gestión de usuarios)
+## Producción
+
+Las cuentas las crea el administrador en **Firebase Authentication**, y el rol
+se asigna en la colección `usuarios` de Firestore.
+
+No existen usuarios genéricos ni contraseñas compartidas. Cada persona entra con
+su propia cuenta, y así queda registrado quién hizo cada cosa.
+
+Si no puedes entrar, pídele al administrador que revise tu cuenta en Firebase.
+
+### Roles
+
+| Rol | Qué puede hacer |
+|---|---|
+| `admin` | Todo, incluida la gestión de usuarios |
+| `operador` | Toda la operación, sin gestionar usuarios |
+| `despachador` | Armar despachos y asignar camiones |
+| `conductor` | Su propia ruta y el registro de entregas |
+| `vendedor` | Consultar los despachos de sus clientes |
+| `visor` | Solo lectura |
 
 ---
 
-### 3️⃣ Despachador
-```
-Email: disp@example.com
-Contraseña: disp123
-Rol: despachador
-```
-**Acceso:** Despachos, Seguimiento, Camiones, Mapa, Ubicaciones, Clientes
+## Desarrollo local
+
+Cuando se trabaja en local **sin** configurar Firebase, la aplicación ofrece unas
+cuentas de prueba para poder entrar. Están definidas en
+`src/context/AuthContext.js` y la pantalla de acceso las muestra en la parte de
+abajo.
+
+Esas cuentas **no existen en producción**. El compilador las elimina del paquete
+publicado, y la aplicación desplegada las rechaza aunque alguien las escriba.
+
+Para trabajar contra el Firebase real, copia `.env.example` a `.env.local` y
+rellena las claves. Con Firebase configurado, las cuentas de prueba no se usan.
 
 ---
 
-### 4️⃣ Vendedor (NUEVO) ⭐
-```
-Email: vendedor@example.com
-Contraseña: vendedor123
-Rol: vendedor
-Nombre: Juan Pérez
-```
-**Acceso:** Clientes, Pedidos, Mapa
-**Perfil:** Solo ve su cartera de clientes asignados
+## Qué pasa si falta la configuración de Firebase
+
+En producción la aplicación **se niega a abrir** y muestra que faltan las
+variables de entorno.
+
+Es deliberado. Antes, si Firebase no respondía, la aplicación caía en las cuentas
+de prueba y quedaba accesible con una contraseña conocida. Un despliegue mal
+configurado debe fallar a la vista, no abrirse solo.
 
 ---
 
-### 5️⃣ Visor
-```
-Email: visor@example.com
-Contraseña: visor123
-Rol: visor
-```
-**Acceso:** Solo lectura (Mapa, Pedidos, Seguimiento)
+## Página de estado del proyecto
+
+`/estado.html` muestra cifras del negocio y está aparte del acceso de la
+aplicación. Se protege con la variable `ESTADO_TOKEN`: definida, la página solo
+abre con `?t=EL_VALOR` en la URL.
 
 ---
 
-### 6️⃣ Conductor
-```
-Email: driver@example.com
-Contraseña: driver123
-Rol: conductor
-```
-**Acceso:** Módulo de tracking GPS (Conductor, Mapa)
+## Consultas
 
----
-
-## 🚀 Cómo Iniciar Sesión
-
-1. Abrir el sistema en el navegador
-2. Copiar el **email** del usuario que quieres probar
-3. Copiar la **contraseña**
-4. Hacer clic en "Iniciar Sesión"
-5. ¡Listo! El sistema te redirigirá al dashboard correspondiente
-
----
-
-## 🎯 Usuario Recomendado para Probar el Módulo de Clientes
-
-### **Vendedor**
-```
-Email: vendedor@example.com
-Contraseña: vendedor123
-```
-
-Este usuario te permite probar todas las funcionalidades del nuevo módulo de Gestión de Clientes:
-- Filtrar por vendedor (verás solo clientes de "Juan Pérez")
-- Corregir ubicaciones
-- Ver historial de cambios
-- Interfaz optimizada para vendedores
-
----
-
-## 📋 Comparación de Permisos
-
-| Módulo | Admin | Operador | Despachador | Vendedor | Visor | Conductor |
-|--------|-------|----------|-------------|----------|-------|-----------|
-| Pedidos | ✅ | ✅ | ❌ | ✅ (lectura) | ✅ (lectura) | ❌ |
-| Camiones | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Despachos | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Seguimiento | ✅ | ✅ | ✅ | ❌ | ✅ (lectura) | ❌ |
-| Conductor | ✅ | ✅ | ❌ | ❌ | ❌ | ✅ |
-| Mapa | ✅ | ✅ | ✅ | ✅ (lectura) | ✅ (lectura) | ✅ |
-| Ubicaciones | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Clientes** | ✅ | ✅ | ✅ | ✅ (solo su cartera) | ❌ | ❌ |
-
----
-
-## 🔄 Modo Producción (Firebase)
-
-Cuando el sistema esté en producción con Firebase, estos usuarios MOCK dejarán de funcionar.
-
-Las credenciales reales se gestionarán desde:
-- **Firebase Authentication** (emails y contraseñas)
-- **Firestore** (roles y permisos)
-
----
-
-## 🆘 Problemas de Acceso
-
-### "Credenciales inválidas"
-- ✅ Verifica que estés copiando el email completo (incluyendo `@example.com`)
-- ✅ Verifica que la contraseña no tenga espacios extra
-- ✅ Intenta copiar y pegar directamente desde este documento
-
-### "No tienes permisos para esta pestaña"
-- ✅ Es normal - cada rol tiene permisos limitados
-- ✅ Prueba con el usuario **Admin** para acceso completo
-
-### La sesión expira al refrescar
-- ✅ Esto es temporal en modo MOCK
-- ✅ Simplemente vuelve a iniciar sesión
-
----
-
-## 📝 Notas Importantes
-
-1. **Estos son usuarios de PRUEBA** - No usar en producción
-2. **Las contraseñas son simples** - Solo para desarrollo
-3. **Los datos se pierden al refrescar** - Hasta resolver Firebase
-4. **Cada usuario tiene su propia "vista"** - Prueba con diferentes roles
-
----
-
-## 🎓 Escenarios de Prueba Sugeridos
-
-### Escenario 1: Flujo Completo como Admin
-```
-Login: admin@example.com / admin123
-1. Ir a Pedidos → Ver pedidos existentes
-2. Ir a Clientes → Ver todos los clientes
-3. Corregir ubicación de un cliente
-4. Ir a Despachos → Crear despacho
-5. Ir a Seguimiento → Ver despacho creado
-```
-
-### Escenario 2: Flujo de Vendedor
-```
-Login: vendedor@example.com / vendedor123
-1. Ir a Clientes → Solo verás clientes de "Juan Pérez"
-2. Filtrar por "Juan Pérez" (debería estar pre-filtrado)
-3. Seleccionar un cliente
-4. Corregir su ubicación
-5. Ver historial de cambios
-```
-
-### Escenario 3: Flujo de Despachador
-```
-Login: disp@example.com / disp123
-1. Ir a Clientes → Verificar ubicaciones
-2. Ir a Despachos → Crear despacho con pedidos por zona
-3. Ir a Seguimiento → Optimizar ruta y monitorear
-```
-
----
-
-## 🔗 Documentación Relacionada
-
-- **Guía Completa de Usuario**: `GUIA_USUARIO_COMPLETA.md`
-- **Módulo de Clientes**: `MODULO_GESTION_CLIENTES.md`
-- **Estado del Proyecto**: `ESTADO_PROYECTO_2025-01-18.md`
-
----
-
-**¿Necesitas agregar más usuarios o cambiar contraseñas?**
-Contacta al desarrollador o modifica el archivo `src/context/AuthContext.js` línea 48-54.
-
----
-
-**Última actualización:** 26 Enero 2025
-**Versión:** 2.0 (incluye rol vendedor)
+Carlos Montero — SYNC BI — carlos.montero@syncbi.net

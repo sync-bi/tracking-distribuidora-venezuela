@@ -65,9 +65,14 @@ const Login = () => {
             {loading ? 'Ingresando…' : 'Ingresar'}
           </button>
 
-          <div className="text-xs text-gray-500 mt-2">
-            Usuarios demo: admin@example.com/admin123, op@example.com/op123, disp@example.com/disp123, visor@example.com/visor123
-          </div>
+          {/* Las credenciales de prueba solo se muestran en desarrollo. El
+              compilador elimina este bloque del paquete de producción, donde
+              estaban a la vista de cualquiera que abriera la pantalla. */}
+          {process.env.NODE_ENV !== 'production' && (
+            <div className="text-xs text-gray-500 mt-2">
+              Usuarios demo: admin@example.com/admin123, op@example.com/op123, disp@example.com/disp123, visor@example.com/visor123
+            </div>
+          )}
         </form>
       </div>
     </div>
